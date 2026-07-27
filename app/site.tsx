@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
-export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "fotos-videos" | "contact";
+export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact";
 
 const nav = [
   ["home", "/", "Home"],
   ["over-de-band", "/over-de-band", "Over de band"],
   ["repertoire", "/repertoire", "Repertoire"],
   ["agenda", "/agenda", "Agenda"],
-  ["fotos-videos", "/fotos-videos", "Foto’s & Video’s"],
+  ["media", "/media", "Media"],
   ["contact", "/contact", "Contact"],
 ] as const;
 
@@ -68,14 +68,41 @@ function Hero() {
       <div className="hero-image" />
       <div className="hero-overlay" />
       <div className="hero-content">
-        <p className="eyebrow">Dé Nederlandse 80’s coverband</p>
-        <h1>Feel the<br /><em>GoodTimes.</em></h1>
+        <p className="eyebrow">Feel the GoodTimes.</p>
+        <h1>GOODTIMES,<br /><em>dé 80’s Coverband</em></h1>
         <p className="lead">Van synthpop tot stadionrock. Eén band, één avond,<br />alle hits die je woord voor woord kent.</p>
-        <div className="actions"><Link className="primary" href="/contact">Boek GoodTimes <Arrow /></Link><Link className="secondary" href="/fotos-videos">Bekijk live video <span>▶</span></Link></div>
+        <div className="actions"><Link className="primary hero-button" href="/contact">Boek GoodTimes <Arrow /></Link><Link className="secondary hero-button" href="#luisteren">Luister naar GoodTimes <span>▶</span></Link></div>
       </div>
       <div className="scroll">SCROLL TO THE 80’S <span>↓</span></div>
     </section>
   );
+}
+
+const audioTracks = [
+  { title: "The 80’s Medley", detail: "Live demo · audiofragment", audioSrc: "" },
+  { title: "Everybody Wants to Rule the World", detail: "Live demo · audiofragment", audioSrc: "" },
+  { title: "Don’t You (Forget About Me)", detail: "Live demo · audiofragment", audioSrc: "" },
+];
+
+function ListenSection() {
+  return <section className="listen-section" id="luisteren">
+    <div className="listen-intro">
+      <p className="eyebrow">Press play</p>
+      <h2>Luister naar<br /><span>GoodTimes.</span></h2>
+      <p>De sound van de eighties, live en vol energie. Deze audiospelers zijn voorbereid om jullie eigen mp3- of wav-bestanden rechtstreeks te koppelen.</p>
+      <Link className="text-link" href="/media">Bekijk alle media <Arrow /></Link>
+    </div>
+    <div className="track-list">
+      {audioTracks.map((track, index) => <article className="track" data-audio-slot={`track-${index + 1}`} key={track.title}>
+        <span className="track-number">0{index + 1}</span>
+        <button className="track-play" type="button" disabled={!track.audioSrc} aria-label={`Speel ${track.title}`}>
+          <span>▶</span>
+        </button>
+        <div className="track-info"><h3>{track.title}</h3><p>{track.detail}</p></div>
+        {track.audioSrc ? <audio controls preload="none" src={track.audioSrc}>Je browser ondersteunt geen audio.</audio> : <span className="audio-ready">Audio klaar om te koppelen</span>}
+      </article>)}
+    </div>
+  </section>;
 }
 
 function ShowList() {
@@ -98,6 +125,7 @@ function HomePage() {
         <Link className="text-link" href="/over-de-band">Ontmoet de band <Arrow /></Link>
       </div>
     </section>
+    <ListenSection />
     <section className="upcoming"><div className="section-head"><div><p className="eyebrow">Live in jouw buurt</p><h2>Binnenkort op het podium</h2></div><Link className="text-link" href="/agenda">Volledige agenda <Arrow /></Link></div><ShowList /></section>
     <section className="booking-band"><p className="eyebrow">Klaar voor een tijdreis?</p><h2>MAAK VAN JOUW EVENT<br /><span>EEN GOOD TIME.</span></h2><Link className="primary" href="/contact">Check beschikbaarheid <Arrow /></Link></section>
   </>;
@@ -129,7 +157,7 @@ function Agenda() {
 }
 
 function Media() {
-  return <><PageIntro kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="Een voorproefje van de energie op het podium. Binnenkort voegen we hier jullie eigen foto’s en video’s toe." />
+  return <><PageIntro kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="Een voorproefje van de energie op het podium. Binnenkort voegen we hier jullie eigen foto’s, video’s en audiofragmenten toe." />
     <section className="media-grid"><a className="video-card featured" href="#"><span className="play">▶</span><small>LIVE AT THE 80’S NIGHT</small><h2>Don’t You (Forget About Me)</h2></a>{["Crowd goes wild","Synths & singalongs","Backstage GoodTimes","The final countdown"].map((x,i)=><div className={`media-card m${i+1}`} key={x}><span>0{i+1}</span><h3>{x}</h3></div>)}</section>
     <section className="social-call"><p>Volg de band voor nieuwe livebeelden, aankondigingen en backstage-momenten.</p><div className="socials"><a href="#">f</a><a href="#">◎</a><a href="#">▶</a></div></section>
   </>;
@@ -151,6 +179,6 @@ function Contact() {
 }
 
 export function GoodTimesSite({ page }: { page: PageKey }) {
-  const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "fotos-videos" ? <Media /> : <Contact />;
-  return <><Header page={page} /><main>{content}</main><Footer /></>;
+  const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : <Contact />;
+  return <><Header page={page === "fotos-videos" ? "media" : page} /><main>{content}</main><Footer /></>;
 }

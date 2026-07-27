@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { repertoireCategories } from "./repertoire-data";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact";
 
@@ -19,12 +20,6 @@ const shows = [
   { day: "04", month: "OKT", place: "Utrecht", venue: "TivoliVredenburg — Clubnacht", note: "Aanvang 21:00" },
   { day: "22", month: "NOV", place: "Eindhoven", venue: "Effenaar — 80’s Forever", note: "Aanvang 20:30" },
 ];
-
-const songs = {
-  "Pop & New Wave": ["Take On Me — a-ha", "Don’t You (Forget About Me) — Simple Minds", "The Reflex — Duran Duran", "Tainted Love — Soft Cell", "Everybody Wants to Rule the World — Tears for Fears"],
-  "Rock Anthems": ["Jump — Van Halen", "Livin’ on a Prayer — Bon Jovi", "The Final Countdown — Europe", "Summer of ’69 — Bryan Adams", "You Give Love a Bad Name — Bon Jovi"],
-  "Dancefloor": ["You Spin Me Round — Dead or Alive", "I Think We’re Alone Now — Tiffany", "Maniac — Michael Sembello", "Footloose — Kenny Loggins", "Venus — Bananarama"],
-};
 
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
@@ -119,8 +114,8 @@ function About() {
 }
 
 function Repertoire() {
-  return <><PageIntro kicker="All killer. No filler." title="DE SOUNDTRACK" accent="VAN DE 80’S." text="Een dansbare set vol synthpop, new wave, powerballads en stadionrock. Bekend vanaf de eerste noot." />
-    <section className="repertoire-grid">{Object.entries(songs).map(([genre, list], i)=><article key={genre}><span>0{i+1}</span><h2>{genre}</h2><ol>{list.map(song=><li key={song}>{song}</li>)}</ol></article>)}</section>
+  return <><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="Van internationale dance classics tot herkenbare Nederpop. Onderstaande nummers zijn placeholders en kunnen later eenvoudig vanuit een CSV worden geladen." />
+    <section className="repertoire-grid">{repertoireCategories.map((category, i)=><article key={category.name}><span>0{i+1}</span><h2>{category.name}</h2><ol>{category.songs.map((song)=><li key={`${song.title}-${song.artist}`}><strong>{song.title}</strong><small>{song.artist}</small></li>)}</ol></article>)}</section>
     <section className="note"><p>Ons repertoire groeit voortdurend. Voor een bruiloft of bedrijfsevent denken we graag mee over de perfecte set.</p><Link className="primary" href="/contact">Bespreek jouw event <Arrow /></Link></section>
   </>;
 }

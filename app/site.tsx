@@ -105,7 +105,7 @@ function PageIntro({ kicker, title, accent, text, className = "" }: { kicker: st
 }
 
 function About() {
-  const members = [["LEX","Zang"],["NINA","Keys & vocals"],["MARC","Gitaar"],["DANIËL","Bas"],["ERIC","Drums"]];
+  const members = [["LEX","Zang"],["NINA","Keys & vocals"],["JOOST","Gitaar"],["DANIËL","Bas"],["ERIC","Drums"]];
   return <><PageIntro kicker="Vijf muzikanten. Eén tijdmachine." title="DIT IS" accent="GOODTIMES." text="Een energieke Nederlandse liveband met een zwak voor grote refreinen, analoge synths en volle dansvloeren." />
     <section className="about-grid"><div className="about-image" /><div><p className="eyebrow">Ons verhaal</p><h2>Geboren uit liefde voor een gouden decennium.</h2><p>GoodTimes ontstond uit een gedeelde liefde voor de muziek die de jaren tachtig kleur gaf. Geen verkleedpartij, maar een eigentijdse liveshow die de songs respecteert en hun energie opnieuw laat knallen.</p><p>Van intieme club tot groot festival: we maken contact, bouwen spanning op en laten pas los als iedereen meezingt.</p></div></section>
     <section className="members"><p className="eyebrow">The band</p><h2>De mensen achter de sound</h2><div className="member-grid">{members.map(([name, role],i)=><article key={name}><div className={`portrait p${i+1}`}><span>0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div></section>

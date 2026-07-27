@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
-import { repertoireCategories } from "./repertoire-data";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact";
 
@@ -113,9 +112,54 @@ function About() {
   </>;
 }
 
+type RepertoireSong = { id: string; title: string; artist: string; category: string };
+
 function Repertoire() {
-  return <><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="Van internationale dance classics tot herkenbare Nederpop. Onderstaande nummers zijn placeholders en kunnen later eenvoudig vanuit een CSV worden geladen." />
-    <section className="repertoire-grid">{repertoireCategories.map((category, i)=><article key={category.name}><span>0{i+1}</span><h2>{category.name}</h2><ol>{category.songs.map((song)=><li key={`${song.title}-${song.artist}`}><strong>{song.title}</strong><small>{song.artist}</small></li>)}</ol></article>)}</section>
+  const [songs, setSongs] = useState<RepertoireSong[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site/api/repertoire", {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Repertoire kon niet worden geladen");
+        return response.json() as Promise<{ songs?: RepertoireSong[] }>;
+      })
+      .then((data) => {
+        setSongs(Array.isArray(data.songs) ? data.songs : []);
+        setStatus("ready");
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setStatus("error");
+      });
+    return () => controller.abort();
+  }, []);
+
+  const categories = useMemo(() => {
+    const grouped = new Map<string, RepertoireSong[]>();
+    songs.forEach((song) => {
+      const category = song.category?.trim() || "Repertoire";
+      grouped.set(category, [...(grouped.get(category) ?? []), song]);
+    });
+    return [...grouped.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, "nl", { sensitivity: "base" }))
+      .map(([name, categorySongs]) => ({
+        name,
+        songs: categorySongs.sort((a, b) => a.title.localeCompare(b.title, "nl", { sensitivity: "base" })),
+      }));
+  }, [songs]);
+
+  return <><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="Het actuele repertoire van GoodTimes, rechtstreeks uit de Setlist Maker." />
+    <section className="repertoire-grid">
+      {status === "loading" && <article><span>LIVE</span><h2>Repertoire laden…</h2></article>}
+      {status === "error" && <article><span>LET OP</span><h2>Repertoire tijdelijk niet beschikbaar</h2></article>}
+      {status === "ready" && categories.length === 0 && <article><span>LIVE</span><h2>Nog geen nummers beschikbaar</h2></article>}
+      {categories.map((category, i)=><article key={category.name}><span>{String(i+1).padStart(2, "0")}</span><h2>{category.name}</h2><ol>{category.songs.map((song)=><li key={song.id || `${song.title}-${song.artist}`}><strong>{song.title}</strong><small>{song.artist}</small></li>)}</ol></article>)}
+    </section>
     <section className="note"><p>Ons repertoire groeit voortdurend. Voor een bruiloft of bedrijfsevent denken we graag mee over de perfecte set.</p><Link className="primary" href="/contact">Bespreek jouw event <Arrow /></Link></section>
   </>;
 }

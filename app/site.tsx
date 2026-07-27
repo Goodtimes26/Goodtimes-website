@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { audioTracks } from "./audio-tracks";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact";
 
@@ -170,6 +169,13 @@ function Agenda() {
 }
 
 function Media() {
+  const [audioTracks, setAudioTracks] = useState<{ title: string; src: string }[]>([]);
+  useEffect(() => {
+    fetch("/audio/tracks.json")
+      .then((response) => response.json())
+      .then((tracks) => setAudioTracks(Array.isArray(tracks) ? tracks : []))
+      .catch(() => setAudioTracks([]));
+  }, []);
   return <><PageIntro kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="Een voorproefje van de energie op het podium. Binnenkort voegen we hier jullie eigen foto’s, video’s en audiofragmenten toe." />
     <div id="audio" className="audio-anchor" aria-hidden="true" />
     <section className="audio-list" aria-label="Audio van GoodTimes">

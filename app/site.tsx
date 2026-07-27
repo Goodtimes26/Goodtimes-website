@@ -100,8 +100,8 @@ function HomePage() {
   </>;
 }
 
-function PageIntro({ kicker, title, accent, text }: { kicker: string; title: string; accent: string; text: string }) {
-  return <section className="page-intro"><p className="eyebrow">{kicker}</p><h1>{title}<br /><em>{accent}</em></h1><p>{text}</p></section>;
+function PageIntro({ kicker, title, accent, text, className = "" }: { kicker: string; title: string; accent: string; text: string; className?: string }) {
+  return <section className={`page-intro ${className}`.trim()}><p className="eyebrow">{kicker}</p><h1>{title}<br /><em>{accent}</em></h1><p>{text}</p></section>;
 }
 
 function About() {
@@ -176,7 +176,7 @@ function Media() {
       .then((tracks) => setAudioTracks(Array.isArray(tracks) ? tracks : []))
       .catch(() => setAudioTracks([]));
   }, []);
-  return <><PageIntro kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="Een voorproefje van de energie op het podium. Binnenkort voegen we hier jullie eigen foto’s, video’s en audiofragmenten toe." />
+  return <><PageIntro className="media-intro" kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="De opnames zijn gemaakt tijdens onze repetities. Ongeslepen, puur en ruw. Precies zoals GoodTimes live klinkt. Een eerlijk voorproefje van de energie en sfeer die je tijdens een optreden kunt verwachten." />
     <div id="audio" className="audio-anchor" aria-hidden="true" />
     <section className="audio-list" aria-label="Audio van GoodTimes">
       {audioTracks.map((track)=><article className="audio-track" key={track.src}><h2>{track.title}</h2><audio controls preload="metadata" src={track.src}>Je browser ondersteunt deze audioplayer niet.</audio></article>)}

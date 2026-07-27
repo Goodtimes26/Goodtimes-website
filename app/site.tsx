@@ -181,8 +181,6 @@ function Media() {
     <section className="audio-list" aria-label="Audio van GoodTimes">
       {audioTracks.map((track)=><article className="audio-track" key={track.src}><h2>{track.title}</h2><audio controls preload="metadata" src={track.src}>Je browser ondersteunt deze audioplayer niet.</audio></article>)}
     </section>
-    <section className="media-grid"><a className="video-card featured" href="#"><span className="play">▶</span><small>LIVE AT THE 80’S NIGHT</small><h2>Don’t You (Forget About Me)</h2></a>{["Crowd goes wild","Synths & singalongs","Backstage GoodTimes","The final countdown"].map((x,i)=><div className={`media-card m${i+1}`} key={x}><span>0{i+1}</span><h3>{x}</h3></div>)}</section>
-    <section className="social-call"><p>Volg de band voor nieuwe livebeelden, aankondigingen en backstage-momenten.</p><div className="socials"><a href="#">f</a><a href="#">◎</a><a href="#">▶</a></div></section>
   </>;
 }
 

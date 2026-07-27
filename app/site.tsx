@@ -156,7 +156,7 @@ function Repertoire() {
       {status === "loading" && <article><span>LIVE</span><h2>Repertoire laden…</h2></article>}
       {status === "error" && <article><span>LET OP</span><h2>Repertoire tijdelijk niet beschikbaar</h2></article>}
       {status === "ready" && categories.length === 0 && <article><span>LIVE</span><h2>Nog geen nummers beschikbaar</h2></article>}
-      {categories.map((category, i)=><article key={category.name}><span>{String(i+1).padStart(2, "0")}</span><h2>{category.name}</h2><ol>{category.songs.map((song)=><li key={song.id || `${song.title}-${song.artist}`}><strong>{song.title}</strong><small>{song.artist}</small></li>)}</ol></article>)}
+      {categories.map((category, i)=><article key={category.name}><span>{String(i+1).padStart(2, "0")}</span><h2>{category.name}</h2><ol>{category.songs.map((song)=><li key={song.id || `${song.title}-${song.artist}`}><strong>{song.title}</strong></li>)}</ol></article>)}
     </section>
     <section className="note"><p>Ons repertoire groeit voortdurend. Voor een bruiloft of bedrijfsevent denken we graag mee over de perfecte set.</p><Link className="primary" href="/contact">Bespreek jouw event <Arrow /></Link></section>
   </>;

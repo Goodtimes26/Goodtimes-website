@@ -145,12 +145,10 @@ function Repertoire() {
       const category = song.category?.trim() || "Repertoire";
       grouped.set(category, [...(grouped.get(category) ?? []), song]);
     });
-    return [...grouped.entries()]
-      .sort(([a], [b]) => a.localeCompare(b, "nl", { sensitivity: "base" }))
-      .map(([name, categorySongs]) => ({
-        name,
-        songs: categorySongs.sort((a, b) => a.title.localeCompare(b.title, "nl", { sensitivity: "base" })),
-      }));
+    return [...grouped.entries()].map(([name, categorySongs]) => ({
+      name,
+      songs: categorySongs,
+    }));
   }, [songs]);
 
   return <><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="Het actuele repertoire van GoodTimes, rechtstreeks uit de Setlist Maker." />

@@ -375,3 +375,135 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
 }
 @media(prefers-reduced-motion:reduce){.home-hero .hero-content>*,.home-usp-strip li{animation:none!important}}
 
+/* Laatste professionele verfijning: consistente ritmes, kaarten en interactiestaten. */
+:root{
+  --radius-button:6px;
+  --section-space:clamp(76px,8vw,118px);
+  --content-width:1280px;
+}
+html{scroll-padding-top:92px}
+body{line-height:1.6;text-rendering:optimizeLegibility}
+main{overflow:clip}
+section{padding-top:var(--section-space);padding-bottom:var(--section-space)}
+a,button{-webkit-tap-highlight-color:transparent}
+a:focus-visible,button:focus-visible,audio:focus-visible{
+  outline:2px solid var(--cyan);outline-offset:4px;
+}
+.primary,.secondary,.nav-cta{border-radius:var(--radius-button)}
+.primary,.secondary,.nav-cta,.text-link{transition-duration:.22s}
+.primary,.secondary,.nav-cta{min-height:50px}
+.text-link{line-height:1.45}
+
+/* Homepage: compactere eerste indruk en een rustiger evenwicht tussen tekst en foto. */
+.home-hero{min-height:clamp(680px,calc(100svh - 78px),860px)}
+.home-hero .hero-content{width:52%;padding-top:clamp(72px,7vw,104px);padding-bottom:clamp(72px,7vw,104px)}
+.home-hero .hero-image{width:48%}
+.home-usp-strip ul{max-width:var(--content-width)}
+.home-usp-strip li{gap:11px;padding:10px 20px}
+.home-usp-strip li:before{
+  display:inline-grid;place-items:center;flex:0 0 28px;width:28px;height:28px;margin:0;
+  border:1px solid rgba(40,215,255,.34);border-radius:50%;
+  background:rgba(40,215,255,.075);font-size:13px;
+}
+.home-intro-copy,.home-highlights,.home-links{width:min(100%,var(--content-width));margin-left:auto;margin-right:auto}
+.home-highlights li{border-radius:10px;background:rgba(12,17,34,.5)}
+
+/* Gedeelde kaarten en paginaritme. */
+.page-intro{min-height:520px;padding-bottom:84px}
+.audio-track,.repertoire-grid article,.agenda-event,.contact-card,.member-grid article{
+  border-color:rgba(84,111,174,.36);
+  box-shadow:0 18px 48px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.025);
+}
+.audio-track,.repertoire-grid article,.member-grid article{
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.audio-track:hover,.repertoire-grid article:hover,.member-grid article:hover{
+  transform:translateY(-3px);border-color:rgba(40,215,255,.38);
+  box-shadow:0 24px 56px rgba(0,0,0,.38),0 0 22px rgba(40,215,255,.055);
+}
+
+/* Repertoire: ruimere regels en duidelijker te scannen categorieën. */
+.repertoire-grid{gap:24px;padding-top:88px;padding-bottom:88px}
+.repertoire-grid article{padding:clamp(30px,3vw,42px)}
+.repertoire-grid h2{margin:15px 0 24px;line-height:1.08}
+.repertoire-grid li{min-height:52px;padding:14px 10px;line-height:1.55}
+.repertoire-grid li:nth-child(even){background:rgba(255,255,255,.012)}
+.repertoire-grid li strong{overflow-wrap:anywhere}
+.note{gap:42px}
+
+/* Over de band: grotere portretten en consequente kaartafwerking. */
+.about-story{padding-top:96px;padding-bottom:96px}
+.about-story-inner{max-width:860px}
+.about-story-inner>p:not(.eyebrow){max-width:72ch}
+.about-list{gap:10px}
+.about-list li{padding:11px 14px 11px 38px;border-radius:8px;background:rgba(12,17,34,.48)}
+.about-list li::before{left:14px;top:11px}
+.members{padding-top:96px}
+.member-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.member-grid article{
+  overflow:hidden;padding:12px 12px 20px;border:1px solid var(--line);
+  border-radius:var(--radius-card);background:var(--gradient-panel);
+}
+.portrait{height:clamp(380px,37vw,510px);border-radius:9px}
+.member-grid h3{margin:18px 8px 2px}
+.member-grid article>p{margin-left:8px}
+.portrait span{
+  top:16px;left:16px;display:grid;place-items:center;width:32px;height:32px;
+  border:1px solid rgba(40,215,255,.36);border-radius:50%;background:rgba(3,6,15,.76);
+}
+
+/* Agenda en contact: één duidelijke actie en sterke informatiehiërarchie. */
+.agenda-page{padding-top:72px}
+.agenda-event{transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.agenda-event:hover{transform:translateY(-3px);border-color:rgba(40,215,255,.4);box-shadow:var(--shadow-lift)}
+.agenda-time{font-size:16px}
+.contact-card{max-width:880px}
+.contact-mail-button{box-shadow:0 12px 32px rgba(21,157,255,.2)}
+.contact-mail-button:hover{box-shadow:0 16px 38px rgba(21,157,255,.3),0 0 20px rgba(140,97,255,.16)}
+.contact-facebook-button{background:linear-gradient(135deg,#1769aa,#704ad9)}
+
+/* Footer: grotere aanraakvlakken en een rustiger slot. */
+footer{padding-top:68px}
+.socials a{width:44px;height:44px}
+.socials .facebook-follow{width:auto;min-height:44px;padding:0 16px;border-radius:22px}
+.footer-bottom{align-items:center;gap:24px;line-height:1.6}
+
+@media(max-width:900px){
+  :root{--section-space:clamp(68px,9vw,88px)}
+  .home-hero .hero-content{width:55%}
+  .home-hero .hero-image{width:45%}
+  .member-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+  .portrait{height:clamp(360px,58vw,500px)}
+  .page-intro{min-height:460px}
+}
+@media(max-width:767px){
+  :root{--section-space:64px}
+  section{padding-left:18px;padding-right:18px}
+  .home-hero{min-height:auto}
+  .home-hero .hero-content{width:100%;padding:calc(66.667vw + 24px) 20px 34px}
+  .home-hero .hero-image{width:100%}
+  .home-usp-strip li:before{flex-basis:26px;width:26px;height:26px}
+  .page-intro{min-height:auto;padding-top:112px;padding-bottom:64px}
+  .about-story{padding-top:68px;padding-bottom:68px}
+  .members{padding-top:68px}
+  .member-grid{gap:16px 10px}
+  .member-grid article{padding:7px 7px 14px}
+  .portrait{height:clamp(250px,68vw,310px)}
+  .member-grid h3{margin:14px 5px 2px;font-size:22px}
+  .member-grid article>p{margin-left:5px}
+  .portrait span{top:11px;left:11px;width:28px;height:28px}
+  .repertoire-grid{gap:16px;padding-top:60px;padding-bottom:60px}
+  .repertoire-grid article{padding:28px 20px}
+  .repertoire-grid li{min-height:48px;padding:12px 6px}
+  .note{gap:30px}
+  .note .primary{width:100%;justify-content:space-between}
+  .agenda-page{padding-top:34px}
+  .contact-mail-button,.contact-facebook-button{min-height:54px}
+  footer{padding-top:58px}
+  .footer-bottom{align-items:center;text-align:center}
+}
+@media(max-width:390px){
+  .member-grid{grid-template-columns:1fr}
+  .portrait{height:min(118vw,450px)}
+}
+

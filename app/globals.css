@@ -26,7 +26,7 @@
   --font-display:"Orbitron",Arial,sans-serif;
   --font-body:"Inter",Arial,sans-serif;
   /* HERO VERVANGEN: zet het nieuwe bestand in /public en wijzig alleen deze URL. */
-  --hero-image:url('/goodtimes-group-hero.png');
+  --hero-image:url('/goodtimes-group-hero.jpeg');
   --supporting-image:url('/goodtimes-hero.png');
   --member-1:url('/members/esther-zang.png');
   --member-2:url('/members/cindy-zang.png');

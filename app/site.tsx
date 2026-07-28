@@ -229,3 +229,4 @@ export function GoodTimesSite({ page }: { page: PageKey }) {
   const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : <Contact />;
   return <><Header page={page === "fotos-videos" ? "media" : page} /><main>{content}</main><Footer /></>;
 }
+

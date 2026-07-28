@@ -222,6 +222,11 @@ function Agenda() {
 
 function Media() {
   const [audioTracks, setAudioTracks] = useState<{ title: string; src: string }[]>([]);
+  const pauseOtherTracks = (currentTrack: HTMLAudioElement) => {
+    document.querySelectorAll<HTMLAudioElement>(".audio-track audio").forEach((track) => {
+      if (track !== currentTrack) track.pause();
+    });
+  };
   useEffect(() => {
     fetch("/audio/tracks.json")
       .then((response) => response.json())
@@ -231,7 +236,7 @@ function Media() {
   return <><PageIntro className="media-intro" kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="De opnames zijn gemaakt tijdens onze repetities. Ongeslepen, puur en ruw. Precies zoals GoodTimes live klinkt. Een eerlijk voorproefje van de energie en sfeer die je tijdens een optreden kunt verwachten." />
     <div id="audio" className="audio-anchor" aria-hidden="true" />
     <section className="audio-list" aria-label="Audio van GoodTimes">
-      {audioTracks.map((track)=><article className="audio-track" key={track.src}><h2>{track.title}</h2><audio controls preload="metadata" src={track.src}>Je browser ondersteunt deze audioplayer niet.</audio></article>)}
+      {audioTracks.map((track)=><article className="audio-track" key={track.src}><h2>{track.title}</h2><audio controls preload="metadata" src={track.src} onPlay={(event) => pauseOtherTracks(event.currentTarget)}>Je browser ondersteunt deze audioplayer niet.</audio></article>)}
     </section>
   </>;
 }

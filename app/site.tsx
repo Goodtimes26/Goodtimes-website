@@ -71,8 +71,7 @@ function Hero() {
           <p>Met jarenlange podiumervaring, aanstekelijke energie en een volledig dansbaar repertoire maken we van ieder optreden een feest.</p>
         </div>
         <div className="actions home-hero-actions">
-          <Link className="primary hero-button" href="/media">Bekijk de show <Arrow /></Link>
-          <Link className="secondary hero-button" href="/contact">Boek GoodTimes <Arrow /></Link>
+          <Link className="primary hero-button" href="/contact">Boek GoodTimes <Arrow /></Link>
         </div>
       </div>
       <div className="scroll">SCROLL TO THE 80’S <span>↓</span></div>

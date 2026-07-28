@@ -108,9 +108,30 @@ function PageIntro({ kicker, title, accent, text, className = "" }: { kicker: st
 
 function About() {
   const members = [["ESTHER","Zang"],["CINDY","Zang"],["LUUK","Toetsen"],["JOOST","Gitaar"],["EDDIE","Basgitaar"],["ERIC","Drums"]];
-  return <><PageIntro kicker="Vijf muzikanten. Eén tijdmachine." title="DIT IS" accent="GOODTIMES." text="Een energieke Nederlandse liveband met een zwak voor grote refreinen, analoge synths en volle dansvloeren." />
-    <section className="about-grid"><div className="about-image" /><div><p className="eyebrow">Ons verhaal</p><h2>Geboren uit liefde voor een gouden decennium.</h2><p>GoodTimes ontstond uit een gedeelde liefde voor de muziek die de jaren tachtig kleur gaf. Geen verkleedpartij, maar een eigentijdse liveshow die de songs respecteert en hun energie opnieuw laat knallen.</p><p>Van intieme club tot groot festival: we maken contact, bouwen spanning op en laten pas los als iedereen meezingt.</p></div></section>
-    <section className="members"><p className="eyebrow">The band</p><h2>De mensen achter de sound</h2><div className="member-grid">{members.map(([name, role],i)=><article key={name}><div className={`portrait p${i+1}`}><span>0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div></section>
+  return <><PageIntro kicker="Zes muzikanten. Eén tijdmachine." title="DIT IS" accent="GOODTIMES." text="Een energieke Nederlandse liveband met een zwak voor grote refreinen, analoge synths en volle dansvloeren." />
+    <section className="about-story">
+      <div className="about-story-inner">
+        <p className="eyebrow">Ons verhaal</p>
+        <p>Stap terug in de tijd naar het mooiste muziekdecennium ooit: de jaren 80.</p>
+        <p>GoodTimes brengt een energieke live show vol herkenning, dansbare classics en pure nostalgie. Denk aan de grootste hits van onder andere Donna Summer, Dolly Dots, Jocelyn Brown, disco, funk en de beste 80’s party classics – gespeeld met passie, kwaliteit en een flinke dosis podiumenergie.</p>
+        <p>Wij kiezen bewust voor een premium en exclusieve aanpak. Dat betekent:</p>
+        <ul className="about-list about-promises">
+          <li>maximaal een beperkt aantal optredens per jaar</li>
+          <li>altijd 100% live muziek</li>
+          <li>professionele sound en uitstraling</li>
+          <li>een avond vol dans, sfeer en herkenning</li>
+        </ul>
+        <p>GoodTimes is daarmee de perfecte band voor:</p>
+        <ul className="about-list about-events">
+          <li>festivals</li>
+          <li>bedrijfsfeesten</li>
+          <li>exclusieve evenementen</li>
+          <li>tentfeesten en dorpsfeesten</li>
+        </ul>
+        <p>Wil je jouw evenement veranderen in een echte 80’s party waar het publiek nog lang over napraat?</p>
+      </div>
+    </section>
+    <section className="members"><p className="eyebrow">The band</p><h2>De muzikanten achter de sound</h2><div className="member-grid">{members.map(([name, role],i)=><article key={name}><div className={`portrait p${i+1}`}><span>0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div></section>
   </>;
 }
 

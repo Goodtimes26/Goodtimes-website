@@ -103,7 +103,7 @@ function HomePage() {
 }
 
 function PageIntro({ kicker, title, accent, text, className = "" }: { kicker: string; title: string; accent: string; text: string; className?: string }) {
-  return <section className={`page-intro ${className}`.trim()}><p className="eyebrow">{kicker}</p><h1>{title}<br /><em>{accent}</em></h1><p>{text}</p></section>;
+  return <section className={`page-intro ${className}`.trim()}><p className="eyebrow">{kicker}</p><h1>{title}<br /><em>{accent}</em></h1>{text && <p>{text}</p>}</section>;
 }
 
 function About() {
@@ -174,7 +174,7 @@ function Repertoire() {
     }));
   }, [songs]);
 
-  return <><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="Het actuele repertoire van GoodTimes, rechtstreeks uit de Setlist Maker." />
+  return <><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="" />
     <section className="repertoire-grid">
       {status === "loading" && <article><span>LIVE</span><h2>Repertoire laden…</h2></article>}
       {status === "error" && <article><span>LET OP</span><h2>Repertoire tijdelijk niet beschikbaar</h2></article>}

@@ -14,6 +14,12 @@ const nav = [
   ["contact", "/contact", "Contact"],
 ] as const;
 
+const facebookUrl = "https://www.facebook.com/share/14sZgHUpgHK/?mibextid=wwXIfr";
+
+function FacebookIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><path fill="currentColor" d="M14 8.5V7c0-.8.5-1 1-1h2V2.1L14.1 2C10.6 2 9 4.1 9 6.7v1.8H6V13h3v9h4.5v-9h3l.5-4.5h-3Z" /></svg>;
+}
+
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
 }
@@ -43,7 +49,8 @@ function Footer() {
       <div className="brand footer-brand">GOOD<span>TIMES</span><small>THE 80’S LIVE</small></div>
       <p>De soundtrack van jouw beste avond.</p>
       <div className="socials">
-        <a href="#" aria-label="Facebook">f</a><a href="#" aria-label="Instagram">◎</a><a href="#" aria-label="YouTube">▶</a>
+        <a className="facebook-follow" href={facebookUrl} target="_blank" rel="noopener noreferrer"><FacebookIcon /><span>Volg GoodTimes op Facebook</span></a>
+        <a href="#" aria-label="Instagram">◎</a><a href="#" aria-label="YouTube">▶</a>
       </div>
       <div className="footer-bottom"><span>© 2026 GoodTimes. Alle rechten voorbehouden.</span><span>Privacy · Cookies</span></div>
     </footer>
@@ -229,6 +236,7 @@ function Contact() {
         <a href="mailto:info@goodtimescoverband.nl">info@goodtimescoverband.nl</a>
       </div>
       <a className="primary contact-mail-button" href="mailto:info@goodtimescoverband.nl">Stuur een e-mail <Arrow /></a>
+      <a className="primary contact-facebook-button" href={facebookUrl} target="_blank" rel="noopener noreferrer"><FacebookIcon /> Bekijk GoodTimes op Facebook <Arrow /></a>
       <div className="contact-bookings">
         <p className="eyebrow">Boekingen</p>
         <p>GoodTimes is beschikbaar voor bruiloften, bedrijfsfeesten, festivals, evenementen…</p>

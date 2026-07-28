@@ -35,8 +35,6 @@ jobs:
 
       - name: Build static site
         run: npm run build:pages
-        env:
-          NEXT_PUBLIC_BASE_PATH: /Goodtimes-website
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

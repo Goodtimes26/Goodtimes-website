@@ -5,8 +5,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-
 const nav = [
   ["home", "/", "Home"],
   ["over-de-band", "/over-de-band", "Over de band"],
@@ -173,7 +171,7 @@ function Agenda() {
 function Media() {
   const [audioTracks, setAudioTracks] = useState<{ title: string; src: string }[]>([]);
   useEffect(() => {
-    fetch(`${basePath}/audio/tracks.json`)
+    fetch("/audio/tracks.json")
       .then((response) => response.json())
       .then((tracks) => setAudioTracks(Array.isArray(tracks) ? tracks : []))
       .catch(() => setAudioTracks([]));

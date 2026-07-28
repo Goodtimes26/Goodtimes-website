@@ -14,12 +14,6 @@ const nav = [
   ["contact", "/contact", "Contact"],
 ] as const;
 
-const shows = [
-  { day: "12", month: "SEP", place: "Breda", venue: "Mezz — Back to the 80’s", note: "Zaal open 20:00" },
-  { day: "04", month: "OKT", place: "Utrecht", venue: "TivoliVredenburg — Clubnacht", note: "Aanvang 21:00" },
-  { day: "22", month: "NOV", place: "Eindhoven", venue: "Effenaar — 80’s Forever", note: "Aanvang 20:30" },
-];
-
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
 }
@@ -73,16 +67,6 @@ function Hero() {
       <div className="scroll">SCROLL TO THE 80’S <span>↓</span></div>
     </section>
   );
-}
-
-function ShowList() {
-  return <div className="show-list">{shows.map((show) => (
-    <article className="show-row" key={show.day + show.place}>
-      <div className="date"><b>{show.day}</b><span>{show.month}</span></div>
-      <div><span className="city">{show.place}</span><h3>{show.venue}</h3><p>{show.note}</p></div>
-      <Link href="/contact" aria-label={`Tickets voor ${show.place}`}>Tickets <Arrow /></Link>
-    </article>
-  ))}</div>;
 }
 
 function HomePage() {
@@ -186,8 +170,23 @@ function Repertoire() {
 }
 
 function Agenda() {
-  return <><PageIntro kicker="We’ll see you there" title="LIVE." accent="HARD. SAMEN." text="Bekijk waar GoodTimes binnenkort de eighties laat herleven. Voor besloten events kun je direct contact opnemen." />
-    <section className="agenda-page"><ShowList /><div className="empty-show"><span>DEC — 2026</span><h2>Jouw event hier?</h2><p>Informeer vrijblijvend naar onze beschikbaarheid.</p><Link className="text-link" href="/contact">Boek GoodTimes <Arrow /></Link></div></section>
+  return <><PageIntro kicker="GoodTimes live" title="AGENDA." accent="VENRAY." text="Een avond vol herkenbare hits uit de jaren 80." />
+    <section className="agenda-page">
+      <article className="agenda-event">
+        <div className="agenda-event-date">
+          <strong>10</strong>
+          <span>oktober</span>
+          <b>2026</b>
+        </div>
+        <div className="agenda-event-details">
+          <p className="eyebrow">GoodTimes live</p>
+          <h2>Café-Zaal De Gouwe Leeuw</h2>
+          <p className="agenda-location">Venray</p>
+          <p className="agenda-time">Aanvang 20:30 uur</p>
+          <p className="agenda-description">Een avond vol herkenbare hits uit de jaren 80.</p>
+        </div>
+      </article>
+    </section>
   </>;
 }
 

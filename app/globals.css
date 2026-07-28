@@ -201,6 +201,7 @@ body:after{
 .hero h1,.page-intro h1{font-weight:800;letter-spacing:-.055em}
 .hero h1{filter:drop-shadow(0 8px 24px rgba(0,0,0,.44))}
 .hero h1 em,.page-intro h1 em{filter:drop-shadow(0 0 10px rgba(140,97,255,.22))}
+.hero-image{height:100%;object-fit:contain;object-position:right center}
 .home-intro,.about-story,.repertoire-grid,.agenda-page{
   background:
     radial-gradient(circle at 8% 10%,rgba(40,215,255,.07),transparent 25rem),
@@ -258,6 +259,15 @@ body:after{
 .member-grid article{transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
 .member-grid article:hover{transform:translateY(-4px)}
 .portrait{border-radius:10px}
+.portrait img{display:block;width:100%;height:100%;object-fit:cover}
+.portrait.p1 img{object-position:62% center}.portrait.p2 img{object-position:48% center}.portrait.p3 img{object-position:47% center}
+.portrait.p4 img{object-position:center 30%}.portrait.p5 img{object-position:42% center}.portrait.p6 img{object-position:37% center}
+.home-links{display:flex;flex-wrap:wrap;gap:22px 34px;margin-top:38px}
+.about-repertoire-link{margin-top:42px}.agenda-contact-link{margin-top:26px}
+.not-found-page{min-height:100svh;display:grid;place-items:center;padding:90px 22px;background:radial-gradient(circle at 50% 25%,rgba(140,97,255,.18),transparent 34rem)}
+.not-found-card{max-width:780px;padding:clamp(40px,8vw,86px);text-align:center;border:1px solid rgba(40,215,255,.25);border-radius:var(--radius-card);background:var(--gradient-panel);box-shadow:var(--shadow-lift)}
+.not-found-card h1{margin:0;font:800 clamp(48px,8vw,90px)/.95 var(--font-display);text-transform:uppercase}
+.not-found-card>p:not(.eyebrow){margin:28px auto 34px;color:var(--muted);line-height:1.7}
 footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
 
 /* Tablet */
@@ -269,6 +279,7 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
   .hero{min-height:690px;align-items:flex-start;padding:0;background:#07080b}
   .home-hero{min-height:575px}
   .hero-image{inset:0 0 auto;width:100%;height:66.667vw;max-height:512px;background-size:contain;background-position:center top}
+  .hero-image{object-position:center top}
   .hero-overlay{background:linear-gradient(90deg,rgba(2,3,7,.7) 0%,rgba(2,3,7,.14) 6%,transparent 10%,transparent 90%,rgba(2,3,7,.14) 94%,rgba(2,3,7,.7) 100%),linear-gradient(180deg,rgba(2,3,7,.06) 0%,rgba(2,3,7,.16) 30%,rgba(2,3,7,.88) 52%,#07080b 66%)}
   .hero-content{width:100%;max-width:none;padding:calc(66.667vw + 28px) 22px 38px}
   .hero .eyebrow{max-width:330px;margin-bottom:15px;font-size:9px;line-height:1.55;letter-spacing:2.4px}
@@ -306,11 +317,13 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
 @media(max-width:600px){
   .eyebrow{letter-spacing:.22em}
   .home-highlights{gap:12px}.home-highlights li{min-height:62px;border-radius:9px}
+  .home-links{display:grid;gap:22px;margin-top:34px}
   .home-intro:before{right:-55px;top:-35px;opacity:.7}
   .repertoire-grid{gap:16px}.repertoire-grid article{padding:30px 22px;border-radius:11px}
   .audio-track{padding:24px 20px;border-radius:11px}
   .agenda-event,.contact-card{border-radius:12px}
   .member-grid{gap:14px 10px}.member-grid article{border-radius:10px}
   .page-intro:before{right:-42px;top:16%;opacity:.68}
+  .not-found-page{padding:70px 18px}.not-found-card{padding:42px 22px}.not-found-card h1{font-size:clamp(42px,12vw,58px)}
 }
 

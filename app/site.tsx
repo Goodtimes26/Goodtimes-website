@@ -32,8 +32,8 @@ function Header({ page }: { page: PageKey }) {
       <Link className="brand" href="/" aria-label="GoodTimes home">
         GOOD<span>TIMES</span><small>THE 80’S LIVE</small>
       </Link>
-      <button className="menu" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Menu openen">
-        <i /><i />
+      <button className="menu" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? "Menu sluiten" : "Menu openen"}>
+        MENU
       </button>
       <nav className={open ? "nav open" : "nav"} aria-label="Hoofdnavigatie">
         {nav.map(([key, href, label]) => <Link className={page === key ? "active" : ""} href={href} key={key}>{label}</Link>)}

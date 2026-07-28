@@ -165,6 +165,7 @@ body:before{
 .show-row{border-color:var(--line)}.show-row:hover{background:linear-gradient(90deg,rgba(21,157,255,.035),transparent 55%)}
 .socials a{border-color:rgba(93,111,165,.45);background:rgba(9,13,27,.62)}
 .socials a:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 16px rgba(40,215,255,.16)}
+.socials .facebook-follow{display:flex;width:auto;min-height:38px;padding:0 14px;gap:9px;border-radius:20px}.facebook-follow svg{width:18px;height:18px;flex:0 0 auto}.facebook-follow span{font-size:11px}
 input,select,textarea{border-color:rgba(112,125,166,.48)}input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 1px 0 rgba(40,215,255,.28)}
 .thanks span{background:var(--gradient-neon);box-shadow:var(--glow-blue)}
 footer{background:linear-gradient(180deg,rgba(5,7,17,.35),#03040b);border-color:var(--line)}
@@ -254,6 +255,7 @@ body:after{
   linear-gradient(145deg,#050817,#03050d)}
 .contact-card{border-color:rgba(40,215,255,.28);box-shadow:var(--shadow-lift)}
 .contact-card h1{background:linear-gradient(105deg,#fff 25%,#b3e9ff 67%,#c9b5ff);background-clip:text;-webkit-background-clip:text;color:transparent}
+.contact-facebook-button{display:inline-flex;align-items:center;gap:12px;margin-left:12px}.contact-facebook-button svg{width:19px;height:19px;flex:0 0 auto}
 .contact-bookings{border-radius:10px;border-left:2px solid var(--magenta)}
 .member-grid{gap:18px}
 .member-grid article{transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
@@ -312,7 +314,7 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
   .scroll{display:none}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}.nav-cta:after,.primary:after{display:none}}
-@media(max-width:600px){.contact-page{min-height:auto;padding:112px 18px 70px}.contact-card{padding:38px 22px}.contact-card h1{font-size:clamp(48px,15vw,62px);line-height:.92;letter-spacing:-1.5px}.contact-intro{margin:24px 0 30px;font-size:14px;line-height:1.7}.contact-email{align-items:flex-start;gap:10px}.contact-email span{font-size:18px}.contact-email a{font-size:18px}.contact-mail-button{width:100%;justify-content:space-between}.contact-bookings{margin-top:38px;padding:23px 20px}}
+@media(max-width:600px){.contact-page{min-height:auto;padding:112px 18px 70px}.contact-card{padding:38px 22px}.contact-card h1{font-size:clamp(48px,15vw,62px);line-height:.92;letter-spacing:-1.5px}.contact-intro{margin:24px 0 30px;font-size:14px;line-height:1.7}.contact-email{align-items:flex-start;gap:10px}.contact-email span{font-size:18px}.contact-email a{font-size:18px}.contact-mail-button,.contact-facebook-button{width:100%;justify-content:space-between}.contact-facebook-button{margin:12px 0 0}.contact-bookings{margin-top:38px;padding:23px 20px}}
 @media(max-width:600px){.agenda-page{padding:28px 18px 75px}.agenda-event{grid-template-columns:1fr}.agenda-event-date{min-height:auto;padding:30px 22px;border-right:0;border-bottom:1px solid var(--line)}.agenda-event-date strong{font-size:82px}.agenda-event-date span{margin-top:18px;font-size:15px}.agenda-event-details{padding:36px 24px 40px}.agenda-event-details h2{font-size:clamp(38px,11vw,50px)}.agenda-location{font-size:21px}.agenda-time{margin-top:23px}}
 @media(max-width:600px){
   .eyebrow{letter-spacing:.22em}

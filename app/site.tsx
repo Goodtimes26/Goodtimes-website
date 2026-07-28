@@ -58,18 +58,17 @@ function Footer() {
 
 function Hero() {
   return (
-    <section className="hero">
+    <section className="hero home-hero">
       {/* Vervang de hero-foto via --hero-image in globals.css; de layout hoeft dan niet te wijzigen. */}
       <div className="hero-image" />
       <div className="hero-overlay" />
       <div className="hero-content">
         <p className="eyebrow">De grootste hits uit de jaren 80. Live, energiek, onvergetelijk.</p>
-        <h1>GOODTIMES<br /><em>dé 80’s Coverband</em></h1>
+        <h1>GOODTIMES<br /><em>de 80’s Coverband</em></h1>
         <div className="hero-intro">
           <p>GoodTimes brengt de grootste klassiekers uit de jaren tachtig tot leven.</p>
           <p>Met jarenlange podiumervaring, aanstekelijke energie en een volledig dansbaar repertoire maken we van ieder optreden een feest.</p>
         </div>
-        <div className="actions"><Link className="primary hero-button" href="/contact">Boek GoodTimes <Arrow /></Link><Link className="secondary hero-button" href="/media#audio">Luister naar GoodTimes <span>▶</span></Link></div>
       </div>
       <div className="scroll">SCROLL TO THE 80’S <span>↓</span></div>
     </section>
@@ -88,13 +87,16 @@ function ShowList() {
 
 function HomePage() {
   return <><Hero />
-    {/* De voordelen zijn losse lijstitems, zodat nieuwe punten eenvoudig toegevoegd kunnen worden. */}
-    <section className="split">
-      <div className="feature-photo"><span>100% LIVE</span></div>
-      <div className="feature-copy"><p className="eyebrow">Waarom GoodTimes?</p><h2>De jaren 80.<br />Live op het podium.</h2>
-        <ul><li><b>01</b><span><strong>100% live gespeeld</strong>Geen tapes of trucs: een complete liveshow met echte instrumenten.</span></li><li><b>02</b><span><strong>Professionele muzikanten</strong>Ervaren performers met overtuiging, plezier en podiumenergie.</span></li><li><b>03</b><span><strong>De grootste 80’s hits</strong>Herkenbare klassiekers uit het beste muzikale decennium.</span></li><li><b>04</b><span><strong>Dansbaar repertoire</strong>Een energieke set die het publiek vanaf de eerste noot meekrijgt.</span></li><li><b>05</b><span><strong>Voor ieder evenement</strong>Festivals, bedrijfsfeesten, tentfeesten en evenementen.</span></li></ul>
-        <Link className="text-link" href="/over-de-band">Ontmoet de band <Arrow /></Link>
+    <section className="home-intro">
+      <div className="home-intro-copy">
+        <h2>Beleef de jaren 80. Live.</h2>
+        <p>Van Queen tot Donna Summer. Van Toto tot De Dijk. GoodTimes brengt de grootste hits uit de jaren tachtig met live zang, strakke meerstemmigheid en een avond vol herkenning, energie en dansbare klassiekers.</p>
       </div>
+      <ul className="home-highlights" aria-label="Kenmerken van GoodTimes">
+        <li>100% live</li>
+        <li>De grootste 80’s hits</li>
+        <li>Voor feesten, festivals en evenementen</li>
+      </ul>
     </section>
     <section className="booking-band"><p className="eyebrow">Klaar voor een tijdreis?</p><h2>MAAK VAN JOUW EVENT<br /><span>EEN GOOD TIME.</span></h2><Link className="primary" href="/contact">Check beschikbaarheid <Arrow /></Link></section>
   </>;

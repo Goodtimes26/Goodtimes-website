@@ -173,7 +173,7 @@ footer{background:linear-gradient(180deg,rgba(5,7,17,.35),#03040b);border-color:
 @media(max-width:767px){
   .hero{min-height:690px;align-items:flex-start;padding:0;background:#07080b}
   .home-hero{min-height:575px}
-  .hero-image{inset:0 0 auto;height:410px;background-image:url('/goodtimes-group-hero-mobile.png');background-size:100% auto;background-position:center 40%}
+  .hero-image{inset:0 0 auto;height:410px;background-image:url('/goodtimes-group-hero-mobile-v2.png');background-size:100% auto;background-position:center 40%}
   .hero-overlay{background:linear-gradient(90deg,rgba(2,3,7,.7) 0%,rgba(2,3,7,.14) 6%,transparent 10%,transparent 90%,rgba(2,3,7,.14) 94%,rgba(2,3,7,.7) 100%),linear-gradient(180deg,rgba(2,3,7,.06) 0%,rgba(2,3,7,.16) 30%,rgba(2,3,7,.88) 52%,#07080b 66%)}
   .hero-content{width:100%;max-width:none;padding:255px 22px 38px}
   .hero .eyebrow{max-width:330px;margin-bottom:15px;font-size:9px;line-height:1.55;letter-spacing:2.4px}

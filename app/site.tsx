@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact";
 
@@ -208,18 +208,22 @@ function Media() {
 }
 
 function Contact() {
-  const [sent, setSent] = useState(false);
-  function submit(e: FormEvent) { e.preventDefault(); setSent(true); }
-  return <><PageIntro kicker="Let’s make it happen" title="BOEK DE BAND." accent="START HET FEEST." text="Vertel ons kort wat je organiseert. We reageren meestal binnen één werkdag met beschikbaarheid en een voorstel op maat." />
-    <section className="contact-grid"><div><h2>Direct contact</h2><a href="mailto:boekingen@goodtimesband.nl">boekingen@goodtimesband.nl</a><a href="tel:+31612345678">+31 (0)6 12 34 56 78</a><p>GoodTimes is beschikbaar in heel Nederland en daarbuiten.</p><div className="socials"><a href="#">f</a><a href="#">◎</a><a href="#">▶</a></div></div>
-      <form onSubmit={submit}>{sent ? <div className="thanks"><span>✓</span><h2>Bedankt!</h2><p>Je aanvraag is ontvangen. We nemen snel contact op.</p></div> : <>
-        <div className="field-row"><label>Naam<input required name="name" placeholder="Jouw naam" /></label><label>E-mail<input required type="email" name="email" placeholder="naam@email.nl" /></label></div>
-        <div className="field-row"><label>Type event<select name="type"><option>Bedrijfsfeest</option><option>Festival / podium</option><option>Bruiloft</option><option>Anders</option></select></label><label>Datum<input type="date" name="date" /></label></div>
-        <label>Vertel ons meer<textarea required name="message" placeholder="Locatie, aantal gasten en wat je voor ogen hebt..." /></label>
-        <button className="primary" type="submit">Verstuur aanvraag <Arrow /></button><small>Door te versturen ga je akkoord met onze privacyvoorwaarden.</small>
-      </>}</form>
-    </section>
-  </>;
+  return <section className="contact-page">
+    <div className="contact-card">
+      <p className="eyebrow">GoodTimes direct</p>
+      <h1>Neem contact op</h1>
+      <p className="contact-intro">Heb je een vraag, wil je GoodTimes boeken of meer informatie over een optreden? Neem gerust contact met ons op. We reageren zo snel mogelijk.</p>
+      <div className="contact-email">
+        <span aria-hidden="true">📧</span>
+        <a href="mailto:info@goodtimescoverband.nl">info@goodtimescoverband.nl</a>
+      </div>
+      <a className="primary contact-mail-button" href="mailto:info@goodtimescoverband.nl">Stuur een e-mail <Arrow /></a>
+      <div className="contact-bookings">
+        <p className="eyebrow">Boekingen</p>
+        <p>GoodTimes is beschikbaar voor bruiloften, bedrijfsfeesten, festivals, evenementen…</p>
+      </div>
+    </div>
+  </section>;
 }
 
 export function GoodTimesSite({ page }: { page: PageKey }) {

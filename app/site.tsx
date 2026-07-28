@@ -70,6 +70,10 @@ function Hero() {
           <p>GoodTimes brengt de grootste klassiekers uit de jaren tachtig tot leven.</p>
           <p>Met jarenlange podiumervaring, aanstekelijke energie en een volledig dansbaar repertoire maken we van ieder optreden een feest.</p>
         </div>
+        <div className="actions home-hero-actions">
+          <Link className="primary hero-button" href="/media">Bekijk de show <Arrow /></Link>
+          <Link className="secondary hero-button" href="/contact">Boek GoodTimes <Arrow /></Link>
+        </div>
       </div>
       <div className="scroll">SCROLL TO THE 80’S <span>↓</span></div>
     </section>
@@ -78,6 +82,14 @@ function Hero() {
 
 function HomePage() {
   return <><Hero />
+    <section className="home-usp-strip" aria-label="Waarom GoodTimes">
+      <ul>
+        <li>100% Live</li>
+        <li>6 ervaren muzikanten</li>
+        <li>De grootste 80’s hits</li>
+        <li>Professionele sound &amp; uitstraling</li>
+      </ul>
+    </section>
     <section className="home-intro">
       <div className="home-intro-copy">
         <h2>Beleef de jaren 80. Live.</h2>

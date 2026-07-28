@@ -90,7 +90,7 @@ function HomePage() {
     <section className="home-intro">
       <div className="home-intro-copy">
         <h2>Beleef de jaren 80. Live.</h2>
-        <p>Van Queen tot Donna Summer. Van Toto tot De Dijk. GoodTimes brengt de grootste hits uit de jaren tachtig met live zang, strakke meerstemmigheid en een avond vol herkenning, energie en dansbare klassiekers.</p>
+        <p>Van De Dolly Dots tot Donna Summer. Van Toto tot De Dijk. GoodTimes brengt de grootste hits uit de jaren tachtig met live zang, strakke meerstemmigheid en een avond vol herkenning, energie en dansbare klassiekers.</p>
       </div>
       <ul className="home-highlights" aria-label="Kenmerken van GoodTimes">
         <li>100% live</li>

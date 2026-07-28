@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const assetVariables = {
     "--supporting-image": "url('/goodtimes-hero.png')",
-    "--member-1": "url('/members/esther-zang.png')",
+    "--member-1": "url('/members/esther-zang.jpeg')",
     "--member-2": "url('/members/cindy-zang.png')",
     "--member-3": "url('/members/luuk-toetsen.jpg')",
     "--member-4": "url('/members/joost-gitaar.jpg')",

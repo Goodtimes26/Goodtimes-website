@@ -53,8 +53,8 @@ function Footer() {
 function Hero() {
   return (
     <section className="hero home-hero">
-      {/* Vervang de hero-foto via --hero-image in globals.css; de layout hoeft dan niet te wijzigen. */}
-      <div className="hero-image" />
+      {/* Vervang dit bestand om de hero-foto later te wijzigen; behoud de afmetingen voor een stabiele layout. */}
+      <img className="hero-image" src="/goodtimes-group-hero.jpeg" width="1536" height="1024" alt="De zes muzikanten van GoodTimes voor een kleurrijke jaren 80-achtergrond" fetchPriority="high" />
       <div className="hero-overlay" />
       <div className="hero-content">
         <p className="eyebrow">De grootste hits uit de jaren 80. Live, energiek, onvergetelijk.</p>
@@ -74,13 +74,17 @@ function HomePage() {
     <section className="home-intro">
       <div className="home-intro-copy">
         <h2>Beleef de jaren 80. Live.</h2>
-        <p>Van De Dolly Dots tot Donna Summer. Van Toto tot De Dijk. GoodTimes brengt de grootste hits uit de jaren tachtig met live zang, strakke meerstemmigheid en een avond vol herkenning, energie en dansbare klassiekers.</p>
+        <p>GoodTimes is een live jaren 80-coverband van zes muzikanten. Van De Dolly Dots tot Donna Summer en van Toto tot De Dijk: met live zang, strakke meerstemmigheid en 100% live gespeelde muziek brengen we een avond vol herkenning, energie en dansbare klassiekers.</p>
       </div>
       <ul className="home-highlights" aria-label="Kenmerken van GoodTimes">
         <li>100% live</li>
         <li>De grootste 80’s hits</li>
-        <li>Voor feesten, festivals en evenementen</li>
+        <li>Voor festivals, bedrijfsfeesten, evenementen, tentfeesten en dorpsfeesten</li>
       </ul>
+      <nav className="home-links" aria-label="Ontdek GoodTimes">
+        <Link className="text-link" href="/repertoire">Bekijk het jaren 80-repertoire <Arrow /></Link>
+        <Link className="text-link" href="/media">Beluister GoodTimes live <Arrow /></Link>
+      </nav>
     </section>
     <section className="booking-band"><p className="eyebrow">Klaar voor een tijdreis?</p><h2>MAAK VAN JOUW EVENT<br /><span>EEN GOOD TIME.</span></h2><Link className="primary" href="/contact">Check beschikbaarheid <Arrow /></Link></section>
   </>;
@@ -91,7 +95,14 @@ function PageIntro({ kicker, title, accent, text, className = "" }: { kicker: st
 }
 
 function About() {
-  const members = [["ESTHER","Zang"],["CINDY","Zang"],["LUUK","Toetsen"],["JOOST","Gitaar"],["EDDIE","Basgitaar"],["ERIC","Drums"]];
+  const members = [
+    ["ESTHER", "Zang", "/members/esther-zang.png", "Esther, zangeres van GoodTimes"],
+    ["CINDY", "Zang", "/members/cindy-zang.png", "Cindy, zangeres van GoodTimes"],
+    ["LUUK", "Toetsen", "/members/luuk-toetsen.jpg", "Luuk achter de toetsen bij GoodTimes"],
+    ["JOOST", "Gitaar", "/members/joost-gitaar.jpg", "Joost speelt gitaar bij GoodTimes"],
+    ["EDDIE", "Basgitaar", "/members/eddie-basgitaar.png", "Eddie speelt basgitaar bij GoodTimes"],
+    ["ERIC", "Drums", "/members/eric-drums.jpg", "Eric achter het drumstel bij GoodTimes"],
+  ];
   return <><PageIntro kicker="Zes muzikanten. Eén tijdmachine." title="DIT IS" accent="GOODTIMES." text="Een energieke Nederlandse liveband met een zwak voor grote refreinen, analoge synths en volle dansvloeren." />
     <section className="about-story">
       <div className="about-story-inner">
@@ -115,7 +126,7 @@ function About() {
         <p>Wil je jouw evenement veranderen in een echte 80’s party waar het publiek nog lang over napraat?</p>
       </div>
     </section>
-    <section className="members"><p className="eyebrow">The band</p><h2>De muzikanten achter de sound</h2><div className="member-grid">{members.map(([name, role],i)=><article key={name}><div className={`portrait p${i+1}`}><span>0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div></section>
+    <section className="members"><p className="eyebrow">The band</p><h2>De muzikanten achter de sound</h2><div className="member-grid">{members.map(([name, role, image, alt],i)=><article key={name}><div className={`portrait p${i+1}`}><img src={image} alt={alt} width="1200" height="800" loading="lazy" /><span>0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div><Link className="text-link about-repertoire-link" href="/repertoire">Bekijk ons jaren 80-repertoire <Arrow /></Link></section>
   </>;
 }
 
@@ -184,6 +195,7 @@ function Agenda() {
           <p className="agenda-location">Venray</p>
           <p className="agenda-time">Aanvang 20:30 uur</p>
           <p className="agenda-description">Een avond vol herkenbare hits uit de jaren 80.</p>
+          <Link className="text-link agenda-contact-link" href="/contact">Vraag naar beschikbaarheid <Arrow /></Link>
         </div>
       </article>
     </section>

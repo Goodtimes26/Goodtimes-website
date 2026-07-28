@@ -115,7 +115,7 @@ function PageIntro({ kicker, title, accent, text, className = "" }: { kicker: st
 function About() {
   const members = [
     ["ESTHER", "Zang", "/members/esther-zang.jpeg", "Esther, zangeres van GoodTimes"],
-    ["CINDY", "Zang", "/members/cindy-zang.png", "Cindy, zangeres van GoodTimes"],
+    ["CINDY", "Zang", "/members/cindy-zang.jpeg", "Cindy, zangeres van GoodTimes"],
     ["LUUK", "Toetsen", "/members/luuk-toetsen.jpg", "Luuk achter de toetsen bij GoodTimes"],
     ["JOOST", "Gitaar", "/members/joost-gitaar.jpg", "Joost speelt gitaar bij GoodTimes"],
     ["EDDIE", "Basgitaar", "/members/eddie-basgitaar.png", "Eddie speelt basgitaar bij GoodTimes"],

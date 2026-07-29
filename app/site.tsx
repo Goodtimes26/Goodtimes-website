@@ -16,7 +16,6 @@ const nav = [
 ] as const;
 
 const facebookUrl = "https://www.facebook.com/share/14sZgHUpgHK/?mibextid=wwXIfr";
-const setlistMakerUrl = "https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site";
 
 function FacebookIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24"><path fill="currentColor" d="M14 8.5V7c0-.8.5-1 1-1h2V2.1L14.1 2C10.6 2 9 4.1 9 6.7v1.8H6V13h3v9h4.5v-9h3l.5-4.5h-3Z" /></svg>;
@@ -39,7 +38,6 @@ function Header({ page }: { page: PageKey }) {
       </button>
       <nav className={open ? "nav open" : "nav"} aria-label="Hoofdnavigatie">
         {nav.map(([key, href, label]) => <Link className={page === key ? "active" : ""} href={href} key={key}>{label}</Link>)}
-        <a href={setlistMakerUrl} target="_blank" rel="noopener noreferrer">Setlist Maker</a>
         <Link className="nav-cta" href="/contact">Boek de band <Arrow /></Link>
       </nav>
     </header>

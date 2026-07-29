@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact" | "bandinlog";
+export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact";
 
 const nav = [
   ["home", "/", "Home"],
@@ -12,7 +12,6 @@ const nav = [
   ["agenda", "/agenda", "Agenda"],
   ["media", "/media", "Media"],
   ["contact", "/contact", "Contact"],
-  ["bandinlog", "/bandinlog", "Bandinlog"],
 ] as const;
 
 const facebookUrl = "https://www.facebook.com/share/14sZgHUpgHK/?mibextid=wwXIfr";

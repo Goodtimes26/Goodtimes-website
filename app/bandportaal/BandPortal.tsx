@@ -16,6 +16,7 @@ import {
   type BandEvent,
   type BookingRequest,
   type EventType,
+  type PageView,
   type Profile,
   type RequestResponse,
   type RequestStatus,
@@ -24,7 +25,7 @@ import {
 } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
 
-type PortalTab = "agenda" | "requests" | "availability" | "events" | "users";
+type PortalTab = "agenda" | "requests" | "availability" | "events" | "users" | "analytics";
 type RoleRow = { user_id: string; role: UserRole };
 type AvailabilityDraft = {
   start: string;
@@ -69,6 +70,7 @@ export function BandPortal() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
   const [events, setEvents] = useState<BandEvent[]>([]);
+  const [pageViews, setPageViews] = useState<PageView[]>([]);
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>(emptyAvailability);
   const [checkDate, setCheckDate] = useState(toIsoDate(new Date()));
@@ -90,7 +92,9 @@ export function BandPortal() {
     if (!supabase) return;
     const firstDay = toIsoDate(new Date(month.getFullYear(), month.getMonth(), 1));
     const lastDay = toIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0));
-    const [profilesResult, availabilityResult, requestsResult, responsesResult, eventsResult, rolesResult] = await Promise.all([
+    const analyticsSince = new Date();
+    analyticsSince.setDate(analyticsSince.getDate() - 90);
+    const [profilesResult, availabilityResult, requestsResult, responsesResult, eventsResult, rolesResult, pageViewsResult] = await Promise.all([
       supabase.from("profiles").select("id,display_name,email").order("display_name"),
       supabase.from("availability").select("id,user_id,date,status,private_note").gte("date", firstDay).lte("date", lastDay),
       supabase.from("requests").select("*").order("event_date"),
@@ -99,6 +103,9 @@ export function BandPortal() {
       activeRole === "admin"
         ? supabase.from("user_roles").select("user_id,role")
         : Promise.resolve({ data: [{ user_id: activeUser.id, role: activeRole }], error: null }),
+      activeRole === "admin"
+        ? supabase.from("page_views").select("id,path,visit_id,viewed_at").gte("viewed_at", analyticsSince.toISOString()).order("viewed_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
     ]);
     const firstError = [
       profilesResult.error,
@@ -107,6 +114,7 @@ export function BandPortal() {
       responsesResult.error,
       eventsResult.error,
       rolesResult.error,
+      pageViewsResult.error,
     ].find(Boolean);
     if (firstError) throw firstError;
     setProfiles((profilesResult.data ?? []) as Profile[]);
@@ -115,6 +123,7 @@ export function BandPortal() {
     setResponses((responsesResult.data ?? []) as RequestResponse[]);
     setEvents((eventsResult.data ?? []) as BandEvent[]);
     setRoles((rolesResult.data ?? []) as RoleRow[]);
+    setPageViews((pageViewsResult.data ?? []) as PageView[]);
   }, [month]);
 
   useEffect(() => {
@@ -343,6 +352,7 @@ export function BandPortal() {
         <button className={tab === "availability" ? "active" : ""} onClick={() => setTab("availability")}>Beschikbaarheid</button>
         <button className={tab === "events" ? "active" : ""} onClick={() => setTab("events")}>Repetities & optredens</button>
         {isAdmin && <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Gebruikers</button>}
+        {isAdmin && <button className={tab === "analytics" ? "active" : ""} onClick={() => setTab("analytics")}>Bezoekers</button>}
         <a className="portal-tab-link" href="https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site" target="_blank" rel="noopener noreferrer">Setlist Maker ↗</a>
       </nav>
 
@@ -501,9 +511,51 @@ export function BandPortal() {
             <p className="portal-help">Nieuwe accounts worden veilig toegevoegd in Supabase Authentication. Wachtwoorden zijn nooit zichtbaar in dit portaal.</p>
           </div>
         )}
+
+        {tab === "analytics" && isAdmin && <AnalyticsDashboard pageViews={pageViews} />}
       </section>
     </main>
   );
+}
+
+function AnalyticsDashboard({ pageViews }: { pageViews: PageView[] }) {
+  const today = toIsoDate(new Date());
+  const uniqueVisits = new Set(pageViews.map((view) => view.visit_id)).size;
+  const todayViews = pageViews.filter((view) => view.viewed_at.slice(0, 10) === today);
+  const pageCounts = [...pageViews.reduce((counts, view) => {
+    counts.set(view.path, (counts.get(view.path) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>())].sort((a, b) => b[1] - a[1]);
+  const dailyCounts = Array.from({ length: 14 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (13 - index));
+    const iso = toIsoDate(date);
+    return {
+      date: new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short" }).format(date),
+      count: pageViews.filter((view) => view.viewed_at.slice(0, 10) === iso).length,
+    };
+  });
+  const maxDaily = Math.max(1, ...dailyCounts.map((day) => day.count));
+
+  return <div className="portal-section">
+    <div className="portal-section-head"><div><p className="portal-eyebrow">Website</p><h1>Bezoekers</h1></div></div>
+    <div className="portal-analytics-metrics">
+      <article><span>Paginaweergaven</span><strong>{pageViews.length}</strong><small>afgelopen 90 dagen</small></article>
+      <article><span>Bezoeken</span><strong>{uniqueVisits}</strong><small>anonieme browsersessies</small></article>
+      <article><span>Vandaag</span><strong>{todayViews.length}</strong><small>paginaweergaven</small></article>
+    </div>
+    <div className="portal-analytics-grid">
+      <article className="portal-card">
+        <h2>Laatste 14 dagen</h2>
+        <div className="portal-bars">{dailyCounts.map((day) => <div key={day.date}><span style={{ height: `${Math.max(4, (day.count / maxDaily) * 100)}%` }} title={`${day.count} paginaweergaven`} /><small>{day.date}</small><b>{day.count}</b></div>)}</div>
+      </article>
+      <article className="portal-card">
+        <h2>Populaire pagina’s</h2>
+        <div className="portal-page-list">{pageCounts.length ? pageCounts.slice(0, 10).map(([path, count]) => <div key={path}><span>{path === "/" ? "Home" : path}</span><strong>{count}</strong></div>) : <p className="portal-help">De eerste bezoeken verschijnen hier na publicatie.</p>}</div>
+      </article>
+    </div>
+    <p className="portal-help portal-analytics-note">Deze meting gebruikt geen cookies en bewaart geen namen, e-mailadressen of IP-adressen.</p>
+  </div>;
 }
 
 function AvailabilityCheck({ profiles, rows }: { profiles: Profile[]; rows: Availability[] }) {

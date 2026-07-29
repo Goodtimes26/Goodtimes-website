@@ -29,14 +29,14 @@ type RoleRow = { user_id: string; role: UserRole };
 type AvailabilityDraft = {
   start: string;
   end: string;
-  status: Exclude<AvailabilityStatus, "unset">;
+  status: "unavailable" | "maybe";
   note: string;
 };
 
 const emptyAvailability = (): AvailabilityDraft => ({
   start: toIsoDate(new Date()),
   end: toIsoDate(new Date()),
-  status: "available",
+  status: "unavailable",
   note: "",
 });
 
@@ -192,6 +192,24 @@ export function BandPortal() {
     await refresh();
   }
 
+  async function clearAvailability() {
+    if (!user) return;
+    setError("");
+    const { error: clearError } = await getSupabaseClient()!
+      .from("availability")
+      .delete()
+      .eq("user_id", user.id)
+      .gte("date", availabilityDraft.start)
+      .lte("date", availabilityDraft.end);
+    if (clearError) {
+      setError("De periode kon niet als beschikbaar worden hersteld.");
+      return;
+    }
+    setAvailabilityDraft((draft) => ({ ...draft, status: "unavailable", note: "" }));
+    setMessage("Geen bijzonderheden voor deze periode: je staat automatisch als beschikbaar.");
+    await refresh();
+  }
+
   async function checkAvailability(date = checkDate) {
     const supabase = getSupabaseClient()!;
     const { data, error: checkError } = await supabase
@@ -309,7 +327,10 @@ export function BandPortal() {
   return (
     <main className="portal-shell portal-app">
       <header className="portal-topbar">
-        <div className="portal-brand">GOOD<span>TIMES</span><small>BANDPORTAAL</small></div>
+        <div className="portal-brand-group">
+          <div className="portal-brand">GOOD<span>TIMES</span><small>BANDPORTAAL</small></div>
+          <a className="portal-site-link" href="/">← Terug naar website</a>
+        </div>
         <div className="portal-account">
           <span><strong>{profile.display_name}</strong><small>{isAdmin ? "Beheerder" : "Bandlid"}</small></span>
           <button type="button" onClick={signOut}>Uitloggen</button>
@@ -347,28 +368,33 @@ export function BandPortal() {
                 return (
                   <button
                     key={iso}
-                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${own?.status ?? "unset"}`}
+                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${own?.status ?? "available"}`}
                     onClick={() => {
-                      setAvailabilityDraft({ start: iso, end: iso, status: own?.status ?? "available", note: own?.private_note ?? "" });
+                      setAvailabilityDraft({
+                        start: iso,
+                        end: iso,
+                        status: own?.status === "maybe" ? "maybe" : "unavailable",
+                        note: own?.private_note ?? "",
+                      });
                       setTab("availability");
                     }}
                   >
                     <strong>{day.getDate()}</strong>
-                    <span>{availabilityLabels[own?.status ?? "unset"]}</span>
+                    <span>{availabilityLabels[own?.status ?? "available"]}</span>
                     {dayEvents.slice(0, 2).map((item) => <small key={item.id} className={`event-${item.event_type}`}>{eventLabels[item.event_type]}</small>)}
                   </button>
                 );
               })}
             </div>
             <div className="portal-legend">
-              {(["available", "unavailable", "maybe", "unset"] as AvailabilityStatus[]).map((status) => <span key={status} className={`status-${status}`}>{availabilityLabels[status]}</span>)}
+              {(["available", "unavailable", "maybe"] as AvailabilityStatus[]).map((status) => <span key={status} className={`status-${status}`}>{availabilityLabels[status]}</span>)}
             </div>
           </div>
         )}
 
         {tab === "availability" && (
-          <div className="portal-section portal-two-column">
-            <div>
+          <div className="portal-section portal-two-column portal-availability-layout">
+            <div className="portal-availability-column">
               <p className="portal-eyebrow">Mijn beschikbaarheid</p>
               <h1>Beschikbaarheid invullen</h1>
               <form className="portal-form portal-card" onSubmit={saveAvailability}>
@@ -377,15 +403,18 @@ export function BandPortal() {
                   <label>Tot en met<input type="date" min={availabilityDraft.start} value={availabilityDraft.end} onChange={(event) => setAvailabilityDraft((draft) => ({ ...draft, end: event.target.value }))} required /></label>
                 </div>
                 <label>Status<select value={availabilityDraft.status} onChange={(event) => setAvailabilityDraft((draft) => ({ ...draft, status: event.target.value as AvailabilityDraft["status"] }))}>
-                  <option value="available">Beschikbaar</option><option value="unavailable">Niet beschikbaar</option><option value="maybe">Misschien</option>
+                  <option value="unavailable">Niet beschikbaar</option><option value="maybe">Misschien</option>
                 </select></label>
                 <label>Privé-opmerking<textarea maxLength={500} value={availabilityDraft.note} onChange={(event) => setAvailabilityDraft((draft) => ({ ...draft, note: event.target.value }))} placeholder="Bijvoorbeeld vakantie, werk of verjaardag" /></label>
-                <p className="portal-help">Deze opmerking is alleen zichtbaar voor jou en een beheerder.</p>
-                <button className="portal-primary" type="submit">Beschikbaarheid opslaan</button>
+                <p className="portal-help">Vul alleen een uitzondering in. Zonder invoer sta je automatisch als beschikbaar. De opmerking is alleen zichtbaar voor jou en een beheerder.</p>
+                <div className="portal-form-actions">
+                  <button className="portal-primary" type="submit">Uitzondering opslaan</button>
+                  <button type="button" onClick={clearAvailability}>Geen uitzondering: beschikbaar</button>
+                </div>
               </form>
             </div>
             {isAdmin && (
-              <div>
+              <div className="portal-date-check-column">
                 <p className="portal-eyebrow">Beheerder</p>
                 <h2>Controleer datum</h2>
                 <div className="portal-card portal-date-check">
@@ -477,11 +506,11 @@ export function BandPortal() {
 }
 
 function AvailabilityCheck({ profiles, rows }: { profiles: Profile[]; rows: Availability[] }) {
-  const statuses = profiles.map((profile) => rows.find((row) => row.user_id === profile.id)?.status ?? "unset");
-  const tone = statuses.includes("unavailable") ? "unavailable" : statuses.some((status) => status === "maybe" || status === "unset") ? "pending" : "available";
+  const statuses = profiles.map((profile) => rows.find((row) => row.user_id === profile.id)?.status ?? "available");
+  const tone = statuses.includes("unavailable") ? "unavailable" : statuses.includes("maybe") ? "pending" : "available";
   return <div className={`portal-check-result tone-${tone}`}><strong>{tone === "available" ? "Iedereen beschikbaar" : tone === "unavailable" ? "Niet volledig beschikbaar" : "Nog niet definitief"}</strong>{profiles.map((profile) => {
     const row = rows.find((item) => item.user_id === profile.id);
-    return <div key={profile.id}><span>{profile.display_name}</span><b className={`status-${row?.status ?? "unset"}`}>{availabilityLabels[row?.status ?? "unset"]}</b></div>;
+    return <div key={profile.id}><span>{profile.display_name}</span><b className={`status-${row?.status ?? "available"}`}>{availabilityLabels[row?.status ?? "available"]}</b></div>;
   })}</div>;
 }
 

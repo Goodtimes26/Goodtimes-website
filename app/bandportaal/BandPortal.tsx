@@ -343,6 +343,7 @@ export function BandPortal() {
         <button className={tab === "availability" ? "active" : ""} onClick={() => setTab("availability")}>Beschikbaarheid</button>
         <button className={tab === "events" ? "active" : ""} onClick={() => setTab("events")}>Repetities & optredens</button>
         {isAdmin && <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Gebruikers</button>}
+        <a className="portal-tab-link" href="https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site" target="_blank" rel="noopener noreferrer">Setlist Maker ↗</a>
       </nav>
 
       <section className="portal-content">

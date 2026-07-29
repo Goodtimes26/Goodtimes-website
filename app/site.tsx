@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getSupabaseClient } from "../lib/supabase";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact" | "bandinlog";
 
@@ -263,6 +264,21 @@ function Contact() {
 }
 
 export function GoodTimesSite({ page }: { page: PageKey }) {
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase || page === "bandinlog") return;
+    const storageKey = "goodtimes_visit_id";
+    let visitId = sessionStorage.getItem(storageKey);
+    if (!visitId) {
+      visitId = crypto.randomUUID();
+      sessionStorage.setItem(storageKey, visitId);
+    }
+    void supabase.from("page_views").insert({
+      path: window.location.pathname,
+      visit_id: visitId,
+    });
+  }, [page]);
+
   const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : <Contact />;
   return <><Header page={page === "fotos-videos" ? "media" : page} /><main>{content}</main><Footer /></>;
 }

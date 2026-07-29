@@ -63,6 +63,13 @@ export type BandEvent = {
   event_type: EventType;
 };
 
+export type PageView = {
+  id: number;
+  path: string;
+  visit_id: string;
+  viewed_at: string;
+};
+
 export const availabilityLabels: Record<AvailabilityStatus, string> = {
   available: "Beschikbaar",
   unavailable: "Niet beschikbaar",

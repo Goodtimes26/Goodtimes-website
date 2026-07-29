@@ -268,15 +268,44 @@ export function GoodTimesSite({ page }: { page: PageKey }) {
     const supabase = getSupabaseClient();
     if (!supabase || page === "bandinlog") return;
     const storageKey = "goodtimes_visit_id";
-    let visitId = sessionStorage.getItem(storageKey);
-    if (!visitId) {
-      visitId = crypto.randomUUID();
-      sessionStorage.setItem(storageKey, visitId);
-    }
-    void supabase.from("page_views").insert({
-      path: window.location.pathname,
-      visit_id: visitId,
-    });
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const createVisitId = () =>
+      window.crypto?.randomUUID?.() ??
+      "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (character) =>
+        (
+          Number(character) ^
+          (window.crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (Number(character) / 4)))
+        ).toString(16),
+      );
+
+    void (async () => {
+      let visitId: string | null = null;
+      try {
+        visitId = window.sessionStorage.getItem(storageKey);
+      } catch {
+        // Sommige privacy-instellingen blokkeren sessionStorage; meten blijft dan mogelijk.
+      }
+      if (!visitId || !uuidPattern.test(visitId)) visitId = createVisitId();
+
+      const recordView = (id: string) =>
+        supabase.from("page_views").insert({
+          path: window.location.pathname,
+          visit_id: id,
+        });
+
+      let { error: trackingError } = await recordView(visitId);
+      if (trackingError) {
+        visitId = createVisitId();
+        ({ error: trackingError } = await recordView(visitId));
+      }
+      if (!trackingError) {
+        try {
+          window.sessionStorage.setItem(storageKey, visitId);
+        } catch {
+          // De registratie zelf is gelukt; opslag van de sessiecode is optioneel.
+        }
+      }
+    })();
   }, [page]);
 
   const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : <Contact />;

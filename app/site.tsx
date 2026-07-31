@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "../lib/supabase";
 
-export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "contact" | "bandinlog";
+export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "techniek-productie" | "contact" | "bandinlog";
 
 const nav = [
   ["home", "/", "Home"],
@@ -12,6 +12,7 @@ const nav = [
   ["repertoire", "/repertoire", "Repertoire"],
   ["agenda", "/agenda", "Agenda"],
   ["media", "/media", "Media"],
+  ["techniek-productie", "/techniek-productie", "Techniek & Productie"],
   ["contact", "/contact", "Contact"],
   ["bandinlog", "/bandinlog", "Bandinlog"],
 ] as const;
@@ -243,6 +244,66 @@ function Media() {
   </>;
 }
 
+function TechniqueProduction() {
+  // Voeg later eenvoudig een tweede foto toe aan deze lijst; de galerij past zich automatisch aan.
+  const bannerImages = [
+    {
+      src: "/techniek-productie-banner.jpg",
+      alt: "Professionele mengtafel met het verlichte podium van GoodTimes op de achtergrond",
+    },
+  ];
+  const possibilities = [
+    "Professionele geluidsversterking",
+    "Podium- en sfeerverlichting",
+    "Complete bediening van licht en geluid",
+    "Technische ondersteuning voor kleine en middelgrote evenementen",
+    "Maatwerk afgestemd op locatie, publiek en wensen van de organisatie",
+  ];
+  const benefits = [
+    ["◉", "Vaste ervaren geluidstechnicus"],
+    ["⌁", "Professionele licht- en geluidsapparatuur"],
+    ["◎", "Perfect afgestemd op GoodTimes"],
+    ["↔", "Eén aanspreekpunt voor band én techniek"],
+    ["✓", "Betrouwbare opbouw, bediening en ondersteuning"],
+  ];
+
+  return <>
+    <PageIntro kicker="GoodTimes achter de knoppen" title="TECHNIEK &" accent="PRODUCTIE." text="Professionele techniek, volledig afgestemd op de band en jouw evenement." />
+    <section className={`tech-banner-grid ${bannerImages.length > 1 ? "has-multiple" : ""}`} aria-label="GoodTimes techniek en productie">
+      {bannerImages.map((image) => <figure className="tech-banner" key={image.src}><img src={image.src} alt={image.alt} width="1179" height="855" /></figure>)}
+    </section>
+    <section className="tech-intro">
+      <p className="eyebrow">Techniek die het optreden versterkt</p>
+      <h2>Professionele techniek voor een zorgeloos optreden</h2>
+      <div className="tech-copy">
+        <p>Een geslaagd optreden draait om meer dan alleen goede muziek. Professioneel licht en helder geluid maken het verschil.</p>
+        <p>GoodTimes is te boeken als band, maar desgewenst verzorgen wij ook de complete technische ondersteuning met professioneel licht en geluid.</p>
+        <p>Hiervoor werken wij uitsluitend samen met onze vaste, ervaren geluidstechnicus. Hierdoor zijn de band, het geluid en de verlichting perfect op elkaar afgestemd en ben je verzekerd van een professionele uitvoering.</p>
+      </div>
+    </section>
+    <section className="tech-options">
+      <div className="tech-section-heading"><p className="eyebrow">Kies wat past</p><h2>Twee mogelijkheden</h2></div>
+      <div className="tech-option-grid">
+        <article><span>01</span><h3>GoodTimes zonder techniek</h3><p>Ideaal wanneer de locatie beschikt over een eigen licht- en geluidsinstallatie of een eigen geluidstechnicus.</p></article>
+        <article><span>02</span><h3>GoodTimes inclusief techniek</h3><ul><li>Complete verzorging van professioneel licht en geluid.</li><li>Professionele bediening door onze vaste geluidstechnicus.</li><li>Eén aanspreekpunt voor band én techniek.</li><li>Een totaaloplossing waarbij alles perfect op elkaar is afgestemd.</li></ul></article>
+      </div>
+    </section>
+    <section className="tech-capabilities">
+      <div className="tech-section-heading"><p className="eyebrow">Van podium tot zaal</p><h2>Onze mogelijkheden</h2></div>
+      <ul>{possibilities.map((item, index) => <li key={item}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong></li>)}</ul>
+    </section>
+    <section className="tech-benefits">
+      <div className="tech-section-heading"><p className="eyebrow">Eén sterk team</p><h2>Waarom kiezen voor GoodTimes techniek?</h2></div>
+      <div className="tech-benefit-grid">{benefits.map(([icon, label]) => <article key={label}><span aria-hidden="true">{icon}</span><h3>{label}</h3></article>)}</div>
+    </section>
+    <section className="tech-tail">
+      <article className="tech-custom"><p className="eyebrow">Maatwerk</p><h2>Geen evenement en geen locatie is hetzelfde.</h2><p>Daarom bespreken wij vooraf de locatie, het aantal bezoekers en de technische wensen. Alleen geluid, alleen verlichting of een complete technische verzorging behoort tot de mogelijkheden.</p></article>
+      <aside className="tech-notice"><p>Wanneer je kiest voor GoodTimes inclusief techniek verzorgen wij de volledige technische ondersteuning altijd met onze eigen vaste geluidstechnicus. Hierdoor kunnen wij de kwaliteit, betrouwbaarheid en uitstraling garanderen waar GoodTimes voor staat.</p></aside>
+    </section>
+    <section className="tech-cta"><p className="eyebrow">Benieuwd naar de mogelijkheden?</p><h2>Wij denken graag met je mee.</h2><p>Of je nu alleen GoodTimes wilt boeken of kiest voor een compleet verzorgd optreden inclusief professionele techniek, wij denken graag met je mee en adviseren graag over de mogelijkheden.</p><Link className="primary" href="/contact">Informeer naar de mogelijkheden <Arrow /></Link></section>
+  </>;
+}
+
 function Contact() {
   return <section className="contact-page">
     <div className="contact-card">
@@ -308,7 +369,7 @@ export function GoodTimesSite({ page }: { page: PageKey }) {
     })();
   }, [page]);
 
-  const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : <Contact />;
+  const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : page === "techniek-productie" ? <TechniqueProduction /> : <Contact />;
   return <><Header page={page === "fotos-videos" ? "media" : page} /><main>{content}</main><Footer /></>;
 }
 

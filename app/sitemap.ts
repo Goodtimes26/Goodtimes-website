@@ -10,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     pageSeo.repertoire,
     pageSeo.media,
     pageSeo.agenda,
+    pageSeo["techniek-productie"],
     pageSeo.contact,
   ].map((page) => ({
     url: `${siteUrl}${page.path}`,

@@ -35,6 +35,11 @@ export const pageSeo = {
     description: "Bekijk waar en wanneer GoodTimes optreedt. Beleef live de grootste disco-, funk- en partyhits uit de jaren 80.",
     path: "/agenda/",
   },
+  "techniek-productie": {
+    title: "Techniek & Productie | GoodTimes",
+    description: "Boek GoodTimes met professionele techniek, licht en geluid van onze vaste ervaren geluidstechnicus.",
+    path: "/techniek-productie/",
+  },
   contact: {
     title: "GoodTimes boeken | Contact",
     description: "GoodTimes boeken voor een festival, bedrijfsfeest, dorpsfeest of evenement? Neem rechtstreeks contact op via info@goodtimescoverband.nl.",

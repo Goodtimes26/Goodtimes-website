@@ -255,6 +255,8 @@ body:after{
 .contact-card h1{background:linear-gradient(105deg,#fff 25%,#b3e9ff 67%,#c9b5ff);background-clip:text;-webkit-background-clip:text;color:transparent}
 .contact-facebook-button{display:inline-flex;align-items:center;gap:12px;margin-left:12px}.contact-facebook-button svg{width:19px;height:19px;flex:0 0 auto}
 .contact-whatsapp-button{display:inline-flex;align-items:center;gap:12px;margin:12px 0 0}.contact-whatsapp-button svg{width:20px;height:20px;flex:0 0 auto}
+.whatsapp-fab{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom));z-index:45;display:grid;place-items:center;width:58px;height:58px;border-radius:50%;color:#fff;background:#25d366;border:1px solid rgba(255,255,255,.28);box-shadow:0 10px 28px rgba(0,0,0,.38),0 3px 10px rgba(37,211,102,.28);transition:transform .22s ease,box-shadow .22s ease,background-color .22s ease}
+.whatsapp-fab svg{width:31px;height:31px}.whatsapp-fab:hover{transform:translateY(-3px) scale(1.04);background:#20c65a;box-shadow:0 14px 34px rgba(0,0,0,.42),0 5px 16px rgba(37,211,102,.34)}.whatsapp-fab:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .contact-bookings{border-radius:10px;border-left:2px solid var(--magenta)}
 .member-grid{gap:18px}
 .member-grid article{transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
@@ -314,6 +316,8 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}.nav-cta:after,.primary:after{display:none}}
 @media(max-width:600px){.contact-page{min-height:auto;padding:112px 18px 70px}.contact-card{padding:38px 22px}.contact-card h1{font-size:clamp(48px,15vw,62px);line-height:.92;letter-spacing:-1.5px}.contact-intro{margin:24px 0 30px;font-size:14px;line-height:1.7}.contact-email{align-items:flex-start;gap:10px}.contact-email span{font-size:18px}.contact-email a{font-size:18px}.contact-mail-button,.contact-facebook-button,.contact-whatsapp-button{width:100%;justify-content:space-between}.contact-facebook-button,.contact-whatsapp-button{margin:12px 0 0}.contact-bookings{margin-top:38px;padding:23px 20px}}
+@media(max-width:600px){.whatsapp-fab{right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));width:54px;height:54px}.whatsapp-fab svg{width:29px;height:29px}}
+@media(prefers-reduced-motion:reduce){.whatsapp-fab{transition:none}.whatsapp-fab:hover{transform:none}}
 @media(max-width:600px){.agenda-page{padding:28px 18px 75px}.agenda-event{grid-template-columns:1fr}.agenda-event-date{min-height:auto;padding:30px 22px;border-right:0;border-bottom:1px solid var(--line)}.agenda-event-date strong{font-size:82px}.agenda-event-date span{margin-top:18px;font-size:15px}.agenda-event-details{padding:36px 24px 40px}.agenda-event-details h2{font-size:clamp(38px,11vw,50px)}.agenda-location{font-size:21px}.agenda-time{margin-top:23px}}
 @media(max-width:600px){
   .eyebrow{letter-spacing:.22em}
@@ -336,9 +340,6 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
 .home-hero h1{max-width:760px;text-wrap:balance}
 .home-hero .hero-intro{max-width:570px;margin-bottom:34px}
 .home-hero .hero-intro p{max-width:52ch}
-.home-hero-actions{max-width:570px;justify-content:center}
-.home-hero-actions .hero-button{min-height:64px;padding:20px 28px;border-radius:4px;box-shadow:0 14px 34px rgba(0,0,0,.26)}
-.home-hero-actions .hero-secondary{min-height:64px;padding:20px 24px;border-radius:4px;justify-content:space-between}
 .home-usp-strip{position:relative;z-index:3;padding:0 clamp(22px,6vw,96px);background:linear-gradient(180deg,#080b16,#060812);border-bottom:1px solid rgba(140,97,255,.17)}
 .home-usp-strip ul{width:min(100%,1280px);margin:0 auto;padding:28px 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));list-style:none}
 .home-usp-strip li{position:relative;display:flex;align-items:center;justify-content:center;min-height:48px;padding:7px 22px;color:#eef7ff;font:700 12px/1.45 var(--font-display);letter-spacing:.075em;text-align:center;text-transform:uppercase;border-right:1px solid rgba(107,130,188,.22)}
@@ -364,8 +365,6 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
   .home-hero{min-height:auto}
   .home-hero .hero-content{padding:calc(66.667vw + 24px) 20px 34px}
   .home-hero .hero-intro{margin:18px 0 24px}
-  .home-hero-actions .hero-button{min-height:56px;padding:16px 20px}
-  .home-hero-actions .hero-secondary{width:100%;min-height:52px;padding:15px 18px}
   .home-usp-strip{padding:0 18px}
   .home-usp-strip ul{grid-template-columns:1fr;padding:14px 0}
   .home-usp-strip li{justify-content:flex-start;min-height:48px;padding:9px 10px;text-align:left;border-right:0;border-bottom:1px solid rgba(107,130,188,.18)}

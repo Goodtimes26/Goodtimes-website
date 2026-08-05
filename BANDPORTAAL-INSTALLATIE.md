@@ -103,6 +103,17 @@ Een bestaande beheerder kan later via het portaal een tweede beheerder aanwijzen
 
 ## 7. Lokaal testen
 
+### URL-configuratie voor wachtwoordherstel
+
+Open in Supabase **Authentication → URL Configuration** en stel handmatig in:
+
+- **Site URL:** `https://goodtimescoverband.nl`
+- **Redirect URLs:**
+  - `https://goodtimescoverband.nl/bandinlog/`
+  - `https://goodtimescoverband.nl/bandinlog/nieuw-wachtwoord`
+
+Deze URL's zijn nodig om uitnodigingen en wachtwoordherstellinks na controle terug te sturen naar het beveiligde GoodTimes-bandportaal.
+
 1. Zorg dat `.env.local` correct is ingevuld.
 2. Installeer de dependencies met `npm ci`.
 3. Start de site met `npm run dev`.

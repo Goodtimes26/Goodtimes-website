@@ -11,16 +11,16 @@ export function BandLogin() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [inviteMode, setInviteMode] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const configured = hasSupabaseConfig();
 
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const isInvite =
-      window.location.hash.includes("type=invite") ||
-      window.location.hash.includes("type=recovery");
+    const isInvite = window.location.hash.includes("type=invite");
     if (isInvite) queueMicrotask(() => setInviteMode(true));
 
     supabase.auth.getSession().then(({ data }) => {
@@ -52,6 +52,32 @@ export function BandLogin() {
       return;
     }
     router.replace("/bandportaal");
+  }
+
+  async function handlePasswordReset(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError("Vul je e-mailadres in.");
+      return;
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setError("De beveiligde bandomgeving is nog niet geconfigureerd.");
+      return;
+    }
+    setLoading(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      redirectTo: "https://goodtimescoverband.nl/bandinlog/nieuw-wachtwoord",
+    });
+    setLoading(false);
+    if (resetError) {
+      setError("De herstellink kon niet worden verstuurd. Probeer het later opnieuw.");
+      return;
+    }
+    setMessage("Als dit e-mailadres bij ons bekend is, ontvang je een e-mail met verdere instructies.");
   }
 
   async function handleSetPassword(event: React.FormEvent<HTMLFormElement>) {
@@ -88,9 +114,11 @@ export function BandLogin() {
       </header>
       <section className="portal-login-card" aria-labelledby="login-title">
         <p className="portal-eyebrow">Alleen voor bandleden</p>
-        <h1 id="login-title">Bandinlog</h1>
+        <h1 id="login-title">{resetMode ? "Wachtwoord herstellen" : "Bandinlog"}</h1>
         <p className="portal-lead">
-          {inviteMode
+          {resetMode
+            ? "Vul het e-mailadres van je persoonlijke GoodTimes-account in."
+            : inviteMode
             ? "Kies een persoonlijk wachtwoord om je account te activeren."
             : "Log in met je persoonlijke GoodTimes-account."}
         </p>
@@ -99,8 +127,8 @@ export function BandLogin() {
             Supabase is nog niet gekoppeld. Volg eerst de installatiehandleiding.
           </div>
         )}
-        <form onSubmit={inviteMode ? handleSetPassword : handleSubmit} className="portal-form">
-          {!inviteMode && (
+        <form onSubmit={resetMode ? handlePasswordReset : inviteMode ? handleSetPassword : handleSubmit} className="portal-form">
+          {(!inviteMode || resetMode) && (
             <label>
               E-mailadres
               <input
@@ -108,11 +136,11 @@ export function BandLogin() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                required
+                required={!resetMode}
               />
             </label>
           )}
-          <label>
+          {!resetMode && <label>
             {inviteMode ? "Nieuw wachtwoord" : "Wachtwoord"}
             <input
               type="password"
@@ -121,8 +149,8 @@ export function BandLogin() {
               onChange={(event) => setPassword(event.target.value)}
               required
             />
-          </label>
-          {inviteMode && (
+          </label>}
+          {inviteMode && !resetMode && (
             <label>
               Herhaal wachtwoord
               <input
@@ -135,14 +163,19 @@ export function BandLogin() {
             </label>
           )}
           {error && <p className="portal-error" role="alert">{error}</p>}
+          {message && <p className="portal-notice portal-reset-message" role="status">{message}</p>}
           <button className="portal-primary" type="submit" disabled={loading || !configured}>
             {loading
               ? "Even geduld…"
-              : inviteMode
+              : resetMode
+                ? "Herstellink versturen"
+                : inviteMode
                 ? "Account activeren"
                 : "Inloggen"}
           </button>
         </form>
+        {!inviteMode && !resetMode && <button className="portal-forgot-link" type="button" onClick={() => { setResetMode(true); setError(""); setMessage(""); }}>Wachtwoord vergeten?</button>}
+        {resetMode && <button className="portal-forgot-link" type="button" onClick={() => { setResetMode(false); setError(""); setMessage(""); }}>Terug naar bandinlog</button>}
         <p className="portal-security-note">
           Persoonlijke accounts · beveiligde sessie · geen gedeeld wachtwoord
         </p>

@@ -1,6 +1,5 @@
 "use client";
 
-import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -17,9 +16,7 @@ declare global {
 
 export default function GoogleAnalytics() {
   const pathname = usePathname();
-  const currentPath = useRef(pathname);
   const lastTrackedPath = useRef<string | null>(null);
-  currentPath.current = pathname;
 
   const trackPage = useCallback((path: string) => {
     if (!isPublicPath(path) || lastTrackedPath.current === path || !window.gtag) return;
@@ -36,9 +33,7 @@ export default function GoogleAnalytics() {
   }, [pathname, trackPage]);
 
   return <>
-    <Script src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`} strategy="afterInteractive" />
-    <Script id="goodtimes-ga4" strategy="afterInteractive" onReady={() => trackPage(currentPath.current)}>
-      {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}window.gtag=gtag;gtag('js',new Date());gtag('config','${measurementId}',{send_page_view:false});`}
-    </Script>
+    <script async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`} />
+    <script id="goodtimes-ga4" dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}window.gtag=gtag;gtag('js',new Date());gtag('config','${measurementId}',{send_page_view:false});` }} />
   </>;
 }

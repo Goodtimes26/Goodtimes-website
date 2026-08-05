@@ -256,6 +256,7 @@ body:after{
 .contact-card{border-color:rgba(40,215,255,.28);box-shadow:var(--shadow-lift)}
 .contact-card h1{background:linear-gradient(105deg,#fff 25%,#b3e9ff 67%,#c9b5ff);background-clip:text;-webkit-background-clip:text;color:transparent}
 .contact-facebook-button{display:inline-flex;align-items:center;gap:12px;margin-left:12px}.contact-facebook-button svg{width:19px;height:19px;flex:0 0 auto}
+.contact-whatsapp-button{display:inline-flex;align-items:center;gap:12px;margin:12px 0 0}.contact-whatsapp-button svg{width:20px;height:20px;flex:0 0 auto}
 .contact-bookings{border-radius:10px;border-left:2px solid var(--magenta)}
 .member-grid{gap:18px}
 .member-grid article{transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
@@ -314,7 +315,7 @@ footer{box-shadow:inset 0 1px rgba(40,215,255,.04)}
   .scroll{display:none}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}.nav-cta:after,.primary:after{display:none}}
-@media(max-width:600px){.contact-page{min-height:auto;padding:112px 18px 70px}.contact-card{padding:38px 22px}.contact-card h1{font-size:clamp(48px,15vw,62px);line-height:.92;letter-spacing:-1.5px}.contact-intro{margin:24px 0 30px;font-size:14px;line-height:1.7}.contact-email{align-items:flex-start;gap:10px}.contact-email span{font-size:18px}.contact-email a{font-size:18px}.contact-mail-button,.contact-facebook-button{width:100%;justify-content:space-between}.contact-facebook-button{margin:12px 0 0}.contact-bookings{margin-top:38px;padding:23px 20px}}
+@media(max-width:600px){.contact-page{min-height:auto;padding:112px 18px 70px}.contact-card{padding:38px 22px}.contact-card h1{font-size:clamp(48px,15vw,62px);line-height:.92;letter-spacing:-1.5px}.contact-intro{margin:24px 0 30px;font-size:14px;line-height:1.7}.contact-email{align-items:flex-start;gap:10px}.contact-email span{font-size:18px}.contact-email a{font-size:18px}.contact-mail-button,.contact-facebook-button,.contact-whatsapp-button{width:100%;justify-content:space-between}.contact-facebook-button,.contact-whatsapp-button{margin:12px 0 0}.contact-bookings{margin-top:38px;padding:23px 20px}}
 @media(max-width:600px){.agenda-page{padding:28px 18px 75px}.agenda-event{grid-template-columns:1fr}.agenda-event-date{min-height:auto;padding:30px 22px;border-right:0;border-bottom:1px solid var(--line)}.agenda-event-date strong{font-size:82px}.agenda-event-date span{margin-top:18px;font-size:15px}.agenda-event-details{padding:36px 24px 40px}.agenda-event-details h2{font-size:clamp(38px,11vw,50px)}.agenda-location{font-size:21px}.agenda-time{margin-top:23px}}
 @media(max-width:600px){
   .eyebrow{letter-spacing:.22em}
@@ -461,6 +462,7 @@ a:focus-visible,button:focus-visible,audio:focus-visible{
 .contact-mail-button{box-shadow:0 12px 32px rgba(21,157,255,.2)}
 .contact-mail-button:hover{box-shadow:0 16px 38px rgba(21,157,255,.3),0 0 20px rgba(140,97,255,.16)}
 .contact-facebook-button{background:linear-gradient(135deg,#1769aa,#704ad9)}
+.contact-whatsapp-button{background:linear-gradient(135deg,#128c7e,#25d366)}
 
 /* Footer: grotere aanraakvlakken en een rustiger slot. */
 footer{padding-top:68px}
@@ -498,7 +500,7 @@ footer{padding-top:68px}
   .note{gap:30px}
   .note .primary{width:100%;justify-content:space-between}
   .agenda-page{padding-top:34px}
-  .contact-mail-button,.contact-facebook-button{min-height:54px}
+  .contact-mail-button,.contact-facebook-button,.contact-whatsapp-button{min-height:54px}
   footer{padding-top:58px}
   .footer-bottom{align-items:center;text-align:center}
 }

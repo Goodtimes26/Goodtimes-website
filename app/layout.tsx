@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 import { musicGroupJsonLd, pageSeo, siteUrl } from "./seo";
+import GoogleAnalytics from "./GoogleAnalytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
   return <html lang="nl"><body style={assetVariables}>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(musicGroupJsonLd) }} />
+    <GoogleAnalytics />
     {children}
   </body></html>;
 }

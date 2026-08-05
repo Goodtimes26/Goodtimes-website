@@ -18,9 +18,14 @@ const nav = [
 ] as const;
 
 const facebookUrl = "https://www.facebook.com/share/14sZgHUpgHK/?mibextid=wwXIfr";
+const whatsappUrl = "https://wa.me/31615066740?text=Hallo%20GoodTimes%21%20Ik%20ben%20benieuwd%20naar%20de%20mogelijkheden%20voor%20een%20optreden.%20Kunnen%20jullie%20contact%20met%20mij%20opnemen%3F";
 
 function FacebookIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24"><path fill="currentColor" d="M14 8.5V7c0-.8.5-1 1-1h2V2.1L14.1 2C10.6 2 9 4.1 9 6.7v1.8H6V13h3v9h4.5v-9h3l.5-4.5h-3Z" /></svg>;
+}
+
+function WhatsAppIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a9.7 9.7 0 0 0-8.4 14.6L2.3 22l5.5-1.4A9.8 9.8 0 1 0 12 2Zm0 17.8c-1.4 0-2.8-.4-4-1.1l-.3-.2-3.2.8.9-3.1-.2-.3A7.8 7.8 0 1 1 12 19.8Zm4.3-5.8c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-1.5-.7-2.5-1.4-3.5-3.1-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.7-1.7c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.2-.2-.4-.3Z" /></svg>;
 }
 
 function Arrow() {
@@ -316,6 +321,7 @@ function Contact() {
       </div>
       <a className="primary contact-mail-button" href="mailto:info@goodtimescoverband.nl">Stuur een e-mail <Arrow /></a>
       <a className="primary contact-facebook-button" href={facebookUrl} target="_blank" rel="noopener noreferrer"><FacebookIcon /> Bekijk GoodTimes op Facebook <Arrow /></a>
+      <a className="primary contact-whatsapp-button" href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp met GoodTimes openen in een nieuw tabblad"><WhatsAppIcon /> WhatsApp met GoodTimes <Arrow /></a>
       <div className="contact-bookings">
         <p className="eyebrow">Boekingen</p>
         <p>GoodTimes is beschikbaar voor bruiloften, bedrijfsfeesten, festivals, evenementen…</p>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GoodTimesSite, type PageKey } from "../site";
-import { createMetadata, pageSeo, siteUrl } from "../seo";
+import { createBreadcrumbJsonLd, createMetadata, pageSeo, siteUrl } from "../seo";
 
 const pages: PageKey[] = ["over-de-band", "repertoire", "agenda", "media", "fotos-videos", "techniek-productie", "contact"];
 
@@ -19,6 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   if (!pages.includes(slug as PageKey)) notFound();
+  const breadcrumbJsonLd = createBreadcrumbJsonLd(slug);
   const eventJsonLd = slug === "agenda" ? {
     "@context": "https://schema.org",
     "@type": "Event",
@@ -40,11 +41,14 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     },
     performer: {
       "@type": "MusicGroup",
+      "@id": `${siteUrl}/#goodtimes`,
       name: "GoodTimes",
       url: siteUrl,
     },
+    organizer: { "@id": `${siteUrl}/#goodtimes` },
   } : null;
   return <>
+    {breadcrumbJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />}
     {eventJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }} />}
     <GoodTimesSite page={slug as PageKey} />
   </>;

@@ -5,8 +5,11 @@ import { musicGroupJsonLd, pageSeo, siteUrl } from "./seo";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  applicationName: "GoodTimes",
   title: pageSeo.home.title,
   description: pageSeo.home.description,
+  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -22,6 +25,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
   return <html lang="nl">
     <head>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Oxanium:wght@500;600;700;800&display=swap" rel="stylesheet" />
       <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y9T36EJ1Z6" />
       <script dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}window.gtag=gtag;if(!/^\\/(bandinlog|bandportaal)(\\/|$)/.test(window.location.pathname)){gtag('js',new Date());gtag('config','G-Y9T36EJ1Z6');}` }} />
     </head>

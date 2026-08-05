@@ -14,8 +14,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     pageSeo.contact,
   ].map((page) => ({
     url: `${siteUrl}${page.path}`,
-    changeFrequency: page.path === "/" ? "monthly" : "weekly",
-    priority: page.path === "/" ? 1 : 0.8,
+    lastModified: new Date("2026-08-05"),
+    changeFrequency: ["/", "/agenda/", "/repertoire/"].includes(page.path) ? "weekly" : "monthly",
+    priority: page.path === "/" ? 1 : page.path === "/contact/" ? 0.9 : 0.8,
   }));
 }
 

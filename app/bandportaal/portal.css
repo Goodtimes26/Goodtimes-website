@@ -28,6 +28,7 @@
 .portal-primary:hover{filter:brightness(1.08);transform:translateY(-2px);box-shadow:0 12px 30px rgba(70,87,255,.25)}
 .portal-primary:disabled{cursor:not-allowed;filter:grayscale(.6);opacity:.55;transform:none}
 .portal-error{margin:0;color:#ff91a0;font-size:13px}.portal-security-note{margin:24px 0 0;color:#737e94;font-size:10px;text-align:center}
+.portal-forgot-link{display:block;margin:20px auto 0;padding:4px;color:#b9c7df;border:0;background:transparent;font-size:12px;text-decoration:underline;text-underline-offset:4px}.portal-forgot-link:hover{color:var(--portal-cyan)}.portal-forgot-link:focus-visible{outline:2px solid var(--portal-cyan);outline-offset:4px}.portal-reset-message{margin:0;line-height:1.55}
 .portal-notice{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 22px;padding:14px 16px;color:#bdfbe0;border:1px solid rgba(57,217,138,.32);border-radius:8px;background:rgba(57,217,138,.08);font-size:13px}
 .portal-notice button{color:inherit;border:0;background:transparent;font-size:20px}.portal-notice-error{color:#ffc0c8;border-color:rgba(255,93,114,.35);background:rgba(255,93,114,.08)}.portal-notice-warning{color:#ffe0ac;border-color:rgba(255,175,69,.35);background:rgba(255,175,69,.08)}
 .portal-loading{display:flex;align-items:center;justify-content:center;gap:14px;color:var(--portal-muted)}.portal-loader{width:24px;height:24px;border:2px solid rgba(40,215,255,.22);border-top-color:var(--portal-cyan);border-radius:50%;animation:portal-spin .8s linear infinite}@keyframes portal-spin{to{transform:rotate(360deg)}}

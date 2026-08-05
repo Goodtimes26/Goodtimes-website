@@ -29,11 +29,14 @@ export default function GoogleAnalytics() {
   }, []);
 
   useEffect(() => {
+    if (!window.gtag) {
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = (...args: unknown[]) => window.dataLayer.push(args);
+      window.gtag("js", new Date());
+      window.gtag("config", measurementId, { send_page_view: false });
+    }
     trackPage(pathname);
   }, [pathname, trackPage]);
 
-  return <>
-    <script async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`} />
-    <script id="goodtimes-ga4" dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}window.gtag=gtag;gtag('js',new Date());gtag('config','${measurementId}',{send_page_view:false});` }} />
-  </>;
+  return <script async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`} />;
 }

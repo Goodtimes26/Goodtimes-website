@@ -100,7 +100,7 @@ function HomePage() {
     <section className="home-intro">
       <div className="home-intro-copy">
         <h2>Beleef de jaren 80. Live.</h2>
-        <p>GoodTimes is een live jaren 80-coverband van zes muzikanten. Van De Dolly Dots tot Donna Summer en van Toto tot De Dijk: met live zang, strakke meerstemmigheid en 100% live gespeelde muziek brengen we een avond vol herkenning, energie en dansbare klassiekers.</p>
+        <p>GoodTimes is een live jaren 80-coverband van zes muzikanten. Van De Dolly Dots tot Donna Summer en van Toto tot De Dijk: met live zang, strakke meerstemmigheid en 100% live gespeelde muziek brengen we een avond vol herkenning, energie en dansbare klassiekers. GoodTimes is te boeken als professionele coverband en feestband in Noord-Brabant en door heel Nederland, van Waalwijk, Den Bosch, Tilburg, Breda en Eindhoven tot Nijmegen.</p>
       </div>
       <ul className="home-highlights" aria-label="Kenmerken van GoodTimes">
         <li>100% live</li>
@@ -324,7 +324,7 @@ function Contact() {
       <a className="primary contact-whatsapp-button" href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp met GoodTimes openen in een nieuw tabblad"><WhatsAppIcon /> WhatsApp met GoodTimes <Arrow /></a>
       <div className="contact-bookings">
         <p className="eyebrow">Boekingen</p>
-        <p>GoodTimes is beschikbaar voor bruiloften, bedrijfsfeesten, festivals, evenementen…</p>
+        <p>GoodTimes is beschikbaar als live band voor bruiloften, bedrijfsfeesten, personeelsfeesten, festivals en evenementen in Brabant en heel Nederland.</p>
       </div>
     </div>
   </section>;

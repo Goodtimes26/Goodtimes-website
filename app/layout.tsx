@@ -21,7 +21,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     "--member-6": "url('/members/eric-drums.jpg')",
   } as CSSProperties;
 
-  return <html lang="nl"><body style={assetVariables}>
+  return <html lang="nl">
+    <head>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y9T36EJ1Z6" />
+      <script dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}window.gtag=gtag;if(!/^\\/(bandinlog|bandportaal)(\\/|$)/.test(window.location.pathname)){gtag('js',new Date());gtag('config','G-Y9T36EJ1Z6');}` }} />
+    </head>
+    <body style={assetVariables}>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(musicGroupJsonLd) }} />
     <GoogleAnalytics />
     {children}

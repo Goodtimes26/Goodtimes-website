@@ -76,10 +76,11 @@ function Hero() {
         <h1>GOODTIMES<br /><em>de 80’s Coverband</em></h1>
         <div className="hero-intro">
           <p>GoodTimes brengt de grootste klassiekers uit de jaren tachtig tot leven.</p>
-          <p>Met jarenlange podiumervaring, aanstekelijke energie en een volledig dansbaar repertoire maken we van ieder optreden een feest.</p>
+          <p>Boek GoodTimes voor feesten, bedrijfsfeesten en evenementen: met jarenlange podiumervaring, aanstekelijke energie en een volledig dansbaar repertoire maken we van ieder optreden een feest.</p>
         </div>
         <div className="actions home-hero-actions">
           <Link className="primary hero-button" href="/contact">Boek GoodTimes <Arrow /></Link>
+          <Link className="secondary hero-secondary" href="/repertoire">Bekijk repertoire <Arrow /></Link>
         </div>
       </div>
       <div className="scroll">SCROLL TO THE 80’S <span>↓</span></div>

@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/bandinlog/", "/bandportaal/"],
+      disallow: ["/bandinlog", "/bandportaal"],
     },
     sitemap: `${siteUrl}/sitemap.xml`,
     host: siteUrl,

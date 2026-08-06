@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "../lib/supabase";
 
@@ -40,18 +41,17 @@ function Arrow() {
 
 function Header({ page }: { page: PageKey }) {
   const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [page]);
   return (
     <header className="topbar">
       <Link className="brand" href="/" aria-label="GoodTimes home">
         GOOD<span>TIMES</span><small>THE 80’S LIVE</small>
       </Link>
-      <button className="menu" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? "Menu sluiten" : "Menu openen"}>
+      <button className="menu" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="main-navigation" aria-label={open ? "Menu sluiten" : "Menu openen"}>
         MENU
       </button>
-      <nav className={open ? "nav open" : "nav"} aria-label="Hoofdnavigatie">
-        {nav.map(([key, href, label]) => <Link className={page === key ? "active" : ""} href={href} key={key}>{label}</Link>)}
-        <Link className="nav-cta" href="/contact">Boek de band <Arrow /></Link>
+      <nav id="main-navigation" className={open ? "nav open" : "nav"} aria-label="Hoofdnavigatie">
+        {nav.map(([key, href, label]) => <Link className={page === key ? "active" : ""} href={href} key={key} aria-current={page === key ? "page" : undefined} onClick={() => setOpen(false)}>{label}</Link>)}
+        <Link className="nav-cta" href="/contact" onClick={() => setOpen(false)}>Boek de band <Arrow /></Link>
       </nav>
     </header>
   );
@@ -75,7 +75,7 @@ function Hero() {
   return (
     <section className="hero home-hero">
       {/* Vervang dit bestand om de hero-foto later te wijzigen; behoud de afmetingen voor een stabiele layout. */}
-      <img className="hero-image" src="/goodtimes-group-hero.jpeg" width="1536" height="1024" alt="De zes muzikanten van GoodTimes voor een kleurrijke jaren 80-achtergrond" fetchPriority="high" />
+      <Image className="hero-image" src="/goodtimes-group-hero.jpeg" width={1536} height={1024} sizes="(max-width: 767px) 100vw, 45vw" alt="De zes muzikanten van GoodTimes, professionele jaren 80-coverband uit Brabant" preload />
       <div className="hero-overlay" />
       <div className="hero-content">
         <p className="eyebrow">De grootste hits uit de jaren 80. Live, energiek, onvergetelijk.</p>
@@ -155,7 +155,7 @@ function About() {
         <p>Wil je jouw evenement veranderen in een echte 80’s party waar het publiek nog lang over napraat?</p>
       </div>
     </section>
-    <section className="members"><p className="eyebrow">The band</p><h2>De muzikanten achter de sound</h2><div className="member-grid">{members.map(([name, role, image, alt],i)=><article key={name}><div className={`portrait p${i+1}`}><img src={image} alt={alt} width="1200" height="800" loading="lazy" /><span>0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div><Link className="text-link about-repertoire-link" href="/repertoire">Bekijk ons jaren 80-repertoire <Arrow /></Link></section>
+    <section className="members"><p className="eyebrow">The band</p><h2>De muzikanten achter de sound</h2><div className="member-grid">{members.map(([name, role, image, alt],i)=><article key={name}><div className={`portrait p${i+1}`}><Image src={image} alt={alt} width={1200} height={800} sizes="(max-width: 900px) 50vw, 17vw" /><span aria-hidden="true">0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div><Link className="text-link about-repertoire-link" href="/repertoire">Bekijk ons jaren 80-repertoire <Arrow /></Link></section>
   </>;
 }
 
@@ -278,7 +278,7 @@ function TechniqueProduction() {
   return <>
     <PageIntro kicker="GoodTimes achter de knoppen" title="TECHNIEK &" accent="PRODUCTIE." text="Professionele techniek, volledig afgestemd op de band en jouw evenement." />
     <section className={`tech-banner-grid ${bannerImages.length > 1 ? "has-multiple" : ""}`} aria-label="GoodTimes techniek en productie">
-      {bannerImages.map((image) => <figure className="tech-banner" key={image.src}><img src={image.src} alt={image.alt} width="1179" height="855" /></figure>)}
+      {bannerImages.map((image) => <figure className="tech-banner" key={image.src}><Image src={image.src} alt={image.alt} width={1179} height={855} sizes="(max-width: 900px) 100vw, 84vw" /></figure>)}
     </section>
     <section className="tech-intro">
       <p className="eyebrow">Techniek die het optreden versterkt</p>
@@ -379,6 +379,6 @@ export function GoodTimesSite({ page }: { page: PageKey }) {
   }, [page]);
 
   const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : page === "techniek-productie" ? <TechniqueProduction /> : <Contact />;
-  return <><Header page={page === "fotos-videos" ? "media" : page} /><main>{content}</main><Footer />{page !== "bandinlog" && <FloatingWhatsApp />}</>;
+  return <><a className="skip-link" href="#main-content">Ga direct naar de inhoud</a><Header page={page === "fotos-videos" ? "media" : page} /><main id="main-content" tabIndex={-1}>{content}</main><Footer />{page !== "bandinlog" && <FloatingWhatsApp />}</>;
 }
 

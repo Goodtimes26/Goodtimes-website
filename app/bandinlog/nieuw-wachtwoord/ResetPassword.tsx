@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getSupabaseClient, hasSupabaseConfig } from "../../../lib/supabase";
+import { getSupabaseClient } from "../../../lib/supabase";
 
 type ResetStatus = "checking" | "valid" | "invalid" | "success";
 
@@ -12,8 +12,6 @@ export function ResetPassword() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const configured = hasSupabaseConfig();
-
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase) {

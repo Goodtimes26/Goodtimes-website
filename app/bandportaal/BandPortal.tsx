@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -338,7 +339,7 @@ export function BandPortal() {
       <header className="portal-topbar">
         <div className="portal-brand-group">
           <div className="portal-brand">GOOD<span>TIMES</span><small>BANDPORTAAL</small></div>
-          <a className="portal-site-link" href="/">← Terug naar website</a>
+          <Link className="portal-site-link" href="/">← Terug naar website</Link>
         </div>
         <div className="portal-account">
           <span><strong>{profile.display_name}</strong><small>{isAdmin ? "Beheerder" : "Bandlid"}</small></span>

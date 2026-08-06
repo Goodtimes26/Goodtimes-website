@@ -8,10 +8,12 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "GoodTimes",
     description: "Professionele live jaren 80-coverband en feestband voor Brabant en heel Nederland.",
     start_url: "/",
+    scope: "/",
     display: "standalone",
     background_color: "#040610",
     theme_color: "#040610",
     lang: "nl",
+    categories: ["music", "entertainment"],
     icons: [{ src: "/favicon.svg", sizes: "any", type: "image/svg+xml" }],
   };
 }

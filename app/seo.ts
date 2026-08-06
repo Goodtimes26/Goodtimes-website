@@ -119,6 +119,33 @@ export const musicGroupJsonLd = {
   ].map(([name, role]) => ({ "@type": "Person", name, roleName: role })),
 };
 
+export const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${siteUrl}/#website`,
+  url: `${siteUrl}/`,
+  name: "GoodTimes",
+  alternateName: "GoodTimes 80's Coverband",
+  description: pageSeo.home.description,
+  inLanguage: "nl-NL",
+  publisher: { "@id": `${siteUrl}/#goodtimes` },
+};
+
+export function createWebPageJsonLd(entry: SeoEntry) {
+  const url = `${siteUrl}${entry.path}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${url}#webpage`,
+    url,
+    name: entry.title,
+    description: entry.description,
+    inLanguage: "nl-NL",
+    isPartOf: { "@id": `${siteUrl}/#website` },
+    about: { "@id": `${siteUrl}/#goodtimes` },
+  };
+}
+
 const breadcrumbLabels: Record<string, string> = {
   "over-de-band": "Over de band",
   repertoire: "Repertoire",

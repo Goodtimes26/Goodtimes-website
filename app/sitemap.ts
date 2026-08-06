@@ -14,7 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     pageSeo.contact,
   ].map((page) => ({
     url: `${siteUrl}${page.path}`,
-    lastModified: new Date("2026-08-05"),
+    lastModified: new Date("2026-08-06"),
     changeFrequency: ["/", "/agenda/", "/repertoire/"].includes(page.path) ? "weekly" : "monthly",
     priority: page.path === "/" ? 1 : page.path === "/contact/" ? 0.9 : 0.8,
   }));

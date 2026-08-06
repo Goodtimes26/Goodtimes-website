@@ -1,15 +1,24 @@
 import type { CSSProperties } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { musicGroupJsonLd, pageSeo, siteUrl } from "./seo";
+import { musicGroupJsonLd, pageSeo, siteUrl, websiteJsonLd } from "./seo";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "GoodTimes",
   title: pageSeo.home.title,
   description: pageSeo.home.description,
+  formatDetection: { email: false, address: false, telephone: false },
+  referrer: "strict-origin-when-cross-origin",
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
   manifest: "/manifest.webmanifest",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#040610",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -33,6 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </head>
     <body style={assetVariables}>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(musicGroupJsonLd) }} />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
     {children}
   </body></html>;
 }

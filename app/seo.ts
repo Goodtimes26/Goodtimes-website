@@ -90,7 +90,7 @@ export const musicGroupJsonLd = {
   name: "GoodTimes",
   alternateName: "GoodTimes 80's Coverband",
   url: siteUrl,
-  logo: `${siteUrl}/favicon.svg`,
+  logo: `${siteUrl}/favicon-512x512.png`,
   email: "info@goodtimescoverband.nl",
   telephone: "+31615066740",
   genre: ["80's", "disco", "funk", "pop", "dance classics", "Nederpop"],

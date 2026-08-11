@@ -51,6 +51,10 @@ Commit `.env.local` nooit naar GitHub.
 5. Voer daarna, in deze volgorde, ook uit:
    - `supabase/migrations/002_privacy_analytics.sql`
    - `supabase/migrations/003_band_app.sql`
+   - `supabase/migrations/004_setlist_maker_import.sql`
+   - `supabase/migrations/005_internal_setlist_editor.sql`
+   - `supabase/migrations/006_song_youtube_management.sql`
+   - `supabase/migrations/007_band_audio_storage.sql`
 6. Controleer in **Table Editor** of deze tabellen bestaan:
    - `profiles`
    - `user_roles`
@@ -73,6 +77,10 @@ Migratie 003 bewaart repertoire, gedeelde setlists, repetitieplannen, bandberich
 bestandslinks en uitgebreide profielen centraal in Supabase. Zonder deze migratie
 blijven inloggen, de bestaande agenda, aanvragen en beschikbaarheid werken; de
 nieuwe modules tonen dan een duidelijke installatiemelding.
+
+Migratie 007 maakt de privébucket `band-audio`, koppelt audio optioneel aan de
+centrale `songs`-tabel en staat alleen ingelogde bandleden toe audio te lezen.
+Alleen beheerders mogen audiobestanden uploaden en verwijderen.
 
 ## 5. De zes persoonlijke accounts toevoegen
 
@@ -186,7 +194,7 @@ opgeslagen.
 
 - Een Supabase-project aanmaken.
 - De Project URL en publieke anon key instellen.
-- De drie SQL-migraties in volgorde uitvoeren.
+- Alle SQL-migraties in volgorde uitvoeren.
 - Zes Authentication-accounts met echte e-mailadressen aanmaken.
 - Eddie via SQL de rol `admin` geven.
 - E-mailbevestiging en eventueel wachtwoordherstel in Supabase configureren.

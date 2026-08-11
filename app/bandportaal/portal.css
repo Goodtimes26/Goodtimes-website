@@ -34,6 +34,7 @@
 .portal-file-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
 .portal-file-card { display: flex; flex-direction: column; align-items: flex-start; min-height: 12rem; padding: 1.2rem; color: var(--portal-text); border: 1px solid rgba(84, 218, 255, .18); border-radius: 16px; background: rgba(9, 13, 27, .76); text-decoration: none; }
 .portal-file-card b { margin-top: auto; color: var(--portal-cyan); }
+.portal-file-editors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.portal-file-editors .portal-editor{min-width:0}.portal-audio-card{gap:.65rem}.portal-audio-card h2,.portal-audio-card p{margin:0}.portal-audio-song{color:var(--portal-muted);font-size:.78rem}.portal-audio-song strong{color:var(--portal-cyan)}.portal-audio-player{width:100%;min-width:0;max-width:100%;min-height:44px;margin-top:auto}.portal-delete-audio{align-self:flex-end;min-height:40px;padding:.55rem .75rem;color:#ffabb6;border:1px solid rgba(255,93,114,.35);border-radius:6px;background:rgba(255,93,114,.08);font-size:.72rem;font-weight:800}.portal-delete-audio:hover{border-color:var(--portal-red);background:rgba(255,93,114,.15)}
 .portal-message-card.important { border-color: rgba(255, 69, 176, .5); box-shadow: inset 3px 0 0 var(--portal-magenta); }
 .portal-check-label { display: flex; align-items: center; gap: .7rem; }
 .portal-check-label input { width: 1.1rem; height: 1.1rem; }
@@ -50,7 +51,7 @@
 
 @media (max-width: 900px) {
   .portal-dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .portal-file-grid, .portal-more-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portal-file-grid, .portal-more-grid, .portal-file-editors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .portal-setlist-editor-grid{grid-template-columns:1fr}.portal-setlist-sidebar{position:static}
 }
 
@@ -65,7 +66,7 @@
   .portal-mobile-nav button { display: flex; flex-direction: column; align-items: center; gap: .25rem; min-width: 0; border: 0; background: transparent; color: var(--portal-muted); font-size: .68rem; padding: .35rem .1rem; }
   .portal-mobile-nav button span { font-size: 1.2rem; line-height: 1; }
   .portal-mobile-nav button.active { color: var(--portal-cyan); }
-  .portal-dashboard-grid, .portal-file-grid, .portal-more-grid { grid-template-columns: 1fr; }
+  .portal-dashboard-grid, .portal-file-grid, .portal-more-grid, .portal-file-editors { grid-template-columns: 1fr; }
   .portal-next-event { grid-column: auto; min-height: 0; }
   .portal-dashboard-tile { min-height: 8rem; }
   .portal-data-card { grid-template-columns: 1fr; }

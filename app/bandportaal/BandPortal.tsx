@@ -530,6 +530,7 @@ export function BandPortal() {
           <div className="portal-section">
             <p className="portal-eyebrow">GoodTimes Band</p><h1>Meer</h1>
             <div className="portal-more-grid">
+              <button onClick={() => setTab("requests")}><strong>Aanvragen</strong><span>Bekijk boekingsaanvragen en reacties</span></button>
               <button onClick={() => setTab("availability")}><strong>Beschikbaarheid</strong><span>Uitzonderingen invullen en team controleren</span></button>
               <button onClick={() => setTab("songs")}><strong>Repertoire</strong><span>Nummers, notities en oefenstatus</span></button>
               <button onClick={() => setTab("messages")}><strong>Mededelingen</strong><span>Interne berichten voor de band</span></button>

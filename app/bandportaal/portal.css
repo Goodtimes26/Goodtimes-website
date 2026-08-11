@@ -56,7 +56,7 @@
 
 @media (max-width: 760px) {
   .portal-app { padding-bottom: calc(5.4rem + env(safe-area-inset-bottom)); }
-  .portal-desktop-nav { display: none; }
+  .portal-desktop-nav { display: none !important; }
   .portal-mobile-nav {
     position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr);
     padding: .5rem max(.4rem, env(safe-area-inset-right)) calc(.5rem + env(safe-area-inset-bottom)) max(.4rem, env(safe-area-inset-left));

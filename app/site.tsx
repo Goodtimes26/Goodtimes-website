@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "../lib/supabase";
 
-export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "techniek-productie" | "contact" | "bandinlog";
+export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "techniek-productie" | "contact" | "bandinlog" | "80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest";
 
 const nav = [
   ["home", "/", "Home"],
@@ -66,6 +66,12 @@ function Footer() {
         <a className="facebook-follow" href={facebookUrl} target="_blank" rel="noopener noreferrer"><FacebookIcon /><span>Volg GoodTimes op Facebook</span></a>
         <a href="#" aria-label="Instagram">◎</a><a href="#" aria-label="YouTube">▶</a>
       </div>
+      <nav className="footer-booking-links" aria-label="GoodTimes boeken">
+        <span>GoodTimes boeken</span>
+        <Link href="/80s-coverband-boeken">80’s coverband boeken</Link>
+        <Link href="/coverband-brabant">Coverband Brabant</Link>
+        <Link href="/coverband-bedrijfsfeest">Coverband bedrijfsfeest</Link>
+      </nav>
       <div className="footer-bottom"><span>© 2026 GoodTimes. Alle rechten voorbehouden.</span><span>Privacy · Cookies</span></div>
     </footer>
   );
@@ -333,6 +339,122 @@ function Contact() {
   </section>;
 }
 
+type LandingPageContent = {
+  kicker: string;
+  title: string;
+  accent: string;
+  introduction: string;
+  sections: Array<{ title: string; paragraphs: string[] }>;
+  highlights: string[];
+  cta: string;
+};
+
+const landingPages: Record<"80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest", LandingPageContent> = {
+  "80s-coverband-boeken": {
+    kicker: "De jaren 80, volledig live",
+    title: "80'S COVERBAND",
+    accent: "BOEKEN.",
+    introduction: "Zoek je een 80's coverband die de energie en herkenning van het muziekdecennium live naar het podium brengt? GoodTimes speelt dansbare jaren 80-muziek met zes ervaren muzikanten en zonder backing tracks.",
+    sections: [
+      {
+        title: "Een live jaren 80-band voor jouw evenement",
+        paragraphs: [
+          "Van disco en funk tot pop, Nederpop en dance classics: GoodTimes brengt bekende nummers uit de jaren tachtig met live zang, meerstemmigheid en een energieke bandsound.",
+          "De band is inzetbaar voor feestavonden, bedrijfsfeesten, festivals en andere evenementen waar herkenning, dansbare muziek en een professionele uitstraling samenkomen.",
+        ],
+      },
+      {
+        title: "Herkenbare hits, gespeeld door een echte liveband",
+        paragraphs: [
+          "Een 80's liveband maakt muziek tastbaar. De interactie tussen muzikanten, publiek en podium zorgt voor een optreden dat iedere avond leeft.",
+          "Bekijk het repertoire voor een indruk van de nummers of beluister de repetitieopnames om te horen hoe GoodTimes live klinkt.",
+        ],
+      },
+    ],
+    highlights: ["100% live, zonder backing tracks", "Zes ervaren muzikanten", "Voor feesten, festivals en evenementen"],
+    cta: "Informeer naar beschikbaarheid",
+  },
+  "coverband-brabant": {
+    kicker: "Live vanuit Noord-Brabant",
+    title: "COVERBAND",
+    accent: "BRABANT.",
+    introduction: "GoodTimes is een professionele 80's coverband uit Brabant. Vanuit de regio is de band goed inzetbaar voor feesten, festivals en evenementen in Noord-Brabant en daarbuiten.",
+    sections: [
+      {
+        title: "Een energieke live band in Brabant",
+        paragraphs: [
+          "Organiseer je een evenement in Den Bosch, Tilburg, Eindhoven of elders in Noord-Brabant? GoodTimes brengt een herkenbare jaren 80-show met dansbare classics, sterke zang en een volledige livebezetting.",
+          "De combinatie van bekende muziek en podiumenergie maakt de band geschikt voor uiteenlopende gelegenheden, van een feestavond tot een festival of bedrijfsevenement.",
+        ],
+      },
+      {
+        title: "Ook buiten Brabant te boeken",
+        paragraphs: [
+          "GoodTimes speelt niet alleen in Brabant. Ook voor optredens elders in Nederland kun je informeren naar de mogelijkheden en beschikbaarheid.",
+          "Wie specifiek een jaren 80-band wil boeken, kan het repertoire bekijken en via de live opnames alvast kennismaken met de sound van GoodTimes.",
+        ],
+      },
+    ],
+    highlights: ["Coverband uit Brabant", "Volledig live gespeeld", "Professionele sound en uitstraling"],
+    cta: "GoodTimes boeken in Brabant",
+  },
+  "coverband-bedrijfsfeest": {
+    kicker: "Herkenning voor het hele bedrijf",
+    title: "COVERBAND",
+    accent: "BEDRIJFSFEEST.",
+    introduction: "Met herkenbare jaren 80-hits en een energieke liveshow brengt GoodTimes collega's samen op de dansvloer. Een professionele coverband voor een bedrijfsfeest, personeelsfeest of zakelijk evenement.",
+    sections: [
+      {
+        title: "Live muziek voor een breed publiek",
+        paragraphs: [
+          "De muziek uit de jaren tachtig verbindt generaties. Bekende refreinen, dansbare disco, funk en pop zorgen voor herkenning zonder dat het programma eenvormig wordt.",
+          "GoodTimes speelt alles volledig live. Daarmee krijgt een personeelsfeest of bedrijfsevenement de energie en spontaniteit van een echte band op het podium.",
+        ],
+      },
+      {
+        title: "Passend bij zakelijke evenementen",
+        paragraphs: [
+          "Van jubileum en relatie-evenement tot bedrijfsfestival: GoodTimes combineert een verzorgde uitstraling met een repertoire dat uitnodigt om mee te zingen en te dansen.",
+          "Wil je weten of de band past bij jouw locatie en programma? Neem contact op; we denken graag mee over de mogelijkheden voor het evenement.",
+        ],
+      },
+    ],
+    highlights: ["Voor personeelsfeesten en jubilea", "Dansbare jaren 80-hits", "Zes professionele muzikanten"],
+    cta: "Vraag beschikbaarheid aan",
+  },
+};
+
+function SeoLandingPage({ page }: { page: keyof typeof landingPages }) {
+  const content = landingPages[page];
+  return <>
+    <PageIntro kicker={content.kicker} title={content.title} accent={content.accent} text={content.introduction} className="seo-landing-intro" />
+    <section className="seo-landing-content">
+      <div className="seo-landing-main">
+        {content.sections.map((section) => <article key={section.title}>
+          <h2>{section.title}</h2>
+          {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        </article>)}
+      </div>
+      <aside className="seo-landing-aside" aria-label="Kenmerken van GoodTimes">
+        <p className="eyebrow">GoodTimes live</p>
+        <ul>{content.highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>
+        <Link className="primary" href="/contact">{content.cta} <Arrow /></Link>
+      </aside>
+    </section>
+    <section className="seo-landing-discover">
+      <p className="eyebrow">Ontdek GoodTimes</p>
+      <h2>Bekijk en beluister de band</h2>
+      <nav aria-label="Meer over GoodTimes">
+        <Link className="text-link" href="/repertoire">Bekijk het repertoire <Arrow /></Link>
+        <Link className="text-link" href="/media">Beluister de live opnames <Arrow /></Link>
+        {page !== "80s-coverband-boeken" && <Link className="text-link" href="/80s-coverband-boeken">Meer over een 80’s coverband boeken <Arrow /></Link>}
+        {page !== "coverband-brabant" && <Link className="text-link" href="/coverband-brabant">GoodTimes als coverband in Brabant <Arrow /></Link>}
+        {page !== "coverband-bedrijfsfeest" && <Link className="text-link" href="/coverband-bedrijfsfeest">Liveband voor een bedrijfsfeest <Arrow /></Link>}
+      </nav>
+    </section>
+  </>;
+}
+
 export function GoodTimesSite({ page }: { page: PageKey }) {
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -378,7 +500,7 @@ export function GoodTimesSite({ page }: { page: PageKey }) {
     })();
   }, [page]);
 
-  const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : page === "techniek-productie" ? <TechniqueProduction /> : <Contact />;
+  const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : page === "techniek-productie" ? <TechniqueProduction /> : page === "contact" ? <Contact /> : page === "bandinlog" ? <Contact /> : <SeoLandingPage page={page} />;
   return <><a className="skip-link" href="#main-content">Ga direct naar de inhoud</a><Header page={page === "fotos-videos" ? "media" : page} /><main id="main-content" tabIndex={-1}>{content}</main><Footer />{page !== "bandinlog" && <FloatingWhatsApp />}</>;
 }
 

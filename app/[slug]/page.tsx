@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { GoodTimesSite, type PageKey } from "../site";
 import { createBreadcrumbJsonLd, createMetadata, createWebPageJsonLd, pageSeo, siteUrl } from "../seo";
 
-const pages: PageKey[] = ["over-de-band", "repertoire", "agenda", "media", "fotos-videos", "techniek-productie", "contact"];
+const pages: PageKey[] = ["over-de-band", "repertoire", "agenda", "media", "fotos-videos", "techniek-productie", "contact", "80s-coverband-boeken", "coverband-brabant", "coverband-bedrijfsfeest"];
 
 export function generateStaticParams() {
   return pages.map((slug) => ({ slug }));

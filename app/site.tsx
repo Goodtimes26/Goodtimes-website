@@ -15,7 +15,6 @@ const nav = [
   ["media", "/media", "Media"],
   ["techniek-productie", "/techniek-productie", "Techniek & Productie"],
   ["contact", "/contact", "Contact"],
-  ["bandinlog", "/bandinlog", "Bandinlog"],
 ] as const;
 
 const facebookUrl = "https://www.facebook.com/share/14sZgHUpgHK/?mibextid=wwXIfr";

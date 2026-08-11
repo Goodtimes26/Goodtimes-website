@@ -86,6 +86,8 @@
 .portal-public-header,.portal-topbar{display:flex;align-items:center;justify-content:space-between;min-height:76px;padding:0 clamp(20px,4vw,64px);border-bottom:1px solid rgba(40,215,255,.18);background:rgba(4,6,16,.9);backdrop-filter:blur(16px)}
 .portal-back-link,.portal-account button{color:#d8deeb;font-size:12px}
 .portal-back-link:hover,.portal-account button:hover{color:var(--portal-cyan)}
+.band-app-standalone .portal-app .portal-site-link{display:none}
+@media(display-mode:standalone){.portal-app .portal-site-link{display:none}}
 .portal-login-shell{display:grid;grid-template-rows:auto 1fr}
 .portal-login-card{position:relative;align-self:center;width:min(calc(100% - 36px),560px);margin:70px auto;padding:clamp(34px,6vw,64px);overflow:hidden;border:1px solid rgba(40,215,255,.26);border-radius:16px;background:linear-gradient(145deg,rgba(17,24,43,.96),rgba(6,9,21,.98));box-shadow:0 32px 90px rgba(0,0,0,.48)}
 .portal-login-card:before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,var(--portal-cyan),var(--portal-violet),var(--portal-magenta))}

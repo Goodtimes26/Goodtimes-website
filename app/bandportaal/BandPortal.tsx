@@ -556,7 +556,7 @@ export function BandPortal() {
               <button onClick={() => setTab("availability")}><strong>Beschikbaarheid</strong><span>Uitzonderingen invullen en team controleren</span></button>
               <button onClick={() => setTab("songs")}><strong>Repertoire</strong><span>Nummers, notities en oefenstatus</span></button>
               <button onClick={() => setTab("messages")}><strong>Mededelingen</strong><span>Interne berichten voor de band</span></button>
-              <button onClick={() => setTab("files")}><strong>Bestanden</strong><span>Documenten, links en promomateriaal</span></button>
+              <button onClick={() => setTab("files")}><strong>Bestanden & audio</strong><span>Documenten, links en oefenopnames</span></button>
               <button onClick={() => setTab("profile")}><strong>Mijn profiel</strong><span>Naam, instrument en contactgegevens</span></button>
               <button onClick={() => setTab("events")}><strong>Activiteiten</strong><span>Repetities en optredens beheren</span></button>
               {isAdmin && <button onClick={() => setTab("users")}><strong>Gebruikers</strong><span>Bandleden en rollen beheren</span></button>}

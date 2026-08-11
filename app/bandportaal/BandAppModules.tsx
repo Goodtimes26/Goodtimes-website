@@ -18,10 +18,20 @@ type SetlistItem = { id: string; setlist_id: string; song_id: string; position: 
 type Rehearsal = { id: string; event_id: string | null; name?: string | null; rehearsal_date?: string | null; status: string; general_notes: string | null };
 type RehearsalSong = { id: string; rehearsal_id: string; song_id: string; priority: number; status: string; notes: string | null };
 type BandMessage = { id: string; author_id: string; title: string; body: string; important: boolean; created_at: string };
-type BandFile = { id: string; title: string; category: string | null; external_url: string | null; storage_path: string | null; description: string | null; created_at: string };
+type BandFile = { id: string; title: string; category: string | null; external_url: string | null; storage_path: string | null; description: string | null; song_id: string | null; mime_type: string | null; size_bytes: number | null; original_name: string | null; created_at: string };
 type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | null; avatar_url?: string | null };
 
 const songStatus: Record<string, string> = { new: "Nieuw", attention: "Aandacht nodig", almost: "Bijna goed", ready: "Klaar", active: "Actief", inactive: "Niet actief" };
+const audioTypes: Record<string, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav" };
+
+function audioType(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return audioTypes[extension] ?? null;
+}
+
+function safeAudioName(name: string) {
+  return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "audio";
+}
 
 function MissingMigration() {
   return <div className="portal-empty portal-migration-note"><strong>Deze module staat klaar.</strong><p>Voer eerst migratie <code>003_band_app.sql</code> uit in Supabase. De bestaande Bandinlog blijft ondertussen gewoon werken.</p></div>;
@@ -45,6 +55,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const [rehearsalSongs, setRehearsalSongs] = useState<RehearsalSong[]>([]);
   const [messages, setMessages] = useState<BandMessage[]>([]);
   const [files, setFiles] = useState<BandFile[]>([]);
+  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile>(profile);
   const [busy, setBusy] = useState(false);
 
@@ -62,7 +73,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: false, nullsFirst: false }),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,song_id,priority,status,notes"),
       supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
-      supabase.from("band_files").select("id,title,category,external_url,storage_path,description,created_at").order("created_at", { ascending: false }),
+      supabase.from("band_files").select("id,title,category,external_url,storage_path,description,song_id,mime_type,size_bytes,original_name,created_at").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,display_name,email,instrument,phone,avatar_url").eq("id", user.id).single(),
     ]);
     if ([setlistResult.error, setlistItemsResult.error, rehearsalResult.error, rehearsalSongsResult.error, messageResult.error, fileResult.error].some(Boolean)) {
@@ -75,7 +86,13 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setRehearsals((rehearsalResult.data ?? []) as Rehearsal[]);
     setRehearsalSongs((rehearsalSongsResult.data ?? []) as RehearsalSong[]);
     setMessages((messageResult.data ?? []) as BandMessage[]);
-    setFiles((fileResult.data ?? []) as BandFile[]);
+    const loadedFiles = (fileResult.data ?? []) as BandFile[];
+    setFiles(loadedFiles);
+    const signedAudio = await Promise.all(loadedFiles.filter((file) => file.storage_path).map(async (file) => {
+      const { data } = await supabase.storage.from("band-audio").createSignedUrl(file.storage_path!, 3600);
+      return data?.signedUrl ? [file.id, data.signedUrl] as const : null;
+    }));
+    setAudioUrls(Object.fromEntries(signedAudio.filter((entry): entry is readonly [string, string] => Boolean(entry))));
     if (!profileResult.error) setExtendedProfile(profileResult.data as ExtendedProfile);
     setReady(true);
   }, [user.id]);
@@ -178,10 +195,72 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (error) reportError("Het bericht kon niet worden verwijderd."); else { notify("Bericht verwijderd."); await load(); }
   }} />;
 
-  if (tab === "files") return <FilesPanel files={files} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
+  if (tab === "files") return <FilesPanel files={files} songs={songs} audioUrls={audioUrls} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const ok = await submit("band_files", { title: String(data.get("title")), category: String(data.get("category") || "") || null, external_url: String(data.get("external_url")), description: String(data.get("description") || "") || null, uploaded_by: user.id }, "Link toegevoegd.");
     if (ok) form.currentTarget.reset();
+  }} onUpload={async (form) => {
+    if (!isAdmin) return;
+    const formElement = form.currentTarget;
+    const data = new FormData(formElement);
+    const file = data.get("audio_file");
+    if (!(file instanceof File) || !file.size) {
+      reportError("Kies een audiobestand om te uploaden.");
+      return;
+    }
+    const mimeType = audioType(file);
+    if (!mimeType) {
+      reportError("Gebruik een MP3-, M4A- of WAV-bestand.");
+      return;
+    }
+    if (file.size > 52428800) {
+      reportError("Het audiobestand mag maximaal 50 MB groot zijn.");
+      return;
+    }
+    setBusy(true);
+    const supabase = getSupabaseClient()!;
+    const storagePath = `${user.id}/${crypto.randomUUID()}-${safeAudioName(file.name)}`;
+    const uploadResult = await supabase.storage.from("band-audio").upload(storagePath, file, { contentType: mimeType, upsert: false });
+    if (uploadResult.error) {
+      setBusy(false);
+      reportError("Uploaden is niet gelukt. Controleer migratie 007 en probeer opnieuw.");
+      return;
+    }
+    const insertResult = await supabase.from("band_files").insert({
+      title: String(data.get("title")),
+      category: "Audio",
+      storage_path: storagePath,
+      song_id: String(data.get("song_id") || "") || null,
+      description: String(data.get("description") || "") || null,
+      mime_type: mimeType,
+      size_bytes: file.size,
+      original_name: file.name,
+      uploaded_by: user.id,
+    });
+    if (insertResult.error) {
+      await supabase.storage.from("band-audio").remove([storagePath]);
+      setBusy(false);
+      reportError("De audio kon niet worden opgeslagen. Het geüploade bestand is veilig opgeruimd.");
+      return;
+    }
+    setBusy(false);
+    formElement.reset();
+    notify("Audio toegevoegd.");
+    await load();
+  }} onDeleteAudio={async (file) => {
+    if (!isAdmin || !file.storage_path || !window.confirm(`Audiobestand “${file.title}” verwijderen?`)) return;
+    setBusy(true);
+    const supabase = getSupabaseClient()!;
+    const storageResult = await supabase.storage.from("band-audio").remove([file.storage_path]);
+    if (storageResult.error) {
+      setBusy(false);
+      reportError("Het audiobestand kon niet uit de beveiligde opslag worden verwijderd.");
+      return;
+    }
+    const deleteResult = await supabase.from("band_files").delete().eq("id", file.id);
+    setBusy(false);
+    if (deleteResult.error) reportError("De audioregistratie kon niet worden verwijderd.");
+    else { notify("Audio verwijderd."); await load(); }
   }} />;
 
   return <ProfilePanel profile={extendedProfile} busy={busy} onSave={async (form) => {
@@ -327,8 +406,28 @@ function MessagesPanel({ messages, profiles, userId, isAdmin, busy, onCreate, on
     <div className="portal-data-list">{messages.map((message) => <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Mededeling"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {profiles.find((profile) => profile.id === message.author_id)?.display_name ?? "Bandlid"}</small>{(isAdmin || message.author_id === userId) && <button className="portal-delete-link" onClick={() => onDelete(message.id)}>Verwijderen</button>}</article>)}{!messages.length && <div className="portal-empty">Er zijn nog geen bandberichten.</div>}</div></div>;
 }
 
-function FilesPanel({ files, isAdmin, busy, onCreate }: { files: BandFile[]; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void }) {
-  return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Documenten en links</p><h1>Bestanden</h1></div></div>{isAdmin && <details className="portal-editor"><summary>Link toevoegen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Titel<input name="title" required /></label><label>Categorie<input name="category" placeholder="Bijvoorbeeld techniek" /></label></div><label>Veilige link<input name="external_url" type="url" required /></label><label>Omschrijving<textarea name="description" /></label><button className="portal-primary" disabled={busy}>Link opslaan</button></form></details>}<div className="portal-file-grid">{files.map((file) => <a className="portal-file-card" href={file.external_url ?? "#"} target="_blank" rel="noopener noreferrer" key={file.id}><span>{file.category ?? "Bestand"}</span><h2>{file.title}</h2>{file.description && <p>{file.description}</p>}<b>Openen ↗</b></a>)}{!files.length && <div className="portal-empty">Er zijn nog geen bestanden of links toegevoegd. Supabase Storage kan later op deze structuur worden aangesloten.</div>}</div></div>;
+function FilesPanel({ files, songs, audioUrls, isAdmin, busy, onCreate, onUpload, onDeleteAudio }: { files: BandFile[]; songs: Song[]; audioUrls: Record<string, string>; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpload: (event: React.FormEvent<HTMLFormElement>) => void; onDeleteAudio: (file: BandFile) => void }) {
+  const songFor = (id: string | null) => songs.find((song) => song.id === id);
+  return <div className="portal-section">
+    <div className="portal-section-head"><div><p className="portal-eyebrow">Documenten, links en oefenopnames</p><h1>Bestanden & audio</h1></div></div>
+    {isAdmin && <div className="portal-file-editors">
+      <details className="portal-editor"><summary>Audio uploaden</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onUpload(event); }}>
+        <div className="portal-field-row"><label>Titel<input name="title" required maxLength={180} /></label><label>Koppel aan repertoire<select name="song_id"><option value="">Niet gekoppeld</option>{songs.map((song) => <option value={song.id} key={song.id}>{song.title}</option>)}</select></label></div>
+        <label>Omschrijving / notitie<textarea name="description" /></label>
+        <label>Audiobestand<input name="audio_file" type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,audio/x-wav" required /></label>
+        <p className="portal-help">MP3, M4A of WAV, maximaal 50 MB. Alleen ingelogde bandleden kunnen de audio openen.</p>
+        <button className="portal-primary" disabled={busy}>{busy ? "Uploaden…" : "Audio uploaden"}</button>
+      </form></details>
+      <details className="portal-editor"><summary>Link toevoegen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Titel<input name="title" required /></label><label>Categorie<input name="category" placeholder="Bijvoorbeeld techniek" /></label></div><label>Veilige link<input name="external_url" type="url" required /></label><label>Omschrijving<textarea name="description" /></label><button className="portal-primary" disabled={busy}>Link opslaan</button></form></details>
+    </div>}
+    <div className="portal-file-grid">{files.map((file) => file.storage_path ? <article className="portal-file-card portal-audio-card" key={file.id}>
+      <span>Audio</span><h2>{file.title}</h2>
+      {file.song_id && <p className="portal-audio-song">Repertoire: <strong>{songFor(file.song_id)?.title ?? "Onbekend nummer"}</strong></p>}
+      {file.description && <p>{file.description}</p>}
+      {audioUrls[file.id] ? <audio className="portal-audio-player" controls preload="none" src={audioUrls[file.id]}>Je browser ondersteunt deze audiospeler niet.</audio> : <p className="portal-help">Audio tijdelijk niet beschikbaar.</p>}
+      {isAdmin && <button className="portal-delete-audio" type="button" disabled={busy} onClick={() => onDeleteAudio(file)}>Verwijderen</button>}
+    </article> : <a className="portal-file-card" href={file.external_url ?? "#"} target="_blank" rel="noopener noreferrer" key={file.id}><span>{file.category ?? "Bestand"}</span><h2>{file.title}</h2>{file.description && <p>{file.description}</p>}<b>Openen ↗</b></a>)}{!files.length && <div className="portal-empty">Er zijn nog geen bestanden, links of audiobestanden toegevoegd.</div>}</div>
+  </div>;
 }
 
 function ProfilePanel({ profile, busy, onSave }: { profile: ExtendedProfile; busy: boolean; onSave: (event: React.FormEvent<HTMLFormElement>) => void }) {

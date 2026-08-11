@@ -14,7 +14,9 @@ type Song = {
   score: number | null; notes: string | null; active: boolean;
 };
 type Setlist = { id: string; name: string; setlist_date: string | null; version: number; archived: boolean; updated_at: string; updated_by: string };
-type Rehearsal = { id: string; event_id: string; status: string; general_notes: string | null };
+type SetlistItem = { id: string; setlist_id: string; song_id: string; position: number };
+type Rehearsal = { id: string; event_id: string | null; name?: string | null; rehearsal_date?: string | null; status: string; general_notes: string | null };
+type RehearsalSong = { id: string; rehearsal_id: string; song_id: string; priority: number; status: string; notes: string | null };
 type BandMessage = { id: string; author_id: string; title: string; body: string; important: boolean; created_at: string };
 type BandFile = { id: string; title: string; category: string | null; external_url: string | null; storage_path: string | null; description: string | null; created_at: string };
 type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | null; avatar_url?: string | null };
@@ -38,7 +40,9 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const [ready, setReady] = useState<boolean | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [setlists, setSetlists] = useState<Setlist[]>([]);
+  const [setlistItems, setSetlistItems] = useState<SetlistItem[]>([]);
   const [rehearsals, setRehearsals] = useState<Rehearsal[]>([]);
+  const [rehearsalSongs, setRehearsalSongs] = useState<RehearsalSong[]>([]);
   const [messages, setMessages] = useState<BandMessage[]>([]);
   const [files, setFiles] = useState<BandFile[]>([]);
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile>(profile);
@@ -52,20 +56,24 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       setReady(false);
       return;
     }
-    const [setlistResult, rehearsalResult, messageResult, fileResult, profileResult] = await Promise.all([
+    const [setlistResult, setlistItemsResult, rehearsalResult, rehearsalSongsResult, messageResult, fileResult, profileResult] = await Promise.all([
       supabase.from("setlists").select("id,name,setlist_date,version,archived,updated_at,updated_by").order("updated_at", { ascending: false }),
-      supabase.from("rehearsals").select("id,event_id,status,general_notes").order("created_at", { ascending: false }),
+      supabase.from("setlist_items").select("id,setlist_id,song_id,position").order("position"),
+      supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: false, nullsFirst: false }),
+      supabase.from("rehearsal_songs").select("id,rehearsal_id,song_id,priority,status,notes"),
       supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
       supabase.from("band_files").select("id,title,category,external_url,storage_path,description,created_at").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,display_name,email,instrument,phone,avatar_url").eq("id", user.id).single(),
     ]);
-    if ([setlistResult.error, rehearsalResult.error, messageResult.error, fileResult.error].some(Boolean)) {
+    if ([setlistResult.error, setlistItemsResult.error, rehearsalResult.error, rehearsalSongsResult.error, messageResult.error, fileResult.error].some(Boolean)) {
       setReady(false);
       return;
     }
     setSongs((songProbe.data ?? []) as Song[]);
     setSetlists((setlistResult.data ?? []) as Setlist[]);
+    setSetlistItems((setlistItemsResult.data ?? []) as SetlistItem[]);
     setRehearsals((rehearsalResult.data ?? []) as Rehearsal[]);
+    setRehearsalSongs((rehearsalSongsResult.data ?? []) as RehearsalSong[]);
     setMessages((messageResult.data ?? []) as BandMessage[]);
     setFiles((fileResult.data ?? []) as BandFile[]);
     if (!profileResult.error) setExtendedProfile(profileResult.data as ExtendedProfile);
@@ -89,7 +97,19 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   if (ready === null) return <div className="portal-loading-inline"><div className="portal-loader" />Bandgegevens laden…</div>;
   if (!ready) return <MissingMigration />;
 
-  if (tab === "songs") return <SongsPanel songs={songs} busy={busy} onCreate={async (form) => {
+  if (tab === "songs") return <SongsPanel songs={songs} busy={busy} isAdmin={isAdmin} onImport={async (file) => {
+    setBusy(true);
+    try {
+      const payload = JSON.parse(await file.text()) as Record<string, unknown>;
+      const { data, error } = await getSupabaseClient()!.rpc("import_setlist_maker", { source_payload: payload });
+      if (error) throw error;
+      const result = data as { songs_inserted?: number; songs_updated?: number; duplicates_prevented?: number };
+      notify(`Import voltooid: ${result.songs_inserted ?? 0} toegevoegd, ${result.songs_updated ?? 0} bijgewerkt, ${result.duplicates_prevented ?? 0} duplicaten voorkomen.`);
+      await load();
+    } catch {
+      reportError("Importeren is niet gelukt. Controleer migratie 004 en kies een geldige Setlist Maker-export.");
+    } finally { setBusy(false); }
+  }} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const ok = await submit("songs", {
       title: String(data.get("title")), artist: String(data.get("artist") || "") || null,
@@ -102,7 +122,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (ok) form.currentTarget.reset();
   }} />;
 
-  if (tab === "setlists") return <SetlistsPanel setlists={setlists} events={events} profiles={profiles} busy={busy} onCreate={async (form) => {
+  if (tab === "setlists") return <SetlistsPanel setlists={setlists} setlistItems={setlistItems} songs={songs} events={events} profiles={profiles} busy={busy} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const ok = await submit("setlists", {
       name: String(data.get("name")), setlist_date: String(data.get("setlist_date") || "") || null,
@@ -114,7 +134,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (error) reportError("De setlist kon niet worden bijgewerkt."); else { notify(setlist.archived ? "Setlist teruggezet." : "Setlist gearchiveerd."); await load(); }
   }} />;
 
-  if (tab === "rehearsals") return <RehearsalsPanel rehearsals={rehearsals} events={events} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
+  if (tab === "rehearsals") return <RehearsalsPanel rehearsals={rehearsals} rehearsalSongs={rehearsalSongs} songs={songs} events={events} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const eventId = String(data.get("event_id"));
     const ok = await submit("rehearsals", { event_id: eventId, status: "planned", general_notes: String(data.get("general_notes") || "") || null, created_by: user.id }, "Repetitie gekoppeld.");
@@ -145,8 +165,9 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   }} />;
 }
 
-function SongsPanel({ songs, busy, onCreate }: { songs: Song[]; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void }) {
+function SongsPanel({ songs, busy, isAdmin, onImport, onCreate }: { songs: Song[]; busy: boolean; isAdmin: boolean; onImport: (file: File) => Promise<void>; onCreate: (event: React.FormEvent<HTMLFormElement>) => void }) {
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Centrale database</p><h1>Repertoire / nummers</h1></div><span className="portal-count">{songs.length} nummers</span></div>
+    {isAdmin && <details className="portal-editor"><summary>Bestaande Setlist Maker importeren</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); const file = new FormData(event.currentTarget).get("setlist_export"); if (file instanceof File && file.size) void onImport(file); }}><p>Gebruik een JSON-export van de bestaande Setlist Maker. Herhaald importeren maakt geen dubbele bronrecords.</p><label>Setlist Maker-export<input name="setlist_export" type="file" accept="application/json,.json" required /></label><button className="portal-primary" disabled={busy}>Repertoire veilig importeren</button></form></details>}
     <details className="portal-editor"><summary>Nummer toevoegen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}>
       <div className="portal-field-row"><label>Titel<input name="title" required /></label><label>Artiest<input name="artist" /></label></div>
       <div className="portal-field-row"><label>Zanger/zangeres<input name="vocalist" /></label><label>Toonsoort<input name="musical_key" /></label></div>
@@ -158,19 +179,20 @@ function SongsPanel({ songs, busy, onCreate }: { songs: Song[]; busy: boolean; o
   </div>;
 }
 
-function SetlistsPanel({ setlists, events, profiles, busy, onCreate, onArchive }: { setlists: Setlist[]; events: BandEvent[]; profiles: Profile[]; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onArchive: (setlist: Setlist) => void }) {
+function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, onCreate, onArchive }: { setlists: Setlist[]; setlistItems: SetlistItem[]; songs: Song[]; events: BandEvent[]; profiles: Profile[]; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onArchive: (setlist: Setlist) => void }) {
   const profileName = (id: string) => profiles.find((profile) => profile.id === id)?.display_name ?? "Bandlid";
+  const songFor = (id: string) => songs.find((song) => song.id === id);
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Gedeelde setlists</p><h1>Setlists</h1></div><a className="portal-primary" href="https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site" target="_blank" rel="noopener noreferrer">Open Setlist Maker ↗</a></div>
     <details className="portal-editor"><summary>Nieuwe setlist</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Naam<input name="name" required /></label><label>Datum<input name="setlist_date" type="date" /></label></div><label>Koppel aan optreden<select name="event_id"><option value="">Niet gekoppeld</option>{events.filter((item) => item.event_type === "performance").map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><button className="portal-primary" disabled={busy}>Setlist aanmaken</button></form></details>
-    <div className="portal-data-list portal-setlist-list">{setlists.map((setlist) => <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>Laatst gewijzigd door {profileName(setlist.updated_by)}</p><div className="portal-card-actions"><button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button><button onClick={() => window.print()}>Printen</button></div></article>)}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
+    <div className="portal-data-list portal-setlist-list">{setlists.map((setlist) => { const items = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position); const total = items.reduce((sum, item) => sum + (songFor(item.song_id)?.duration_seconds ?? 0), 0); return <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>{items.length} nummers · {Math.floor(total / 60)}:{String(total % 60).padStart(2, "0")} totale speelduur</p>{items.length > 0 && <ol className="portal-song-order">{items.map((item) => <li key={item.id}>{songFor(item.song_id)?.title ?? "Onbekend nummer"}</li>)}</ol>}<small>Laatst gewijzigd door {profileName(setlist.updated_by)}</small><div className="portal-card-actions"><button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button><button onClick={() => window.print()}>Printen</button></div></article>; })}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
   </div>;
 }
 
-function RehearsalsPanel({ rehearsals, events, isAdmin, busy, onCreate }: { rehearsals: Rehearsal[]; events: BandEvent[]; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void }) {
-  const eventFor = (id: string) => events.find((event) => event.id === id);
+function RehearsalsPanel({ rehearsals, rehearsalSongs, songs, events, isAdmin, busy, onCreate }: { rehearsals: Rehearsal[]; rehearsalSongs: RehearsalSong[]; songs: Song[]; events: BandEvent[]; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void }) {
+  const eventFor = (id: string | null) => events.find((event) => event.id === id);
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Samen voorbereiden</p><h1>Repetities</h1></div></div>
     {isAdmin && <details className="portal-editor"><summary>Bestaande activiteit als repetitie inrichten</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><label>Repetitie<select name="event_id" required><option value="">Kies een activiteit</option>{events.filter((item) => item.event_type === "rehearsal" && !rehearsals.some((row) => row.event_id === item.id)).map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><label>Algemene opmerkingen<textarea name="general_notes" /></label><button className="portal-primary" disabled={busy}>Repetitie koppelen</button></form></details>}
-    <div className="portal-data-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); return <article className="portal-data-card" key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location].filter(Boolean).join(" · ")}</p>{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
+    <div className="portal-data-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); const plannedSongs = rehearsalSongs.filter((item) => item.rehearsal_id === rehearsal.id); return <article className="portal-data-card" key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : rehearsal.rehearsal_date ? formatDate(rehearsal.rehearsal_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? rehearsal.name ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location, plannedSongs.length ? `${plannedSongs.length} nummers` : null].filter(Boolean).join(" · ")}</p>{plannedSongs.length > 0 && <ul className="portal-song-order">{plannedSongs.map((item) => <li key={item.id}>{songs.find((song) => song.id === item.song_id)?.title ?? "Onbekend nummer"}</li>)}</ul>}{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
   </div>;
 }
 

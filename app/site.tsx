@@ -165,7 +165,7 @@ function About() {
   </>;
 }
 
-type RepertoireSong = { id: string; title: string; artist: string; category: string };
+type RepertoireSong = { id: string; title: string; artist?: string; category?: string };
 
 function Repertoire() {
   const [songs, setSongs] = useState<RepertoireSong[]>([]);
@@ -173,14 +173,21 @@ function Repertoire() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site/api/repertoire", {
+    const legacyUrl = "https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site/api/repertoire";
+    async function loadRepertoire() {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const result = await supabase.from("public_repertoire").select("id,title,category,source_order").order("source_order", { nullsFirst: false });
+        if (!result.error && result.data?.length) return { songs: result.data as RepertoireSong[] };
+      }
+      const response = await fetch(legacyUrl, {
       signal: controller.signal,
       cache: "no-store",
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Repertoire kon niet worden geladen");
-        return response.json() as Promise<{ songs?: RepertoireSong[] }>;
-      })
+      });
+      if (!response.ok) throw new Error("Repertoire kon niet worden geladen");
+      return response.json() as Promise<{ songs?: RepertoireSong[] }>;
+    }
+    loadRepertoire()
       .then((data) => {
         setSongs(Array.isArray(data.songs) ? data.songs : []);
         setStatus("ready");

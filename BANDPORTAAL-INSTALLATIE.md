@@ -48,14 +48,31 @@ Commit `.env.local` nooit naar GitHub.
 2. Kies **New query**.
 3. Kopieer de volledige inhoud van `supabase/migrations/001_band_portal.sql`.
 4. Voer de query uit.
-5. Controleer in **Table Editor** of deze tabellen bestaan:
+5. Voer daarna, in deze volgorde, ook uit:
+   - `supabase/migrations/002_privacy_analytics.sql`
+   - `supabase/migrations/003_band_app.sql`
+6. Controleer in **Table Editor** of deze tabellen bestaan:
    - `profiles`
    - `user_roles`
    - `availability`
    - `requests`
    - `request_responses`
    - `events`
-6. Controleer bij iedere tabel dat RLS is ingeschakeld.
+   - `songs`
+   - `song_notes`
+   - `setlists`
+   - `setlist_items`
+   - `rehearsals`
+   - `rehearsal_songs`
+   - `band_messages`
+   - `message_reads`
+   - `band_files`
+7. Controleer bij iedere tabel dat RLS is ingeschakeld.
+
+Migratie 003 bewaart repertoire, gedeelde setlists, repetitieplannen, bandberichten,
+bestandslinks en uitgebreide profielen centraal in Supabase. Zonder deze migratie
+blijven inloggen, de bestaande agenda, aanvragen en beschikbaarheid werken; de
+nieuwe modules tonen dan een duidelijke installatiemelding.
 
 ## 5. De zes persoonlijke accounts toevoegen
 
@@ -131,7 +148,31 @@ Deze URL's zijn nodig om uitnodigingen en wachtwoordherstellinks na controle ter
 7. Log uit en controleer dat `/bandportaal` terugstuurt naar `/bandinlog`.
 8. Controleer in een privévenster dat rechtstreekse Supabase-verzoeken zonder sessie geen data teruggeven.
 
-## 8. Veilig publiceren naar GitHub Pages
+## 8. De Band-app op een telefoon installeren
+
+De interne app gebruikt een eigen manifest met `/bandinlog/` als startpunt. Het
+app-icoon opent daardoor direct de Bandinlog of, met een geldige sessie, het
+dashboard.
+
+### iPhone / iPad
+
+1. Open `https://goodtimescoverband.nl/bandinlog/` in Safari.
+2. Log in.
+3. Tik op **Deel**.
+4. Kies **Zet op beginscherm** en daarna **Voeg toe**.
+
+### Android
+
+1. Open `https://goodtimescoverband.nl/bandinlog/` in Chrome.
+2. Log in.
+3. Open het browsermenu.
+4. Kies **App installeren** of **Toevoegen aan startscherm**.
+
+De service worker bewaart alleen de app-shell en statische bestanden. Banddata
+blijft afkomstig uit Supabase en wordt niet als onbeveiligde lokale database
+opgeslagen.
+
+## 9. Veilig publiceren naar GitHub Pages
 
 1. Controleer dat `.env.local` niet in `git status` staat.
 2. Controleer dat nergens een `service_role` key of wachtwoord is opgenomen.
@@ -141,11 +182,11 @@ Deze URL's zijn nodig om uitnodigingen en wachtwoordherstellinks na controle ter
 6. Controleer of **Deploy to GitHub Pages** slaagt.
 7. Open `/bandinlog` op het custom domain en test één beheerder en één bandlid.
 
-## 9. Handmatige stappen die nog nodig zijn
+## 10. Handmatige stappen die nog nodig zijn
 
 - Een Supabase-project aanmaken.
 - De Project URL en publieke anon key instellen.
-- De SQL-migratie uitvoeren.
+- De drie SQL-migraties in volgorde uitvoeren.
 - Zes Authentication-accounts met echte e-mailadressen aanmaken.
 - Eddie via SQL de rol `admin` geven.
 - E-mailbevestiging en eventueel wachtwoordherstel in Supabase configureren.
@@ -157,7 +198,7 @@ Deze URL's zijn nodig om uitnodigingen en wachtwoordherstellinks na controle ter
 - Wachtwoorden worden uitsluitend door Supabase Authentication verwerkt.
 - De browser bewaart alleen de beveiligde Supabase-sessie, nooit een wachtwoord.
 - Zonder geldige sessie weigert RLS alle portaaldata.
-- Bandleden kunnen alleen hun eigen beschikbaarheid en reacties wijzigen.
+- Bandleden kunnen de teamstatus zien, maar alleen hun eigen beschikbaarheid en reacties wijzigen.
 - Privé-opmerkingen bij beschikbaarheid zijn alleen opvraagbaar door de eigenaar en beheerders.
 - Alleen beheerders kunnen aanvragen, activiteiten en rollen beheren.
 - De portalroutes hebben `noindex, nofollow`.

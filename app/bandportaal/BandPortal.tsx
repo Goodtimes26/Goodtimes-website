@@ -28,7 +28,8 @@ import { getSupabaseClient } from "../../lib/supabase";
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
 
 type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | BandAppTab;
-type TeamAvailability = Pick<Availability, "user_id" | "status">;
+type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
+type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
 type AvailabilityDraft = {
   start: string;
@@ -61,6 +62,12 @@ function responseTone(responses: RequestResponse[], memberCount: number) {
   return "pending";
 }
 
+function teamAvailabilityTone(rows: TeamAvailability[]): Exclude<AvailabilityStatus, "unset"> {
+  if (rows.some((row) => row.status === "unavailable")) return "unavailable";
+  if (rows.some((row) => row.status === "maybe")) return "maybe";
+  return "available";
+}
+
 export function BandPortal() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -70,6 +77,7 @@ export function BandPortal() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
+  const [teamCalendarAvailability, setTeamCalendarAvailability] = useState<DatedTeamAvailability[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
   const [events, setEvents] = useState<BandEvent[]>([]);
@@ -93,11 +101,16 @@ export function BandPortal() {
   const loadPortalData = useCallback(async (activeUser: User, activeRole: UserRole) => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const firstDay = toIsoDate(new Date(month.getFullYear(), month.getMonth(), 1));
-    const lastDay = toIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+    const visibleDates = monthDays(month).map(toIsoDate);
+    const firstDay = visibleDates[0];
+    const lastDay = visibleDates[visibleDates.length - 1];
     const analyticsSince = new Date();
     analyticsSince.setDate(analyticsSince.getDate() - 90);
-    const [profilesResult, availabilityResult, requestsResult, responsesResult, eventsResult, rolesResult, pageViewsResult] = await Promise.all([
+    const teamAvailabilityPromise = Promise.all(visibleDates.map(async (date) => {
+      const result = await supabase.rpc("team_availability", { target_date: date });
+      return { date, ...result };
+    }));
+    const [profilesResult, availabilityResult, requestsResult, responsesResult, eventsResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
       supabase.from("profiles").select("id,display_name,email").order("display_name"),
       supabase.from("availability").select("id,user_id,date,status,private_note").gte("date", firstDay).lte("date", lastDay),
       supabase.from("requests").select("*").order("event_date"),
@@ -109,6 +122,7 @@ export function BandPortal() {
       activeRole === "admin"
         ? supabase.from("page_views").select("id,path,visit_id,viewed_at").gte("viewed_at", analyticsSince.toISOString()).order("viewed_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
+      teamAvailabilityPromise,
     ]);
     const firstError = [
       profilesResult.error,
@@ -118,6 +132,7 @@ export function BandPortal() {
       eventsResult.error,
       rolesResult.error,
       pageViewsResult.error,
+      teamAvailabilityResults.find((result) => result.error)?.error,
     ].find(Boolean);
     if (firstError) throw firstError;
     setProfiles((profilesResult.data ?? []) as Profile[]);
@@ -127,6 +142,9 @@ export function BandPortal() {
     setEvents((eventsResult.data ?? []) as BandEvent[]);
     setRoles((rolesResult.data ?? []) as RoleRow[]);
     setPageViews((pageViewsResult.data ?? []) as PageView[]);
+    setTeamCalendarAvailability(teamAvailabilityResults.flatMap((result) =>
+      ((result.data ?? []) as TeamAvailability[]).map((row) => ({ ...row, date: result.date })),
+    ));
   }, [month]);
 
   useEffect(() => {
@@ -376,11 +394,13 @@ export function BandPortal() {
               {calendarDays.map((day) => {
                 const iso = toIsoDate(day);
                 const own = ownAvailability.find((row) => row.date === iso);
+                const teamRows = teamCalendarAvailability.filter((row) => row.date === iso);
+                const teamStatus = teamAvailabilityTone(teamRows);
                 const dayEvents = events.filter((item) => item.event_date === iso);
                 return (
                   <button
                     key={iso}
-                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${own?.status ?? "available"}`}
+                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${teamStatus}`}
                     onClick={() => {
                       setAvailabilityDraft({
                         start: iso,
@@ -388,11 +408,13 @@ export function BandPortal() {
                         status: own?.status === "maybe" ? "maybe" : "unavailable",
                         note: own?.private_note ?? "",
                       });
+                      setCheckDate(iso);
+                      setCheckRows(teamRows);
                       setTab("availability");
                     }}
                   >
                     <strong>{day.getDate()}</strong>
-                    <span>{availabilityLabels[own?.status ?? "available"]}</span>
+                    <span>{availabilityLabels[teamStatus]}</span>
                     {dayEvents.slice(0, 2).map((item) => <small key={item.id} className={`event-${item.event_type}`}>{eventLabels[item.event_type]}</small>)}
                   </button>
                 );

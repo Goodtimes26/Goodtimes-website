@@ -149,6 +149,6 @@
   .portal-analytics-metrics{grid-template-columns:1fr}.portal-bars{gap:3px;height:190px}.portal-bars small{font-size:7px;transform:rotate(-45deg);transform-origin:center}
   .portal-login-card{margin:38px auto}.portal-security-note{line-height:1.6}
 }
-.portal-song-order{margin:.9rem 0;padding-left:1.4rem;columns:2;column-gap:2rem}.portal-song-order li{break-inside:avoid;margin-bottom:.35rem}
+.portal-song-order{margin:.9rem 0;padding-left:1.4rem;columns:2;column-gap:2rem}.portal-song-order li{break-inside:avoid;margin-bottom:.35rem}.portal-setlist-list .portal-song-order li{display:grid;justify-items:start;gap:.1rem}.portal-setlist-list .portal-song-order .portal-youtube-link{margin-top:.2rem}
 @media(max-width:650px){.portal-song-order{columns:1}}
 @media(prefers-reduced-motion:reduce){.portal-shell *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}

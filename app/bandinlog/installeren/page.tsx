@@ -3,7 +3,7 @@ import { InstallGuide } from "./InstallGuide";
 
 export const metadata: Metadata = {
   title: "GoodTimes Band-app installeren",
-  description: "Installeer de beveiligde GoodTimes Band-app op je iPhone.",
+  description: "Installeer de beveiligde GoodTimes Band-app op je iPhone of Android-telefoon.",
   robots: { index: false, follow: false },
 };
 

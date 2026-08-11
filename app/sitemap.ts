@@ -12,9 +12,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     pageSeo.agenda,
     pageSeo["techniek-productie"],
     pageSeo.contact,
+    pageSeo["80s-coverband-boeken"],
+    pageSeo["coverband-brabant"],
+    pageSeo["coverband-bedrijfsfeest"],
   ].map((page) => ({
     url: `${siteUrl}${page.path}`,
-    lastModified: new Date("2026-08-06"),
+    lastModified: new Date("2026-08-11"),
     changeFrequency: ["/", "/agenda/", "/repertoire/"].includes(page.path) ? "weekly" : "monthly",
     priority: page.path === "/" ? 1 : page.path === "/contact/" ? 0.9 : 0.8,
   }));

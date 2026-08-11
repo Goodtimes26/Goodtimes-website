@@ -469,6 +469,26 @@ footer{padding-top:68px}
 .socials a{width:44px;height:44px}
 .socials .facebook-follow{width:auto;min-height:44px;padding:0 16px;border-radius:22px}
 .footer-bottom{align-items:center;gap:24px;line-height:1.6}
+.footer-booking-links{display:flex;justify-content:center;align-items:center;gap:clamp(14px,2.5vw,30px);margin:26px auto 30px;flex-wrap:wrap;font-size:12px}
+.footer-booking-links>span{color:var(--muted);font:700 11px var(--font-display);letter-spacing:1.4px;text-transform:uppercase}
+.footer-booking-links a{color:#cbd0df;border-bottom:1px solid transparent;transition:color .2s ease,border-color .2s ease}
+.footer-booking-links a:hover{color:var(--cyan);border-color:rgba(40,215,255,.5)}
+
+/* SEO-landingspagina's: dezelfde rustige kaarttaal als de bestaande website. */
+.seo-landing-intro{min-height:540px}
+.seo-landing-content{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(290px,.65fr);gap:clamp(34px,6vw,86px);align-items:start;background:linear-gradient(145deg,#080c19,#050814)}
+.seo-landing-main{display:grid;gap:58px;max-width:820px}
+.seo-landing-main article+article{padding-top:52px;border-top:1px solid var(--line)}
+.seo-landing-main h2,.seo-landing-discover h2{margin:0 0 24px;font:800 clamp(34px,4vw,56px)/1.06 var(--font-display);letter-spacing:-1px;text-transform:uppercase}
+.seo-landing-main p{max-width:72ch;margin:0 0 18px;color:#cbd0df;font-size:16px;line-height:1.85}
+.seo-landing-aside{position:sticky;top:110px;padding:clamp(28px,4vw,44px);border:1px solid rgba(40,215,255,.25);border-radius:var(--radius-card);background:var(--gradient-panel);box-shadow:var(--shadow-panel)}
+.seo-landing-aside ul{display:grid;gap:0;margin:0 0 32px;padding:0;list-style:none}
+.seo-landing-aside li{position:relative;padding:15px 0 15px 28px;border-top:1px solid var(--line);color:#eef0f8;line-height:1.55}
+.seo-landing-aside li:before{content:"✓";position:absolute;left:0;color:var(--cyan);font-weight:800}
+.seo-landing-aside .primary{width:100%;justify-content:space-between}
+.seo-landing-discover{text-align:center;background:radial-gradient(circle at 50% 100%,rgba(86,73,255,.19),transparent 55%)}
+.seo-landing-discover h2{margin-left:auto;margin-right:auto}
+.seo-landing-discover nav{display:flex;justify-content:center;gap:24px 36px;flex-wrap:wrap;margin-top:38px}
 
 @media(max-width:900px){
   :root{--section-space:clamp(68px,9vw,88px)}
@@ -503,6 +523,14 @@ footer{padding-top:68px}
   .contact-mail-button,.contact-facebook-button,.contact-whatsapp-button{min-height:54px}
   footer{padding-top:58px}
   .footer-bottom{align-items:center;text-align:center}
+  .footer-booking-links{flex-direction:column;gap:13px}
+  .seo-landing-intro{min-height:auto}
+  .seo-landing-content{grid-template-columns:1fr;gap:46px}
+  .seo-landing-main{gap:42px}
+  .seo-landing-main article+article{padding-top:40px}
+  .seo-landing-main p{font-size:15px}
+  .seo-landing-aside{position:static;padding:28px 22px}
+  .seo-landing-discover nav{align-items:center;flex-direction:column;gap:22px}
 }
 @media(max-width:390px){
   .member-grid{grid-template-columns:1fr}

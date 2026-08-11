@@ -46,6 +46,21 @@ export const pageSeo = {
     description: "GoodTimes boeken voor een bedrijfsfeest, bruiloft, festival of evenement in Brabant of elders in Nederland? Neem rechtstreeks contact met ons op.",
     path: "/contact/",
   },
+  "80s-coverband-boeken": {
+    title: "80's coverband boeken | GoodTimes liveband",
+    description: "Boek GoodTimes voor live jaren 80-muziek op jouw feest, festival of evenement. Zes muzikanten, herkenbare hits en alles volledig live gespeeld.",
+    path: "/80s-coverband-boeken/",
+  },
+  "coverband-brabant": {
+    title: "Coverband Brabant boeken | GoodTimes 80's live",
+    description: "Zoek je een professionele coverband in Brabant? GoodTimes speelt de grootste jaren 80-hits volledig live op feesten, festivals en evenementen.",
+    path: "/coverband-brabant/",
+  },
+  "coverband-bedrijfsfeest": {
+    title: "Coverband bedrijfsfeest | GoodTimes 80's liveband",
+    description: "GoodTimes brengt herkenbare jaren 80-hits volledig live op personeelsfeesten, jubilea en bedrijfsevenementen. Informeer naar de mogelijkheden.",
+    path: "/coverband-bedrijfsfeest/",
+  },
 } satisfies Record<string, SeoEntry>;
 
 export function createMetadata(entry: SeoEntry): Metadata {
@@ -153,6 +168,9 @@ const breadcrumbLabels: Record<string, string> = {
   media: "Media",
   "techniek-productie": "Techniek & Productie",
   contact: "Contact",
+  "80s-coverband-boeken": "80's coverband boeken",
+  "coverband-brabant": "Coverband Brabant",
+  "coverband-bedrijfsfeest": "Coverband bedrijfsfeest",
 };
 
 export function createBreadcrumbJsonLd(slug: string) {

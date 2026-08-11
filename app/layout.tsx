@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
   },
   manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "GoodTimes Band", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {

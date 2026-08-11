@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { BandEvent, Profile } from "../../lib/bandportal";
 import { formatDate } from "../../lib/bandportal";
@@ -13,7 +13,7 @@ type Song = {
   bpm: number | null; duration_seconds: number | null; youtube_url: string | null; status: string;
   score: number | null; notes: string | null; active: boolean;
 };
-type Setlist = { id: string; name: string; setlist_date: string | null; version: number; archived: boolean; updated_at: string; updated_by: string };
+type Setlist = { id: string; name: string; event_id: string | null; setlist_date: string | null; version: number; archived: boolean; updated_at: string; updated_by: string };
 type SetlistItem = { id: string; setlist_id: string; song_id: string; position: number };
 type Rehearsal = { id: string; event_id: string | null; name?: string | null; rehearsal_date?: string | null; status: string; general_notes: string | null };
 type RehearsalSong = { id: string; rehearsal_id: string; song_id: string; priority: number; status: string; notes: string | null };
@@ -57,7 +57,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       return;
     }
     const [setlistResult, setlistItemsResult, rehearsalResult, rehearsalSongsResult, messageResult, fileResult, profileResult] = await Promise.all([
-      supabase.from("setlists").select("id,name,setlist_date,version,archived,updated_at,updated_by").order("updated_at", { ascending: false }),
+      supabase.from("setlists").select("id,name,event_id,setlist_date,version,archived,updated_at,updated_by").order("updated_at", { ascending: false }),
       supabase.from("setlist_items").select("id,setlist_id,song_id,position").order("position"),
       supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: false, nullsFirst: false }),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,song_id,priority,status,notes"),
@@ -122,13 +122,30 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (ok) form.currentTarget.reset();
   }} />;
 
-  if (tab === "setlists") return <SetlistsPanel setlists={setlists} setlistItems={setlistItems} songs={songs} events={events} profiles={profiles} busy={busy} onCreate={async (form) => {
+  if (tab === "setlists") return <SetlistsPanel setlists={setlists} setlistItems={setlistItems} songs={songs} events={events} profiles={profiles} busy={busy} isAdmin={isAdmin} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const ok = await submit("setlists", {
       name: String(data.get("name")), setlist_date: String(data.get("setlist_date") || "") || null,
       event_id: String(data.get("event_id") || "") || null, created_by: user.id, updated_by: user.id,
     }, "Setlist aangemaakt.");
     if (ok) form.currentTarget.reset();
+  }} onSave={async (setlist, name, date, eventId, songIds) => {
+    setBusy(true);
+    const { error } = await getSupabaseClient()!.rpc("save_setlist", {
+      p_setlist_id: setlist.id,
+      p_name: name,
+      p_setlist_date: date || null,
+      p_event_id: eventId || null,
+      p_song_ids: songIds,
+    });
+    setBusy(false);
+    if (error) {
+      reportError("De setlist kon niet worden opgeslagen. Controleer je rechten en probeer opnieuw.");
+      return false;
+    }
+    notify("Setlist opgeslagen.");
+    await load();
+    return true;
   }} onArchive={async (setlist) => {
     const { error } = await getSupabaseClient()!.from("setlists").update({ archived: !setlist.archived, updated_by: user.id, version: setlist.version + 1 }).eq("id", setlist.id);
     if (error) reportError("De setlist kon niet worden bijgewerkt."); else { notify(setlist.archived ? "Setlist teruggezet." : "Setlist gearchiveerd."); await load(); }
@@ -179,12 +196,91 @@ function SongsPanel({ songs, busy, isAdmin, onImport, onCreate }: { songs: Song[
   </div>;
 }
 
-function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, onCreate, onArchive }: { setlists: Setlist[]; setlistItems: SetlistItem[]; songs: Song[]; events: BandEvent[]; profiles: Profile[]; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onArchive: (setlist: Setlist) => void }) {
+function moveSong(list: string[], from: number, to: number) {
+  if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+function formatDuration(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, isAdmin, onCreate, onSave, onArchive }: { setlists: Setlist[]; setlistItems: SetlistItem[]; songs: Song[]; events: BandEvent[]; profiles: Profile[]; busy: boolean; isAdmin: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onSave: (setlist: Setlist, name: string, date: string, eventId: string, songIds: string[]) => Promise<boolean>; onArchive: (setlist: Setlist) => void }) {
   const profileName = (id: string) => profiles.find((profile) => profile.id === id)?.display_name ?? "Bandlid";
   const songFor = (id: string) => songs.find((song) => song.id === id);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftDate, setDraftDate] = useState("");
+  const [draftEventId, setDraftEventId] = useState("");
+  const [draftSongs, setDraftSongs] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const draggedIndex = useRef<number | null>(null);
+  const pointerIndex = useRef<number | null>(null);
+  const selected = setlists.find((setlist) => setlist.id === selectedId) ?? null;
+  const selectedSongs = draftSongs.map(songFor).filter((song): song is Song => Boolean(song));
+  const availableSongs = songs.filter((song) => song.active && !draftSongs.includes(song.id) && `${song.title} ${song.artist ?? ""}`.toLocaleLowerCase("nl-NL").includes(search.trim().toLocaleLowerCase("nl-NL")));
+  const total = selectedSongs.reduce((sum, song) => sum + (song.duration_seconds ?? 0), 0);
+
+  function openSetlist(setlist: Setlist) {
+    setSelectedId(setlist.id);
+    setDraftName(setlist.name);
+    setDraftDate(setlist.setlist_date ?? "");
+    setDraftEventId(setlist.event_id ?? "");
+    setDraftSongs(setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position).map((item) => item.song_id));
+    setSearch("");
+    setDirty(false);
+  }
+
+  function reorder(from: number, to: number) {
+    setDraftSongs((current) => moveSong(current, from, to));
+    setDirty(true);
+  }
+
+  function pointerMove(event: React.PointerEvent<HTMLButtonElement>) {
+    if (pointerIndex.current === null || event.pointerType === "mouse") return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-setlist-position]");
+    const nextIndex = Number(target?.dataset.setlistPosition);
+    if (Number.isInteger(nextIndex) && nextIndex !== pointerIndex.current) {
+      reorder(pointerIndex.current, nextIndex);
+      pointerIndex.current = nextIndex;
+    }
+  }
+
+  if (selected) return <div className="portal-section portal-setlist-editor">
+    <div className="portal-section-head"><div><p className="portal-eyebrow">{isAdmin ? "Setlist bewerken" : "Setlist bekijken"}</p><h1>{selected.name}</h1></div><button className="portal-secondary" onClick={() => setSelectedId(null)}>Terug naar setlists</button></div>
+    <div className="portal-setlist-editor-grid">
+      <section className="portal-card portal-setlist-compose" aria-label="Nummers in de setlist">
+        <div className="portal-setlist-summary"><strong>{draftSongs.length} nummers</strong><span>{formatDuration(total)} totale speelduur</span></div>
+        {!draftSongs.length && <div className="portal-empty">Deze setlist is nog leeg.</div>}
+        <ol className="portal-setlist-sortable">
+          {selectedSongs.map((song, index) => <li key={song.id} data-setlist-position={index} draggable={isAdmin} onDragStart={() => { draggedIndex.current = index; }} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedIndex.current !== null) reorder(draggedIndex.current, index); draggedIndex.current = null; }}>
+            {isAdmin && <button className="portal-drag-handle" type="button" aria-label={`${song.title} verslepen`} onPointerDown={(event) => { if (event.pointerType !== "mouse") { pointerIndex.current = index; event.currentTarget.setPointerCapture(event.pointerId); } }} onPointerMove={pointerMove} onPointerUp={() => { pointerIndex.current = null; }} onPointerCancel={() => { pointerIndex.current = null; }}>↕</button>}
+            <span className="portal-setlist-position">{index + 1}</span>
+            <div><strong>{song.title}</strong><small>{[song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null, song.duration_seconds ? formatDuration(song.duration_seconds) : null].filter(Boolean).join(" · ")}</small></div>
+            {isAdmin && <button className="portal-remove-song" type="button" onClick={() => { setDraftSongs((current) => current.filter((id) => id !== song.id)); setDirty(true); }} aria-label={`${song.title} uit setlist verwijderen`}>Verwijderen</button>}
+          </li>)}
+        </ol>
+      </section>
+      <aside className="portal-setlist-sidebar">
+        <form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); if (selected) void onSave(selected, draftName, draftDate, draftEventId, draftSongs).then((ok) => { if (ok) setDirty(false); }); }}>
+          <label>Naam<input value={draftName} onChange={(event) => { setDraftName(event.target.value); setDirty(true); }} required disabled={!isAdmin} /></label>
+          <label>Datum<input type="date" value={draftDate} onChange={(event) => { setDraftDate(event.target.value); setDirty(true); }} disabled={!isAdmin} /></label>
+          <label>Koppel aan optreden<select value={draftEventId} onChange={(event) => { setDraftEventId(event.target.value); setDirty(true); }} disabled={!isAdmin}><option value="">Niet gekoppeld</option>{events.filter((item) => item.event_type === "performance").map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label>
+          {isAdmin && <button className="portal-primary" disabled={busy || !dirty}>{busy ? "Opslaan…" : "Wijzigingen opslaan"}</button>}
+          {!isAdmin && <p className="portal-help">Je kunt deze setlist bekijken. Alleen beheerders kunnen wijzigingen opslaan.</p>}
+        </form>
+        {isAdmin && <div className="portal-card portal-song-picker"><label>Zoek in repertoire<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Zoek op titel of artiest" /></label><div className="portal-song-picker-list">{availableSongs.map((song) => <button key={song.id} type="button" onClick={() => { setDraftSongs((current) => [...current, song.id]); setDirty(true); }}><span><strong>{song.title}</strong><small>{song.artist ?? "Artiest onbekend"}</small></span><b aria-hidden="true">+</b></button>)}{!availableSongs.length && <p>Geen beschikbare nummers gevonden.</p>}</div></div>}
+      </aside>
+    </div>
+  </div>;
+
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Gedeelde setlists</p><h1>Setlists</h1></div><a className="portal-primary" href="https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site" target="_blank" rel="noopener noreferrer">Open Setlist Maker ↗</a></div>
-    <details className="portal-editor"><summary>Nieuwe setlist</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Naam<input name="name" required /></label><label>Datum<input name="setlist_date" type="date" /></label></div><label>Koppel aan optreden<select name="event_id"><option value="">Niet gekoppeld</option>{events.filter((item) => item.event_type === "performance").map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><button className="portal-primary" disabled={busy}>Setlist aanmaken</button></form></details>
-    <div className="portal-data-list portal-setlist-list">{setlists.map((setlist) => { const items = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position); const total = items.reduce((sum, item) => sum + (songFor(item.song_id)?.duration_seconds ?? 0), 0); return <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>{items.length} nummers · {Math.floor(total / 60)}:{String(total % 60).padStart(2, "0")} totale speelduur</p>{items.length > 0 && <ol className="portal-song-order">{items.map((item) => <li key={item.id}>{songFor(item.song_id)?.title ?? "Onbekend nummer"}</li>)}</ol>}<small>Laatst gewijzigd door {profileName(setlist.updated_by)}</small><div className="portal-card-actions"><button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button><button onClick={() => window.print()}>Printen</button></div></article>; })}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
+    {isAdmin && <details className="portal-editor"><summary>Nieuwe setlist</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Naam<input name="name" required /></label><label>Datum<input name="setlist_date" type="date" /></label></div><label>Koppel aan optreden<select name="event_id"><option value="">Niet gekoppeld</option>{events.filter((item) => item.event_type === "performance").map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><button className="portal-primary" disabled={busy}>Setlist aanmaken</button></form></details>}
+    <div className="portal-data-list portal-setlist-list">{setlists.map((setlist) => { const items = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position); const cardTotal = items.reduce((sum, item) => sum + (songFor(item.song_id)?.duration_seconds ?? 0), 0); return <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>{items.length} nummers · {formatDuration(cardTotal)} totale speelduur</p>{items.length > 0 && <ol className="portal-song-order">{items.map((item) => <li key={item.id}>{songFor(item.song_id)?.title ?? "Onbekend nummer"}</li>)}</ol>}<small>Laatst gewijzigd door {profileName(setlist.updated_by)}</small><div className="portal-card-actions"><button className="portal-edit-setlist" onClick={() => openSetlist(setlist)}>{isAdmin ? "Bewerken" : "Bekijken"}</button>{isAdmin && <button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button>}<button onClick={() => window.print()}>Printen</button></div></article>; })}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
   </div>;
 }
 

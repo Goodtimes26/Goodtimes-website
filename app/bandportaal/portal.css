@@ -163,4 +163,71 @@
 }
 .portal-song-order{margin:.9rem 0;padding-left:1.4rem;columns:2;column-gap:2rem}.portal-song-order li{break-inside:avoid;margin-bottom:.35rem}.portal-setlist-list .portal-song-order,.portal-rehearsal-list .portal-song-order{padding-left:0;list-style:none}.portal-setlist-list .portal-song-order li,.portal-rehearsal-list .portal-song-order li{display:grid;grid-template-columns:1.7rem minmax(0,1fr) 2.5rem;align-items:center;gap:.25rem;min-height:38px;margin:0}.portal-setlist-list .portal-song-number,.portal-rehearsal-list .portal-song-number{color:var(--portal-muted);font-variant-numeric:tabular-nums}.portal-setlist-list .portal-song-title,.portal-rehearsal-list .portal-song-title{min-width:0;line-height:1.25;overflow-wrap:anywhere}.portal-youtube-icon{display:grid;place-items:center;width:38px;height:38px;color:#ff4b4b;border-radius:50%;text-decoration:none;transition:color .18s ease,background .18s ease,transform .18s ease}.portal-youtube-icon span{font-size:.82rem;line-height:1;transform:translateX(1px)}.portal-youtube-icon:hover,.portal-youtube-icon:focus-visible{color:#fff;background:rgba(255,35,35,.2);transform:scale(1.04)}
 @media(max-width:650px){.portal-song-order{columns:1}}
+
+/* Subtiele visuele verfijning voor de Band-app; afmetingen en indeling blijven intact. */
+.portal-shell{
+  --portal-line:rgba(91,207,255,.23);
+  --portal-glow:0 16px 38px rgba(0,0,0,.3),0 0 22px rgba(92,92,255,.055);
+  background:
+    radial-gradient(circle at 8% 0,rgba(40,215,255,.12),transparent 29rem),
+    radial-gradient(circle at 92% 12%,rgba(237,69,255,.09),transparent 28rem),
+    linear-gradient(180deg,#050713 0%,var(--portal-bg) 38%,#050711 100%);
+}
+.portal-topbar,.portal-public-header{
+  border-bottom-color:var(--portal-line);
+  box-shadow:0 8px 30px rgba(0,0,0,.22);
+}
+.portal-tabs{box-shadow:0 9px 26px rgba(0,0,0,.16)}
+.portal-dashboard-tile,.portal-more-grid button,.portal-data-card,.portal-file-card,
+.portal-card,.portal-request-card,.portal-event-card,.portal-user-card,
+.portal-analytics-metrics article,.portal-setlist-sortable li,.portal-song-picker-list>button{
+  border-color:var(--portal-line);
+  background-image:linear-gradient(145deg,rgba(20,29,53,.94),rgba(8,12,26,.97));
+  box-shadow:var(--portal-glow),inset 0 1px 0 rgba(255,255,255,.035);
+}
+.portal-dashboard-tile,.portal-more-grid button,.portal-data-card,.portal-file-card,
+.portal-card,.portal-request-card,.portal-event-card,.portal-user-card,
+.portal-setlist-sortable li,.portal-song-picker-list>button,
+.portal-primary,.portal-secondary,.portal-card-actions button,.portal-month-controls button,
+.portal-account button,.portal-site-link,.portal-mobile-nav button,.portal-youtube-icon{
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,
+    background-color .16s ease,color .16s ease,filter .16s ease;
+}
+.portal-dashboard-tile:hover,.portal-more-grid button:hover,.portal-data-card:hover,
+.portal-file-card:hover,.portal-user-card:hover,.portal-song-picker-list>button:hover{
+  border-color:rgba(40,215,255,.5);
+  box-shadow:0 18px 40px rgba(0,0,0,.34),0 0 24px rgba(89,99,255,.1),inset 0 1px 0 rgba(255,255,255,.055);
+}
+.portal-dashboard-tile:active,.portal-more-grid button:active,.portal-primary:active,
+.portal-secondary:active,.portal-card-actions button:active,.portal-month-controls button:active,
+.portal-account button:active,.portal-site-link:active,.portal-mobile-nav button:active,
+.portal-song-picker-list>button:active,.portal-youtube-icon:active{
+  transform:translateY(1px) scale(.985);
+  filter:brightness(1.1);
+}
+.portal-count{
+  box-shadow:0 6px 18px rgba(77,109,255,.22),inset 0 1px 0 rgba(255,255,255,.3);
+}
+.portal-primary{
+  background:linear-gradient(120deg,#168fff 0%,#7957ed 58%,#db42db 100%);
+  box-shadow:0 10px 25px rgba(73,75,234,.18),inset 0 1px 0 rgba(255,255,255,.2);
+}
+.portal-primary:hover{box-shadow:0 13px 30px rgba(70,87,255,.28),0 0 18px rgba(237,69,255,.09)}
+.portal-secondary,.portal-card-actions button,.portal-month-controls button,.portal-account button,.portal-site-link{
+  background:linear-gradient(145deg,rgba(18,27,49,.94),rgba(8,13,27,.96));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+.portal-tabs button.active,.portal-mobile-nav button.active{
+  color:#fff;
+  text-shadow:0 0 12px rgba(40,215,255,.42);
+}
+.portal-mobile-nav{
+  border-top-color:var(--portal-line);
+  box-shadow:0 -10px 28px rgba(0,0,0,.3),0 -1px 14px rgba(97,76,255,.07);
+}
+.portal-mobile-nav button span,.portal-count,.portal-youtube-icon span{filter:drop-shadow(0 0 6px currentColor)}
+.portal-form input:focus,.portal-form select:focus,.portal-form textarea:focus,
+.portal-song-picker input:focus,.portal-youtube-editor input:focus{
+  box-shadow:0 0 0 3px rgba(40,215,255,.09),0 0 18px rgba(140,97,255,.08);
+}
 @media(prefers-reduced-motion:reduce){.portal-shell *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}

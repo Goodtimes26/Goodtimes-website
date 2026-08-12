@@ -81,6 +81,7 @@ export function BandPortal() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
   const [events, setEvents] = useState<BandEvent[]>([]);
+  const [messageCount, setMessageCount] = useState(0);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>(emptyAvailability);
@@ -110,12 +111,13 @@ export function BandPortal() {
       const result = await supabase.rpc("team_availability", { target_date: date });
       return { date, ...result };
     }));
-    const [profilesResult, availabilityResult, requestsResult, responsesResult, eventsResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
+    const [profilesResult, availabilityResult, requestsResult, responsesResult, eventsResult, messageCountResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
       supabase.from("profiles").select("id,display_name,email").order("display_name"),
       supabase.from("availability").select("id,user_id,date,status,private_note").gte("date", firstDay).lte("date", lastDay),
       supabase.from("requests").select("*").order("event_date"),
       supabase.from("request_responses").select("id,request_id,user_id,status,note"),
       supabase.from("events").select("id,event_date,start_time,end_time,location,description,notes,event_type").order("event_date"),
+      supabase.from("band_messages").select("id", { count: "exact", head: true }),
       activeRole === "admin"
         ? supabase.from("user_roles").select("user_id,role")
         : Promise.resolve({ data: [{ user_id: activeUser.id, role: activeRole }], error: null }),
@@ -130,6 +132,7 @@ export function BandPortal() {
       requestsResult.error,
       responsesResult.error,
       eventsResult.error,
+      messageCountResult.error,
       rolesResult.error,
       pageViewsResult.error,
       teamAvailabilityResults.find((result) => result.error)?.error,
@@ -140,6 +143,7 @@ export function BandPortal() {
     setRequests((requestsResult.data ?? []) as BookingRequest[]);
     setResponses((responsesResult.data ?? []) as RequestResponse[]);
     setEvents((eventsResult.data ?? []) as BandEvent[]);
+    setMessageCount(messageCountResult.count ?? 0);
     setRoles((rolesResult.data ?? []) as RoleRow[]);
     setPageViews((pageViewsResult.data ?? []) as PageView[]);
     setTeamCalendarAvailability(teamAvailabilityResults.flatMap((result) =>
@@ -377,7 +381,7 @@ export function BandPortal() {
         {message && <div className="portal-notice" role="status">{message}<button onClick={() => setMessage("")} aria-label="Melding sluiten">×</button></div>}
         {error && <div className="portal-notice portal-notice-error" role="alert">{error}<button onClick={() => setError("")} aria-label="Foutmelding sluiten">×</button></div>}
 
-        {tab === "home" && <PortalDashboard profile={profile} events={events} requests={requests} isAdmin={isAdmin} setTab={setTab} />}
+        {tab === "home" && <PortalDashboard profile={profile} events={events} requests={requests} messageCount={messageCount} isAdmin={isAdmin} setTab={setTab} />}
 
         {tab === "agenda" && (
           <div className="portal-section">
@@ -549,13 +553,13 @@ export function BandPortal() {
         )}
 
         {tab === "more" && (
-          <div className="portal-section">
+          <div className="portal-section portal-more-section">
             <p className="portal-eyebrow">GoodTimes Band</p><h1>Meer</h1>
             <div className="portal-more-grid">
               <button onClick={() => setTab("requests")}><strong>Aanvragen</strong><span>Bekijk boekingsaanvragen en reacties</span></button>
               <button onClick={() => setTab("availability")}><strong>Beschikbaarheid</strong><span>Uitzonderingen invullen en team controleren</span></button>
               <button onClick={() => setTab("songs")}><strong>Repertoire</strong><span>Nummers, notities en oefenstatus</span></button>
-              <button onClick={() => setTab("messages")}><strong>Mededelingen</strong><span>Interne berichten voor de band</span></button>
+              <button onClick={() => setTab("messages")}><strong>Berichten</strong><span>Lees de laatste berichten van de band</span></button>
               <button onClick={() => setTab("files")}><strong>Bestanden & audio</strong><span>Documenten, links en oefenopnames</span></button>
               <button onClick={() => setTab("profile")}><strong>Mijn profiel</strong><span>Naam, instrument en contactgegevens</span></button>
               <button onClick={() => setTab("events")}><strong>Activiteiten</strong><span>Repetities en optredens beheren</span></button>
@@ -577,10 +581,11 @@ export function BandPortal() {
   );
 }
 
-function PortalDashboard({ profile, events, requests, isAdmin, setTab }: {
+function PortalDashboard({ profile, events, requests, messageCount, isAdmin, setTab }: {
   profile: Profile;
   events: BandEvent[];
   requests: BookingRequest[];
+  messageCount: number;
   isAdmin: boolean;
   setTab: (tab: PortalTab) => void;
 }) {
@@ -591,10 +596,8 @@ function PortalDashboard({ profile, events, requests, isAdmin, setTab }: {
     <div className="portal-dashboard-welcome"><p className="portal-eyebrow">GoodTimes Band</p><h1>Welkom, {profile.display_name}</h1><p>Alles voor de band op één centrale plek.</p></div>
     <div className="portal-dashboard-grid">
       <article className="portal-card portal-next-event"><span>Volgende activiteit</span>{nextEvent ? <><time>{formatDate(nextEvent.event_date)}</time><h2>{nextEvent.description}</h2><p>{nextEvent.location || "Locatie volgt"}</p><button onClick={() => setTab("agenda")}>Open agenda</button></> : <p>Er staat nog geen activiteit gepland.</p>}</article>
-      <button className="portal-dashboard-tile" onClick={() => setTab("requests")}><span className="portal-count">{openRequests}</span><strong>Open aanvragen</strong><small>{isAdmin ? "Bekijk en beheer aanvragen" : "Geef je reactie door"}</small></button>
-      <button className="portal-dashboard-tile" onClick={() => setTab("availability")}><span className="portal-count">✓</span><strong>Beschikbaarheid</strong><small>Vul alleen je uitzonderingen in</small></button>
-      <button className="portal-dashboard-tile" onClick={() => setTab("setlists")}><span className="portal-count">≡</span><strong>Setlists</strong><small>Bekijk de actuele speelvolgorde</small></button>
-      <button className="portal-dashboard-tile" onClick={() => setTab("messages")}><span className="portal-count">i</span><strong>Mededelingen</strong><small>Lees het laatste bandnieuws</small></button>
+      {openRequests > 0 && <button className="portal-dashboard-tile" onClick={() => setTab("requests")}><span className="portal-count">{openRequests}</span><strong>Open aanvragen</strong><small>{isAdmin ? "Bekijk en beheer aanvragen" : "Geef je reactie door"}</small></button>}
+      <button className="portal-dashboard-tile portal-dashboard-message" onClick={() => setTab("messages")}><span className="portal-count">i</span><strong>Berichten</strong><small>{messageCount === 0 ? "Geen berichten" : messageCount === 1 ? "1 bericht" : `${messageCount} berichten`}</small></button>
     </div>
   </div>;
 }

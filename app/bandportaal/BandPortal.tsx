@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
   availabilityLabels,
+  bandMemberFirstName,
   eventLabels,
   formatDate,
   requestLabels,
@@ -362,7 +363,7 @@ export function BandPortal() {
           <Link className="portal-site-link" href="/">← Terug naar website</Link>
         </div>
         <div className="portal-account">
-          <span><strong>{profile.display_name}</strong><small>{isAdmin ? "Beheerder" : "Bandlid"}</small></span>
+          <span><strong>{bandMemberFirstName(profile)}</strong><small>{isAdmin ? "Beheerder" : "Bandlid"}</small></span>
         </div>
       </header>
 
@@ -503,7 +504,7 @@ export function BandPortal() {
             <div className="portal-user-list">
               {profiles.map((member) => {
                 const memberRole = roles.find((item) => item.user_id === member.id)?.role ?? "member";
-                return <article className="portal-user-card" key={member.id}><div><strong>{member.display_name}</strong><span>{member.email}</span></div><select value={memberRole} disabled={member.id === user.id} onChange={(event) => updateRole(member.id, event.target.value as UserRole)}><option value="member">Bandlid</option><option value="admin">Beheerder</option></select></article>;
+                return <article className="portal-user-card" key={member.id}><div><strong>{bandMemberFirstName(member)}</strong><span>{member.email}</span></div><select value={memberRole} disabled={member.id === user.id} onChange={(event) => updateRole(member.id, event.target.value as UserRole)}><option value="member">Bandlid</option><option value="admin">Beheerder</option></select></article>;
               })}
             </div>
             <p className="portal-help">Nieuwe accounts worden veilig toegevoegd in Supabase Authentication. Wachtwoorden zijn nooit zichtbaar in dit portaal.</p>
@@ -564,7 +565,7 @@ function PortalDashboard({ profile, events, requests, unreadMessageCount, recent
   const today = toIsoDate(new Date());
   const nextEvent = events.filter((item) => item.event_type === "performance" && item.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
   const openRequests = requests.filter((item) => ["new", "pending", "option"].includes(item.status)).length;
-  const firstName = profile.display_name.trim().split(/\s+/)[0] || profile.display_name;
+  const firstName = bandMemberFirstName(profile);
   const daysUntilEvent = nextEvent
     ? Math.round((new Date(`${nextEvent.event_date}T12:00:00`).getTime() - new Date(`${today}T12:00:00`).getTime()) / 86_400_000)
     : null;
@@ -651,14 +652,14 @@ function AvailabilityCheck({ profiles, rows }: { profiles: Profile[]; rows: Team
   const tone = statuses.includes("unavailable") ? "unavailable" : statuses.includes("maybe") ? "pending" : "available";
   return <div className={`portal-check-result tone-${tone}`}><strong>{tone === "available" ? "Iedereen beschikbaar" : tone === "unavailable" ? "Niet volledig beschikbaar" : "Nog niet definitief"}</strong>{profiles.map((profile) => {
     const row = rows.find((item) => item.user_id === profile.id);
-    return <div key={profile.id}><span>{profile.display_name}</span><b className={`status-${row?.status ?? "available"}`}>{availabilityLabels[row?.status ?? "available"]}</b></div>;
+    return <div key={profile.id}><span>{bandMemberFirstName(profile)}</span><b className={`status-${row?.status ?? "available"}`}>{availabilityLabels[row?.status ?? "available"]}</b></div>;
   })}</div>;
 }
 
 function ResponseSummary({ profiles, responses }: { profiles: Profile[]; responses: RequestResponse[] }) {
   return <div className="portal-response-summary">{profiles.map((profile) => {
     const response = responses.find((item) => item.user_id === profile.id);
-    return <span className={`response-${response?.status ?? "unset"}`} key={profile.id}>{profile.display_name}: {response ? responseLabels[response.status] : "Nog niet gereageerd"}</span>;
+    return <span className={`response-${response?.status ?? "unset"}`} key={profile.id}>{bandMemberFirstName(profile)}: {response ? responseLabels[response.status] : "Nog niet gereageerd"}</span>;
   })}</div>;
 }
 

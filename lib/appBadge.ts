@@ -3,6 +3,26 @@ type AppBadgeNavigator = Navigator & {
   clearAppBadge?: () => Promise<void>;
 };
 
+export type BadgeAvailability = "ready" | "permission-required" | "permission-denied" | "unsupported" | "browser";
+
+export function getBadgeAvailability({
+  standalone,
+  badgeApiAvailable,
+  notificationsAvailable,
+  notificationPermission,
+}: {
+  standalone: boolean;
+  badgeApiAvailable: boolean;
+  notificationsAvailable: boolean;
+  notificationPermission: NotificationPermission | "unsupported";
+}): BadgeAvailability {
+  if (!standalone) return "browser";
+  if (!badgeApiAvailable || !notificationsAvailable) return "unsupported";
+  if (notificationPermission === "granted") return "ready";
+  if (notificationPermission === "denied") return "permission-denied";
+  return "permission-required";
+}
+
 export function countUnreadMessages(messageIds: string[], readMessageIds: string[]) {
   const readIds = new Set(readMessageIds);
   return messageIds.filter((messageId) => !readIds.has(messageId)).length;
@@ -15,11 +35,15 @@ export async function syncAppBadge(unreadCount: number) {
   try {
     if (unreadCount > 0 && typeof badgeNavigator.setAppBadge === "function") {
       await badgeNavigator.setAppBadge(unreadCount);
+      console.info("[GoodTimes badge] Badge bijgewerkt", { unreadCount });
     } else if (unreadCount === 0 && typeof badgeNavigator.clearAppBadge === "function") {
       await badgeNavigator.clearAppBadge();
+      console.info("[GoodTimes badge] Badge gewist");
+    } else {
+      console.info("[GoodTimes badge] Badging API niet beschikbaar op dit apparaat of buiten standalone-modus");
     }
-  } catch {
-    // Badging is progressive enhancement: unsupported or denied badges must never disrupt the Band-app.
+  } catch (error) {
+    console.error("[GoodTimes badge] Badge kon niet worden bijgewerkt", { unreadCount, error });
   }
 }
 
@@ -29,7 +53,7 @@ export async function clearAppBadge() {
   const badgeNavigator = navigator as AppBadgeNavigator;
   try {
     if (typeof badgeNavigator.clearAppBadge === "function") await badgeNavigator.clearAppBadge();
-  } catch {
-    // Ignore unavailable/denied Badging API implementations.
+  } catch (error) {
+    console.error("[GoodTimes badge] Badge kon bij uitloggen niet worden gewist", error);
   }
 }

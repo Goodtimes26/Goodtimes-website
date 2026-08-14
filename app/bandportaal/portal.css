@@ -81,8 +81,8 @@
   .portal-youtube-editor>div{grid-template-columns:1fr}.portal-youtube-editor>div button{width:100%}
 }
 
-.portal-print-song-details{display:none}
-@page{size:A4 portrait;margin:12mm}
+.portal-print-song-details,.portal-print-summary{display:none}
+@page{size:A4 portrait;margin:11mm 12mm}
 @media print {
   html,body{margin:0!important;padding:0!important;background:#fff!important}
   .portal-shell,.portal-app,.portal-content,.portal-section,.portal-data-list,.portal-data-card{
@@ -92,28 +92,35 @@
   }
   .portal-topbar,.portal-public-header,.portal-tabs,.portal-mobile-nav,.portal-section-head,
   .portal-editor,.portal-form,.portal-card-actions,.portal-youtube-icon,.portal-confirm-backdrop,
-  .portal-setlist-list+.portal-empty{display:none!important}
-  .portal-setlist-list{display:block!important}
-  .portal-setlist-list .portal-data-card{
+  .portal-setlist-list+.portal-empty,.portal-rehearsal-list+.portal-empty,
+  .portal-shell button,.portal-shell a{display:none!important}
+  .portal-setlist-list,.portal-rehearsal-list{display:block!important}
+  .portal-setlist-list .portal-data-card,.portal-rehearsal-list .portal-data-card{
     display:block!important;break-after:page;page-break-after:always;
     opacity:1!important;color:#000!important;
   }
-  .portal-setlist-list .portal-data-card:last-child{break-after:auto;page-break-after:auto}
-  .portal-setlist-list .portal-data-card>div{display:flex!important;justify-content:space-between;gap:10mm;margin:0 0 3mm;font-size:9pt;color:#222!important}
-  .portal-setlist-list .portal-data-card>div span{display:none!important}
-  .portal-setlist-list .portal-data-card h2{margin:0 0 2mm!important;color:#000!important;font:800 20pt/1.05 var(--font-display)!important;text-transform:uppercase}
-  .portal-setlist-list .portal-data-card>p{margin:0 0 4mm!important;color:#333!important;font-size:9pt!important}
+  .portal-setlist-list .portal-data-card:last-child,.portal-rehearsal-list .portal-data-card:last-child{break-after:auto;page-break-after:auto}
+  .portal-setlist-list .portal-data-card>div,.portal-rehearsal-list .portal-data-card>div{display:flex!important;justify-content:flex-end;gap:10mm;margin:0 0 3mm;color:#111!important;font-size:11pt}
+  .portal-setlist-list .portal-data-card>div span,.portal-rehearsal-list .portal-data-card>div span{display:none!important}
+  .portal-setlist-list .portal-data-card h2,.portal-rehearsal-list .portal-data-card h2{margin:0 0 2.5mm!important;color:#000!important;font:800 26pt/1.02 var(--font-display)!important;text-transform:uppercase}
+  .portal-setlist-list .portal-data-card>p,.portal-rehearsal-list .portal-data-card>p{margin:0 0 4mm!important;color:#222!important;font-size:10.5pt!important;line-height:1.3}
   .portal-setlist-list .portal-data-card>small{display:none!important}
-  .portal-setlist-list .portal-song-order{display:block!important;margin:0!important;padding:0!important;columns:1!important;list-style:none}
-  .portal-setlist-list .portal-song-order li{
-    display:grid!important;grid-template-columns:8mm minmax(0,1fr)!important;gap:0 2mm!important;
-    min-height:0!important;margin:0!important;padding:1.25mm 0!important;color:#000!important;
-    border:0!important;border-bottom:.2mm solid #ddd!important;background:#fff!important;box-shadow:none!important;
+  .portal-rehearsal-list .portal-data-card>small{display:block!important;margin:4mm 0 0!important;color:#222!important;font-size:9.5pt;line-height:1.35}
+  .portal-print-summary{display:block!important;font-weight:700}
+  .portal-setlist-list .portal-song-order,.portal-rehearsal-list .portal-song-order{display:block!important;margin:0!important;padding:0!important;columns:1!important;list-style:none}
+  .portal-setlist-list .portal-song-order li,.portal-rehearsal-list .portal-song-order li{
+    display:grid!important;grid-template-columns:10mm minmax(0,1fr)!important;align-content:center;gap:.8mm 2.5mm!important;
+    min-height:14mm!important;margin:0!important;padding:2mm 0!important;color:#000!important;
+    border:0!important;border-bottom:.25mm solid #bbb!important;background:#fff!important;box-shadow:none!important;
     break-inside:avoid;page-break-inside:avoid;
   }
-  .portal-setlist-list .portal-song-number{grid-row:1/3;color:#222!important;font-size:9.5pt;font-variant-numeric:tabular-nums}
-  .portal-setlist-list .portal-song-title{color:#000!important;font-size:10pt;font-weight:750;line-height:1.15}
-  .portal-print-song-details{display:block!important;color:#444!important;font-size:7.5pt;line-height:1.2}
+  .portal-data-card[data-print-density="roomy"] .portal-song-order li{min-height:20mm!important;padding:3mm 0!important}
+  .portal-data-card[data-print-density="compact"] .portal-song-order li{min-height:10mm!important;padding:1.25mm 0!important}
+  .portal-setlist-list .portal-song-number,.portal-rehearsal-list .portal-song-number{grid-row:1/3;align-self:center;color:#111!important;font-size:12.5pt;font-weight:750;font-variant-numeric:tabular-nums}
+  .portal-setlist-list .portal-song-title,.portal-rehearsal-list .portal-song-title{color:#000!important;font-size:14pt;font-weight:800;line-height:1.12}
+  .portal-data-card[data-print-density="compact"] .portal-song-title{font-size:12pt!important}
+  .portal-print-song-details{display:block!important;color:#333!important;font-size:9.5pt;line-height:1.25}
+  .portal-data-card[data-print-density="compact"] .portal-print-song-details{font-size:8.5pt!important}
   *{-webkit-print-color-adjust:economy!important;print-color-adjust:economy!important}
 }
 .portal-shell *{box-sizing:border-box}

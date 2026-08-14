@@ -599,7 +599,7 @@ function PortalDashboard({ profile, events, requests, unreadMessageCount, recent
     <section className="portal-dashboard-actions" aria-labelledby="portal-actions-title">
       <div className="portal-dashboard-heading"><p className="portal-eyebrow">Direct naar</p><h2 id="portal-actions-title">Belangrijkste functies</h2></div>
       <div className="portal-dashboard-grid">
-        <button className="portal-dashboard-tile" onClick={() => setTab("setlists")}><span className="portal-dashboard-icon" aria-hidden="true">≡</span><strong>Setlists</strong><small>Bekijk de actuele sets</small></button>
+        <button className="portal-dashboard-tile" onClick={() => setTab("availability")}><span className="portal-dashboard-icon" aria-hidden="true">✓</span><strong>Beschikbaarheid</strong><small>Kies een datum en check de band</small></button>
         <button className="portal-dashboard-tile" onClick={() => setTab("agenda")}><span className="portal-dashboard-icon" aria-hidden="true">□</span><strong>Agenda</strong><small>Optredens en repetities</small></button>
         <button className="portal-dashboard-tile portal-dashboard-message" onClick={() => setTab("messages")}><span className="portal-dashboard-icon" aria-hidden="true">●</span><strong>Berichten</strong><small>{unreadMessageCount === 0 ? "Alles gelezen" : unreadMessageCount === 1 ? "1 ongelezen" : `${unreadMessageCount} ongelezen`}</small></button>
         <button className="portal-dashboard-tile" onClick={() => setTab("songs")}><span className="portal-dashboard-icon" aria-hidden="true">80</span><strong>Repertoire</strong><small>Alle nummers bij elkaar</small></button>

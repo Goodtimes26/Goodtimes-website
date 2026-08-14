@@ -72,7 +72,7 @@
   .portal-mobile-nav button { display: flex; flex-direction: column; align-items: center; gap: .25rem; min-width: 0; border: 0; background: transparent; color: var(--portal-muted); font-size: .68rem; padding: .35rem .1rem; }
   .portal-mobile-nav button span { font-size: 1.2rem; line-height: 1; }
   .portal-mobile-nav button.active { color: var(--portal-cyan); }
-  .portal-dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+  .portal-dashboard-grid { grid-template-columns: minmax(0, 1fr); gap: .45rem; }
   .portal-file-grid, .portal-file-editors { grid-template-columns: 1fr; }
   .portal-more-grid { grid-template-columns: 1fr; gap: .55rem; margin-top: .9rem; }
   .portal-more-grid button { width: 100%; min-height: 4.8rem; padding: .72rem .85rem; border-radius: 13px; }
@@ -82,10 +82,11 @@
   .portal-dashboard-welcome{margin-bottom:.45rem}.portal-dashboard-welcome .portal-eyebrow{margin-bottom:.25rem}.portal-dashboard-welcome h1{font-size:clamp(1.65rem,8vw,2.2rem)}.portal-dashboard-welcome>p:last-child{margin-top:.15rem;font-size:.76rem}
   .portal-next-event { grid-column: auto; min-height: 0; margin-bottom:.48rem; padding:.6rem .72rem; }
   .portal-next-event-label{margin-bottom:.32rem}.portal-next-event-content{gap:.1rem .65rem}.portal-next-event-content time{font-size:.92rem}.portal-next-event-content strong{font-size:.88rem}.portal-next-event-content span{font-size:.65rem}
-  .portal-dashboard-updates{margin-bottom:.48rem}.portal-dashboard-heading{margin-bottom:.22rem}.portal-dashboard-heading h2{font-size:.7rem}.portal-update-list>button{min-height:2.65rem;padding:.32rem .55rem}
+  .portal-dashboard-updates{margin-bottom:.32rem}.portal-dashboard-heading{margin-bottom:.16rem}.portal-dashboard-heading h2{font-size:.7rem}.portal-update-list>button{min-height:2.65rem;padding:.32rem .55rem}
   .portal-dashboard-actions{margin-top:0}.portal-dashboard-grid{row-gap:.45rem}
-  .portal-dashboard-tile { min-height: 4.65rem; padding:.58rem .62rem; border-radius:13px; }
-  .portal-dashboard-tile strong{font-size:.74rem}.portal-dashboard-tile small{margin-top:.22rem;font-size:.6rem;line-height:1.25}.portal-dashboard-icon{width:1.65rem;height:1.65rem;margin-bottom:.28rem;font-size:.68rem}
+  .portal-dashboard-tile { display:grid; grid-template-columns:auto minmax(0,1fr) auto; grid-template-rows:auto auto; column-gap:.72rem; row-gap:.08rem; align-items:center; min-height:5.15rem; padding:.68rem .78rem; border-radius:13px; text-align:left; }
+  .portal-dashboard-tile::after{grid-column:3;grid-row:1 / 3;content:"\2192";color:var(--portal-cyan);font-size:1rem;opacity:.7}
+  .portal-dashboard-tile strong{grid-column:2;grid-row:1;align-self:end;font-size:.8rem}.portal-dashboard-tile small{grid-column:2;grid-row:2;align-self:start;margin-top:0;font-size:.63rem;line-height:1.3}.portal-dashboard-icon{grid-column:1;grid-row:1 / 3;width:1.8rem;height:1.8rem;margin-bottom:0;font-size:.72rem}
   .portal-data-card { grid-template-columns: 1fr; }
   .portal-song-card{grid-template-columns:minmax(0,1fr) auto;padding:.62rem .72rem;gap:.18rem .6rem}.portal-song-card .portal-youtube-link{grid-column:2;grid-row:2/5;width:40px;min-height:40px;justify-content:center;margin:0;padding:0;font-size:0}.portal-song-card .portal-youtube-link:before{content:"▶";font-size:.75rem}.portal-song-card h2{font-size:1rem}.portal-song-card p,.portal-song-card>small{font-size:.66rem}.portal-song-card .portal-youtube-edit-details{margin-top:.2rem}
   .portal-setlist-sortable li{grid-template-columns:auto auto minmax(0,1fr)}.portal-remove-song{grid-column:2/-1;width:100%}.portal-setlist-summary{align-items:flex-start;flex-direction:column}.portal-secondary{width:100%}

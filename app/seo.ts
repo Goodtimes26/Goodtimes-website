@@ -47,18 +47,18 @@ export const pageSeo = {
     path: "/contact/",
   },
   "80s-coverband-boeken": {
-    title: "80's coverband boeken | GoodTimes liveband",
-    description: "Boek GoodTimes voor live jaren 80-muziek op jouw feest, festival of evenement. Zes muzikanten, herkenbare hits en alles volledig live gespeeld.",
+    title: "Jaren 80 coverband boeken | GoodTimes 100% live",
+    description: "Een jaren 80 coverband boeken? GoodTimes brengt disco, funk, pop en Nederpop met zes muzikanten, live zang en een volledig live gespeelde show.",
     path: "/80s-coverband-boeken/",
   },
   "coverband-brabant": {
-    title: "Coverband Brabant boeken | GoodTimes 80's live",
-    description: "Zoek je een professionele coverband in Brabant? GoodTimes speelt de grootste jaren 80-hits volledig live op feesten, festivals en evenementen.",
+    title: "Jaren 80 coverband Brabant | GoodTimes 100% live",
+    description: "Boek GoodTimes als jaren 80 coverband in Brabant. Zes muzikanten spelen disco, funk, pop en Nederpop volledig live op feesten en evenementen.",
     path: "/coverband-brabant/",
   },
   "coverband-bedrijfsfeest": {
-    title: "Coverband bedrijfsfeest | GoodTimes 80's liveband",
-    description: "GoodTimes brengt herkenbare jaren 80-hits volledig live op personeelsfeesten, jubilea en bedrijfsevenementen. Informeer naar de mogelijkheden.",
+    title: "Jaren 80 band voor bedrijfsfeest | GoodTimes live",
+    description: "Zoek je een live band voor een bedrijfsfeest? GoodTimes speelt herkenbare jaren 80-hits volledig live op personeelsfeesten en zakelijke evenementen.",
     path: "/coverband-bedrijfsfeest/",
   },
 } satisfies Record<string, SeoEntry>;

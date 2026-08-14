@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import type { BandEvent, Profile } from "../../lib/bandportal";
 import { formatDate } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
+import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
 
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
@@ -353,6 +354,24 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
   const songFor = (id: string) => songs.find((song) => song.id === id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
+
+  useEffect(() => {
+    const printMedia = window.matchMedia("print");
+    const preparePrint = () => fitSetlistsToSinglePages();
+    const resetPrint = () => clearSetlistPrintScales();
+    const handlePrintMedia = (event: MediaQueryListEvent) => event.matches ? preparePrint() : resetPrint();
+
+    window.addEventListener("beforeprint", preparePrint);
+    window.addEventListener("afterprint", resetPrint);
+    printMedia.addEventListener("change", handlePrintMedia);
+
+    return () => {
+      window.removeEventListener("beforeprint", preparePrint);
+      window.removeEventListener("afterprint", resetPrint);
+      printMedia.removeEventListener("change", handlePrintMedia);
+      resetPrint();
+    };
+  }, [setlists, setlistItems, songs]);
   const [draftDate, setDraftDate] = useState("");
   const [draftEventId, setDraftEventId] = useState("");
   const [draftSongs, setDraftSongs] = useState<string[]>([]);

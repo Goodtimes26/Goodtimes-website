@@ -99,6 +99,11 @@
     display:block!important;
     opacity:1!important;color:#000!important;
   }
+  .portal-setlist-list .portal-data-card{
+    zoom:var(--portal-print-scale,1);
+    break-inside:avoid-page!important;
+    page-break-inside:avoid!important;
+  }
   .portal-setlist-list .portal-data-card~.portal-data-card,
   .portal-rehearsal-list .portal-data-card~.portal-data-card{
     break-before:page!important;

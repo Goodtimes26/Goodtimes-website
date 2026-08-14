@@ -1,4 +1,4 @@
-const CACHE = "goodtimes-band-v1";
+const CACHE = "goodtimes-band-v2";
 const APP_SHELL = ["/bandinlog/", "/favicon-192x192.png", "/favicon-512x512.png"];
 
 self.addEventListener("install", (event) => {
@@ -21,7 +21,8 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/favicon-")
   );
   if (!isBandApp) return;
-  event.respondWith(fetch(event.request).then((response) => {
+  const networkRequest = new Request(event.request, { cache: "no-store" });
+  event.respondWith(fetch(networkRequest).then((response) => {
     if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
     return response;
   }).catch(() => caches.match(event.request).then((cached) => cached || caches.match("/bandinlog/"))));

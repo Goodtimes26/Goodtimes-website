@@ -353,80 +353,116 @@ type LandingPageContent = {
   sections: Array<{ title: string; paragraphs: string[] }>;
   highlights: string[];
   cta: string;
+  relatedLinks: Array<{ href: string; label: string }>;
 };
 
 const landingPages: Record<"80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest", LandingPageContent> = {
   "80s-coverband-boeken": {
     kicker: "De jaren 80, volledig live",
-    title: "80'S COVERBAND",
+    title: "JAREN 80 BAND",
     accent: "BOEKEN.",
-    introduction: "Zoek je een 80's coverband die de energie en herkenning van het muziekdecennium live naar het podium brengt? GoodTimes speelt dansbare jaren 80-muziek met zes ervaren muzikanten en zonder backing tracks.",
+    introduction: "Wil je een jaren 80 coverband boeken voor een feest, festival of evenement? GoodTimes brengt de herkenning en energie van de eighties met zes ervaren muzikanten, live zang en een volledig live gespeelde show.",
     sections: [
       {
-        title: "Een live jaren 80-band voor jouw evenement",
+        title: "Wat voor jaren 80-coverband is GoodTimes?",
         paragraphs: [
-          "Van disco en funk tot pop, Nederpop en dance classics: GoodTimes brengt bekende nummers uit de jaren tachtig met live zang, meerstemmigheid en een energieke bandsound.",
-          "De band is inzetbaar voor feestavonden, bedrijfsfeesten, festivals en andere evenementen waar herkenning, dansbare muziek en een professionele uitstraling samenkomen.",
+          "GoodTimes is een echte liveband met twee zangeressen en muzikanten op toetsen, gitaar, basgitaar en drums. De zang, meerstemmigheid en instrumenten komen samen in een energieke bandsound die op het podium ontstaat.",
+          "Het repertoire loopt van disco en funk tot pop, Nederpop en dance classics uit de jaren tachtig. Daardoor is de show herkenbaar, afwisselend en vooral gemaakt om samen te beleven en te dansen.",
         ],
       },
       {
-        title: "Herkenbare hits, gespeeld door een echte liveband",
+        title: "Een 80's band voor feest, festival en evenement",
         paragraphs: [
-          "Een 80's liveband maakt muziek tastbaar. De interactie tussen muzikanten, publiek en podium zorgt voor een optreden dat iedere avond leeft.",
-          "Bekijk het repertoire voor een indruk van de nummers of beluister de repetitieopnames om te horen hoe GoodTimes live klinkt.",
+          "Een jaren 80 band past bij een 80's themafeest, een bedrijfsfeest, een festival en andere evenementen waar het publiek zin heeft in bekende muziek. GoodTimes combineert dansbare nummers met de spontaniteit en interactie van live muziek.",
+          "Op de repertoirepagina zie je welke nummers centraal staan. De Media-pagina bevat ongeslepen repetitieopnames, zodat je vooraf kunt horen hoe GoodTimes als liveband klinkt.",
+        ],
+      },
+      {
+        title: "GoodTimes boeken",
+        paragraphs: [
+          "Wil je weten of GoodTimes past bij jouw locatie, publiek en programma? Via de contactpagina kun je rechtstreeks informeren naar de mogelijkheden en beschikbaarheid voor jouw datum.",
         ],
       },
     ],
-    highlights: ["100% live, zonder backing tracks", "Zes ervaren muzikanten", "Voor feesten, festivals en evenementen"],
+    highlights: ["100% live gespeeld", "Zes ervaren muzikanten", "Disco, funk, pop en Nederpop", "Voor feesten, festivals en evenementen"],
     cta: "Informeer naar beschikbaarheid",
+    relatedLinks: [
+      { href: "/repertoire", label: "Bekijk het jaren 80-repertoire" },
+      { href: "/media", label: "Beluister GoodTimes live" },
+      { href: "/contact", label: "Vraag naar beschikbaarheid" },
+    ],
   },
   "coverband-brabant": {
     kicker: "Live vanuit Noord-Brabant",
-    title: "COVERBAND",
+    title: "JAREN 80 COVERBAND",
     accent: "BRABANT.",
-    introduction: "GoodTimes is een professionele 80's coverband uit Brabant. Vanuit de regio is de band goed inzetbaar voor feesten, festivals en evenementen in Noord-Brabant en daarbuiten.",
+    introduction: "GoodTimes is een professionele jaren 80 coverband uit Noord-Brabant. Met zes muzikanten, sterke live zang en een dansbaar repertoire is de band te boeken voor feesten, festivals en evenementen in de regio en daarbuiten.",
     sections: [
       {
-        title: "Een energieke live band in Brabant",
+        title: "Een live coverband in Noord-Brabant",
         paragraphs: [
-          "Organiseer je een evenement in Den Bosch, Tilburg, Eindhoven of elders in Noord-Brabant? GoodTimes brengt een herkenbare jaren 80-show met dansbare classics, sterke zang en een volledige livebezetting.",
-          "De combinatie van bekende muziek en podiumenergie maakt de band geschikt voor uiteenlopende gelegenheden, van een feestavond tot een festival of bedrijfsevenement.",
+          "Organiseer je een evenement in Waalwijk, Den Bosch, Tilburg, Breda, Eindhoven of elders in Noord-Brabant? GoodTimes brengt een herkenbare jaren 80-show met disco, funk, pop, Nederpop en dance classics.",
+          "Alles wordt volledig live gespeeld. De bezetting met twee zangeressen, toetsen, gitaar, basgitaar en drums geeft de muziek de energie en dynamiek van een echte liveband.",
         ],
       },
       {
-        title: "Ook buiten Brabant te boeken",
+        title: "Voor feesten, festivals en evenementen",
         paragraphs: [
-          "GoodTimes speelt niet alleen in Brabant. Ook voor optredens elders in Nederland kun je informeren naar de mogelijkheden en beschikbaarheid.",
-          "Wie specifiek een jaren 80-band wil boeken, kan het repertoire bekijken en via de live opnames alvast kennismaken met de sound van GoodTimes.",
+          "De combinatie van bekende eighties-hits, live samenzang en een dansbaar programma past bij feestavonden, festivals, bedrijfsfeesten en andere evenementen. In de agenda zie je waar GoodTimes openbaar live te beleven is.",
+          "GoodTimes is ook buiten Brabant te boeken, waaronder richting Nijmegen en andere plaatsen in Nederland. Voor een specifieke locatie of datum kun je rechtstreeks contact opnemen.",
+        ],
+      },
+      {
+        title: "Eerst luisteren en het repertoire bekijken",
+        paragraphs: [
+          "Bekijk het actuele repertoire voor een indruk van de muziek of luister op de Media-pagina naar opnames uit de repetitieruimte. Zo krijg je een eerlijk beeld van de live sound voordat je GoodTimes boekt.",
         ],
       },
     ],
-    highlights: ["Coverband uit Brabant", "Volledig live gespeeld", "Professionele sound en uitstraling"],
+    highlights: ["Jaren 80 coverband uit Brabant", "100% live gespeeld", "Zes ervaren muzikanten", "Ook buiten Brabant te boeken"],
     cta: "GoodTimes boeken in Brabant",
+    relatedLinks: [
+      { href: "/80s-coverband-boeken", label: "Meer over een jaren 80 band boeken" },
+      { href: "/agenda", label: "Bekijk de agenda van GoodTimes" },
+      { href: "/media", label: "Beluister de live opnames" },
+      { href: "/contact", label: "Bespreek jouw evenement" },
+    ],
   },
   "coverband-bedrijfsfeest": {
     kicker: "Herkenning voor het hele bedrijf",
-    title: "COVERBAND",
+    title: "JAREN 80 BAND",
     accent: "BEDRIJFSFEEST.",
-    introduction: "Met herkenbare jaren 80-hits en een energieke liveshow brengt GoodTimes collega's samen op de dansvloer. Een professionele coverband voor een bedrijfsfeest, personeelsfeest of zakelijk evenement.",
+    introduction: "Zoek je een live jaren 80 band voor een bedrijfsfeest? GoodTimes brengt collega's samen met herkenbare eighties-hits, live zang en een energieke show die volledig door zes muzikanten wordt gespeeld.",
     sections: [
       {
-        title: "Live muziek voor een breed publiek",
+        title: "Live muziek voor een bedrijfsfeest",
         paragraphs: [
-          "De muziek uit de jaren tachtig verbindt generaties. Bekende refreinen, dansbare disco, funk en pop zorgen voor herkenning zonder dat het programma eenvormig wordt.",
-          "GoodTimes speelt alles volledig live. Daarmee krijgt een personeelsfeest of bedrijfsevenement de energie en spontaniteit van een echte band op het podium.",
+          "De muziek uit de jaren tachtig zorgt voor herkenning bij een breed publiek. Bekende refreinen, dansbare disco, funk, pop en Nederpop geven collega's alle ruimte om mee te zingen en de dansvloer op te gaan.",
+          "GoodTimes speelt 100% live, met twee zangeressen en muzikanten op toetsen, gitaar, basgitaar en drums. Daardoor krijgt een personeelsfeest de interactie, dynamiek en spontaniteit van een echte band op het podium.",
         ],
       },
       {
-        title: "Passend bij zakelijke evenementen",
+        title: "Van personeelsfeest tot zakelijk evenement",
         paragraphs: [
-          "Van jubileum en relatie-evenement tot bedrijfsfestival: GoodTimes combineert een verzorgde uitstraling met een repertoire dat uitnodigt om mee te zingen en te dansen.",
-          "Wil je weten of de band past bij jouw locatie en programma? Neem contact op; we denken graag mee over de mogelijkheden voor het evenement.",
+          "Van jubileum en relatie-evenement tot bedrijfsfestival: GoodTimes combineert een professionele uitstraling met een repertoire dat uitnodigt om mee te zingen en te dansen.",
+          "De band kan desgewenst ook met professionele techniek, licht en geluid worden geboekt. Op de pagina Techniek & Productie lees je welke mogelijkheden daarvoor bestaan.",
+        ],
+      },
+      {
+        title: "Past GoodTimes bij jullie feest?",
+        paragraphs: [
+          "Bekijk het repertoire en beluister de repetitieopnames om een beeld te krijgen van de muziek en de live sound. Via de contactpagina kun je vervolgens de datum, locatie en mogelijkheden voor het bedrijfsevenement bespreken.",
         ],
       },
     ],
-    highlights: ["Voor personeelsfeesten en jubilea", "Dansbare jaren 80-hits", "Zes professionele muzikanten"],
+    highlights: ["Voor personeelsfeesten en jubilea", "100% live gespeeld", "Dansbare jaren 80-hits", "Professionele sound en uitstraling"],
     cta: "Vraag beschikbaarheid aan",
+    relatedLinks: [
+      { href: "/repertoire", label: "Bekijk het repertoire voor jullie feest" },
+      { href: "/media", label: "Beluister de live sound" },
+      { href: "/techniek-productie", label: "Bekijk licht- en geluidsmogelijkheden" },
+      { href: "/contact", label: "Bespreek het bedrijfsfeest" },
+    ],
   },
 };
 
@@ -451,11 +487,7 @@ function SeoLandingPage({ page }: { page: keyof typeof landingPages }) {
       <p className="eyebrow">Ontdek GoodTimes</p>
       <h2>Bekijk en beluister de band</h2>
       <nav aria-label="Meer over GoodTimes">
-        <Link className="text-link" href="/repertoire">Bekijk het repertoire <Arrow /></Link>
-        <Link className="text-link" href="/media">Beluister de live opnames <Arrow /></Link>
-        {page !== "80s-coverband-boeken" && <Link className="text-link" href="/80s-coverband-boeken">Meer over een 80’s coverband boeken <Arrow /></Link>}
-        {page !== "coverband-brabant" && <Link className="text-link" href="/coverband-brabant">GoodTimes als coverband in Brabant <Arrow /></Link>}
-        {page !== "coverband-bedrijfsfeest" && <Link className="text-link" href="/coverband-bedrijfsfeest">Liveband voor een bedrijfsfeest <Arrow /></Link>}
+        {content.relatedLinks.map((link) => <Link className="text-link" href={link.href} key={link.href}>{link.label} <Arrow /></Link>)}
       </nav>
     </section>
   </>;

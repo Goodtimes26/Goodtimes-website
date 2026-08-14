@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
   availabilityLabels,
-  datesBetween,
   eventLabels,
   formatDate,
   requestLabels,
@@ -33,20 +32,6 @@ type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "m
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
-type AvailabilityDraft = {
-  start: string;
-  end: string;
-  status: "unavailable" | "maybe";
-  note: string;
-};
-
-const emptyAvailability = (): AvailabilityDraft => ({
-  start: toIsoDate(new Date()),
-  end: toIsoDate(new Date()),
-  status: "unavailable",
-  note: "",
-});
-
 function monthDays(month: Date) {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const start = new Date(first);
@@ -78,7 +63,6 @@ export function BandPortal() {
   const [tab, setTab] = useState<PortalTab>("home");
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
-  const [availability, setAvailability] = useState<Availability[]>([]);
   const [teamCalendarAvailability, setTeamCalendarAvailability] = useState<DatedTeamAvailability[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
@@ -86,7 +70,6 @@ export function BandPortal() {
   const [messageCount, setMessageCount] = useState(0);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>(emptyAvailability);
   const [checkDate, setCheckDate] = useState(toIsoDate(new Date()));
   const [checkRows, setCheckRows] = useState<TeamAvailability[] | null>(null);
   const [editingRequest, setEditingRequest] = useState<BookingRequest | null>(null);
@@ -105,17 +88,14 @@ export function BandPortal() {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     const visibleDates = monthDays(month).map(toIsoDate);
-    const firstDay = visibleDates[0];
-    const lastDay = visibleDates[visibleDates.length - 1];
     const analyticsSince = new Date();
     analyticsSince.setDate(analyticsSince.getDate() - 90);
     const teamAvailabilityPromise = Promise.all(visibleDates.map(async (date) => {
       const result = await supabase.rpc("team_availability", { target_date: date });
       return { date, ...result };
     }));
-    const [profilesResult, availabilityResult, requestsResult, responsesResult, eventsResult, messageCountResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
+    const [profilesResult, requestsResult, responsesResult, eventsResult, messageCountResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
       supabase.from("profiles").select("id,display_name,email").order("display_name"),
-      supabase.from("availability").select("id,user_id,date,status,private_note").gte("date", firstDay).lte("date", lastDay),
       supabase.from("requests").select("*").order("event_date"),
       supabase.from("request_responses").select("id,request_id,user_id,status,note"),
       supabase.from("events").select("id,event_date,start_time,end_time,location,description,notes,event_type").order("event_date"),
@@ -130,7 +110,6 @@ export function BandPortal() {
     ]);
     const firstError = [
       profilesResult.error,
-      availabilityResult.error,
       requestsResult.error,
       responsesResult.error,
       eventsResult.error,
@@ -141,7 +120,6 @@ export function BandPortal() {
     ].find(Boolean);
     if (firstError) throw firstError;
     setProfiles((profilesResult.data ?? []) as Profile[]);
-    setAvailability((availabilityResult.data ?? []) as Availability[]);
     setRequests((requestsResult.data ?? []) as BookingRequest[]);
     setResponses((responsesResult.data ?? []) as RequestResponse[]);
     setEvents((eventsResult.data ?? []) as BandEvent[]);
@@ -265,44 +243,6 @@ export function BandPortal() {
     router.replace("/bandinlog");
   }
 
-  async function saveAvailability(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) return;
-    setError("");
-    const supabase = getSupabaseClient()!;
-    const rows = datesBetween(availabilityDraft.start, availabilityDraft.end).map((date) => ({
-      user_id: user.id,
-      date,
-      status: availabilityDraft.status,
-      private_note: availabilityDraft.note.trim() || null,
-    }));
-    const { error: saveError } = await supabase.from("availability").upsert(rows, { onConflict: "user_id,date" });
-    if (saveError) {
-      setError("Je beschikbaarheid kon niet worden opgeslagen.");
-      return;
-    }
-    setMessage(rows.length > 1 ? "De periode is opgeslagen." : "Je beschikbaarheid is opgeslagen.");
-    await refresh();
-  }
-
-  async function clearAvailability() {
-    if (!user) return;
-    setError("");
-    const { error: clearError } = await getSupabaseClient()!
-      .from("availability")
-      .delete()
-      .eq("user_id", user.id)
-      .gte("date", availabilityDraft.start)
-      .lte("date", availabilityDraft.end);
-    if (clearError) {
-      setError("De periode kon niet als beschikbaar worden hersteld.");
-      return;
-    }
-    setAvailabilityDraft((draft) => ({ ...draft, status: "unavailable", note: "" }));
-    setMessage("Geen bijzonderheden voor deze periode: je staat automatisch als beschikbaar.");
-    await refresh();
-  }
-
   async function checkAvailability(date = checkDate) {
     const supabase = getSupabaseClient()!;
     const { data, error: checkError } = await supabase.rpc("team_availability", { target_date: date });
@@ -411,7 +351,6 @@ export function BandPortal() {
     return <main className="portal-shell portal-loading"><p>{error || "Je wordt doorgestuurd naar de bandinlog…"}</p></main>;
   }
 
-  const ownAvailability = availability.filter((row) => row.user_id === user.id);
   const requestResponseFor = (requestId: string) => responses.filter((response) => response.request_id === requestId);
 
   return (
@@ -457,7 +396,6 @@ export function BandPortal() {
             <div className="portal-calendar">
               {calendarDays.map((day) => {
                 const iso = toIsoDate(day);
-                const own = ownAvailability.find((row) => row.date === iso);
                 const teamRows = teamCalendarAvailability.filter((row) => row.date === iso);
                 const teamStatus = teamAvailabilityTone(teamRows);
                 const dayEvents = events.filter((item) => item.event_date === iso);
@@ -466,12 +404,6 @@ export function BandPortal() {
                     key={iso}
                     className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${teamStatus}`}
                     onClick={() => {
-                      setAvailabilityDraft({
-                        start: iso,
-                        end: iso,
-                        status: own?.status === "maybe" ? "maybe" : "unavailable",
-                        note: own?.private_note ?? "",
-                      });
                       setCheckDate(iso);
                       setCheckRows(teamRows);
                       setTab("availability");
@@ -491,35 +423,16 @@ export function BandPortal() {
         )}
 
         {tab === "availability" && (
-          <div className="portal-section portal-two-column portal-availability-layout">
-            <div className="portal-availability-column">
-              <p className="portal-eyebrow">Mijn beschikbaarheid</p>
-              <h1>Beschikbaarheid invullen</h1>
-              <form className="portal-form portal-card" onSubmit={saveAvailability}>
-                <div className="portal-field-row">
-                  <label>Van<input type="date" value={availabilityDraft.start} onChange={(event) => setAvailabilityDraft((draft) => ({ ...draft, start: event.target.value, end: event.target.value > draft.end ? event.target.value : draft.end }))} required /></label>
-                  <label>Tot en met<input type="date" min={availabilityDraft.start} value={availabilityDraft.end} onChange={(event) => setAvailabilityDraft((draft) => ({ ...draft, end: event.target.value }))} required /></label>
-                </div>
-                <label>Status<select value={availabilityDraft.status} onChange={(event) => setAvailabilityDraft((draft) => ({ ...draft, status: event.target.value as AvailabilityDraft["status"] }))}>
-                  <option value="unavailable">Niet beschikbaar</option><option value="maybe">Misschien</option>
-                </select></label>
-                <label>Privé-opmerking<textarea maxLength={500} value={availabilityDraft.note} onChange={(event) => setAvailabilityDraft((draft) => ({ ...draft, note: event.target.value }))} placeholder="Bijvoorbeeld vakantie, werk of verjaardag" /></label>
-                <p className="portal-help">Vul alleen een uitzondering in. Zonder invoer sta je automatisch als beschikbaar. De opmerking is alleen zichtbaar voor jou en een beheerder.</p>
-                <div className="portal-form-actions">
-                  <button className="portal-primary" type="submit">Uitzondering opslaan</button>
-                  <button type="button" onClick={clearAvailability}>Geen uitzondering: beschikbaar</button>
-                </div>
-              </form>
-            </div>
-              <div className="portal-date-check-column">
-                <p className="portal-eyebrow">Team</p>
-                <h2>Controleer datum</h2>
-                <div className="portal-card portal-date-check">
-                  <label>Datum<input type="date" value={checkDate} onChange={(event) => setCheckDate(event.target.value)} /></label>
-                  <button className="portal-primary" onClick={() => checkAvailability()}>Controleer datum</button>
-                  {checkRows && <AvailabilityCheck profiles={profiles} rows={checkRows} />}
-                </div>
+          <div className="portal-section portal-availability-layout">
+            <div className="portal-date-check-column">
+              <p className="portal-eyebrow">Team</p>
+              <h1>Beschikbaarheid</h1>
+              <div className="portal-card portal-date-check">
+                <label>Datum<input type="date" value={checkDate} onChange={(event) => { setCheckDate(event.target.value); setCheckRows(null); }} /></label>
+                <button className="portal-primary" onClick={() => checkAvailability()}>Check beschikbaarheid</button>
+                {checkRows && <AvailabilityCheck profiles={profiles} rows={checkRows} />}
               </div>
+            </div>
           </div>
         )}
 
@@ -616,12 +529,9 @@ export function BandPortal() {
           <div className="portal-section portal-more-section">
             <p className="portal-eyebrow">GoodTimes Band</p><h1>Meer</h1>
             <div className="portal-more-grid">
-              <button onClick={() => setTab("requests")}><strong>Aanvragen</strong><span>Bekijk boekingsaanvragen en reacties</span></button>
-              <button onClick={() => setTab("availability")}><strong>Beschikbaarheid</strong><span>Uitzonderingen invullen en team controleren</span></button>
+              <button onClick={() => setTab("availability")}><strong>Beschikbaarheid</strong><span>Controleer de beschikbaarheid van de band</span></button>
               <button onClick={() => setTab("songs")}><strong>Repertoire</strong><span>Nummers, notities en oefenstatus</span></button>
-              <button onClick={() => setTab("messages")}><strong>Berichten</strong><span>Lees de laatste berichten van de band</span></button>
               <button onClick={() => setTab("files")}><strong>Bestanden & audio</strong><span>Documenten, links en oefenopnames</span></button>
-              <button onClick={() => setTab("profile")}><strong>Mijn profiel</strong><span>Naam, instrument en contactgegevens</span></button>
               <button onClick={() => setTab("events")}><strong>Activiteiten</strong><span>Repetities en optredens beheren</span></button>
               {isAdmin && <button onClick={() => setTab("users")}><strong>Gebruikers</strong><span>Bandleden en rollen beheren</span></button>}
               {isAdmin && <button onClick={() => setTab("analytics")}><strong>Bezoekers</strong><span>Websitebezoek bekijken</span></button>}

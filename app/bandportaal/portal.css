@@ -96,10 +96,14 @@
   .portal-shell button,.portal-shell a{display:none!important}
   .portal-setlist-list,.portal-rehearsal-list{display:block!important}
   .portal-setlist-list .portal-data-card,.portal-rehearsal-list .portal-data-card{
-    display:block!important;break-after:page;page-break-after:always;
+    display:block!important;
     opacity:1!important;color:#000!important;
   }
-  .portal-setlist-list .portal-data-card:last-child,.portal-rehearsal-list .portal-data-card:last-child{break-after:auto;page-break-after:auto}
+  .portal-setlist-list .portal-data-card~.portal-data-card,
+  .portal-rehearsal-list .portal-data-card~.portal-data-card{
+    break-before:page!important;
+    page-break-before:always!important;
+  }
   .portal-setlist-list .portal-data-card>div,.portal-rehearsal-list .portal-data-card>div{display:flex!important;justify-content:flex-end;gap:10mm;margin:0 0 3mm;color:#111!important;font-size:11pt}
   .portal-setlist-list .portal-data-card>div span,.portal-rehearsal-list .portal-data-card>div span{display:none!important}
   .portal-setlist-list .portal-data-card h2,.portal-rehearsal-list .portal-data-card h2{margin:0 0 2.5mm!important;color:#000!important;font:800 26pt/1.02 var(--font-display)!important;text-transform:uppercase}

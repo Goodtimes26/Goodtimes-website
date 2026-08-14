@@ -363,7 +363,6 @@ export function BandPortal() {
         </div>
         <div className="portal-account">
           <span><strong>{profile.display_name}</strong><small>{isAdmin ? "Beheerder" : "Bandlid"}</small></span>
-          <button type="button" onClick={signOut}>Uitloggen</button>
         </div>
       </header>
 
@@ -536,6 +535,7 @@ export function BandPortal() {
               <button onClick={() => setTab("events")}><strong>Activiteiten</strong><span>Repetities en optredens beheren</span></button>
               {isAdmin && <button onClick={() => setTab("users")}><strong>Gebruikers</strong><span>Bandleden en rollen beheren</span></button>}
               {isAdmin && <button onClick={() => setTab("analytics")}><strong>Bezoekers</strong><span>Websitebezoek bekijken</span></button>}
+              <button className="portal-more-signout" type="button" onClick={signOut}><strong>Uitloggen</strong><span>Veilig afmelden bij de Band-app</span></button>
             </div>
           </div>
         )}
@@ -586,21 +586,19 @@ function PortalDashboard({ profile, events, requests, unreadMessageCount, recent
       </button> : <p>Er staat nog geen optreden gepland.</p>}
     </article>
 
-    <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
-      <div className="portal-dashboard-heading"><p className="portal-eyebrow">Actueel</p><h2 id="portal-updates-title">Wat is er nieuw?</h2></div>
+    {hasUpdates && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
+      <div className="portal-dashboard-heading"><h2 id="portal-updates-title">Wat is er nieuw?</h2></div>
       <div className="portal-update-list">
-        {unreadMessageCount > 0 && <button onClick={() => setTab("messages")}><span className="portal-update-icon is-message" aria-hidden="true">●</span><span><strong>{unreadMessageCount === 1 ? "1 ongelezen bericht" : `${unreadMessageCount} ongelezen berichten`}</strong><small>Open Berichten</small></span><b aria-hidden="true">→</b></button>}
-        {recentSetlist && <button onClick={() => setTab("setlists")}><span className="portal-update-icon is-setlist" aria-hidden="true">≡</span><span><strong>Setlist bijgewerkt</strong><small>{recentSetlist.name}</small></span><b aria-hidden="true">→</b></button>}
-        {openRequests > 0 && <button onClick={() => setTab("requests")}><span className="portal-update-icon is-request" aria-hidden="true">?</span><span><strong>{openRequests === 1 ? "1 openstaande aanvraag" : `${openRequests} openstaande aanvragen`}</strong><small>{isAdmin ? "Bekijk en beheer" : "Controleer je beschikbaarheid"}</small></span><b aria-hidden="true">→</b></button>}
-        {!hasUpdates && <p className="portal-dashboard-empty">Je bent helemaal bij.</p>}
+        {unreadMessageCount > 0 ? <button onClick={() => setTab("messages")}><span className="portal-update-icon is-message" aria-hidden="true">●</span><span><strong>{unreadMessageCount === 1 ? "1 ongelezen bericht" : `${unreadMessageCount} ongelezen berichten`}</strong><small>Open Berichten</small></span><b aria-hidden="true">→</b></button>
+          : recentSetlist ? <button onClick={() => setTab("setlists")}><span className="portal-update-icon is-setlist" aria-hidden="true">≡</span><span><strong>Setlist bijgewerkt</strong><small>{recentSetlist.name}</small></span><b aria-hidden="true">→</b></button>
+            : <button onClick={() => setTab("requests")}><span className="portal-update-icon is-request" aria-hidden="true">?</span><span><strong>{openRequests === 1 ? "1 openstaande aanvraag" : `${openRequests} openstaande aanvragen`}</strong><small>{isAdmin ? "Bekijk en beheer" : "Controleer je beschikbaarheid"}</small></span><b aria-hidden="true">→</b></button>}
       </div>
-    </section>
+    </section>}
 
     <section className="portal-dashboard-actions" aria-labelledby="portal-actions-title">
-      <div className="portal-dashboard-heading"><p className="portal-eyebrow">Direct naar</p><h2 id="portal-actions-title">Belangrijkste functies</h2></div>
+      <div className="portal-dashboard-heading"><h2 id="portal-actions-title">Snel naar</h2></div>
       <div className="portal-dashboard-grid">
         <button className="portal-dashboard-tile" onClick={() => setTab("availability")}><span className="portal-dashboard-icon" aria-hidden="true">✓</span><strong>Beschikbaarheid</strong><small>Kies een datum en check de band</small></button>
-        <button className="portal-dashboard-tile" onClick={() => setTab("agenda")}><span className="portal-dashboard-icon" aria-hidden="true">□</span><strong>Agenda</strong><small>Optredens en repetities</small></button>
         <button className="portal-dashboard-tile portal-dashboard-message" onClick={() => setTab("messages")}><span className="portal-dashboard-icon" aria-hidden="true">●</span><strong>Berichten</strong><small>{unreadMessageCount === 0 ? "Alles gelezen" : unreadMessageCount === 1 ? "1 ongelezen" : `${unreadMessageCount} ongelezen`}</small></button>
         <button className="portal-dashboard-tile" onClick={() => setTab("songs")}><span className="portal-dashboard-icon" aria-hidden="true">80</span><strong>Repertoire</strong><small>Alle nummers bij elkaar</small></button>
       </div>

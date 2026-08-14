@@ -17,6 +17,19 @@ export type Profile = {
   email: string | null;
 };
 
+export function bandMemberFirstName(profile: Pick<Profile, "display_name" | "email">) {
+  const identity = `${profile.display_name} ${profile.email ?? ""}`.toLowerCase();
+
+  if (identity.includes("cindy") || identity.includes("lensvelt")) return "Cindy";
+  if (identity.includes("joost") || identity.includes("vermeulen") || identity.includes("j.c.m.")) return "Joost";
+  if (identity.includes("luuk") || identity.includes("luu-key") || identity.includes("verzantvoort")) return "Luuk";
+  if (identity.includes("eric") || identity.includes("langenkamp")) return "Eric";
+  if (identity.includes("esther")) return "Esther";
+  if (identity.includes("eddie") || identity.includes("e.voorthuijsen")) return "Eddie";
+
+  return "Bandlid";
+}
+
 export type Availability = {
   id: string;
   user_id: string;

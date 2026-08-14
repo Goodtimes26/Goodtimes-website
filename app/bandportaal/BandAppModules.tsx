@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { BandEvent, Profile } from "../../lib/bandportal";
-import { formatDate } from "../../lib/bandportal";
+import { bandMemberFirstName, formatDate } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
 import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
 
@@ -421,7 +421,10 @@ function formatDuration(seconds: number) {
 }
 
 function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, isAdmin, onCreate, onSave, onArchive, onDelete }: { setlists: Setlist[]; setlistItems: SetlistItem[]; songs: Song[]; events: BandEvent[]; profiles: Profile[]; busy: boolean; isAdmin: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onSave: (setlist: Setlist, name: string, date: string, eventId: string, songIds: string[]) => Promise<boolean>; onArchive: (setlist: Setlist) => void; onDelete: (setlist: Setlist) => Promise<boolean> }) {
-  const profileName = (id: string) => profiles.find((profile) => profile.id === id)?.display_name ?? "Bandlid";
+  const profileName = (id: string) => {
+    const member = profiles.find((profile) => profile.id === id);
+    return member ? bandMemberFirstName(member) : "Bandlid";
+  };
   const songFor = (id: string) => songs.find((song) => song.id === id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -526,7 +529,7 @@ function RehearsalsPanel({ rehearsals, rehearsalSongs, songs, events, isAdmin, b
 
 function MessagesPanel({ messages, profiles, userId, isAdmin, busy, onCreate, onDelete }: { messages: BandMessage[]; profiles: Profile[]; userId: string; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onDelete: (id: string) => void }) {
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Voor de hele band</p><h1>Bandberichten</h1></div></div><details className="portal-editor"><summary>Bericht plaatsen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><label>Titel<input name="title" required maxLength={160} /></label><label>Bericht<textarea name="body" required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" /> Markeer als belangrijk</label><button className="portal-primary" disabled={busy}>Bericht plaatsen</button></form></details>
-    <div className="portal-data-list">{messages.map((message) => <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {profiles.find((profile) => profile.id === message.author_id)?.display_name ?? "Bandlid"}</small>{(isAdmin || message.author_id === userId) && <button className="portal-delete-link" onClick={() => onDelete(message.id)}>Verwijderen</button>}</article>)}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
+    <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small>{(isAdmin || message.author_id === userId) && <button className="portal-delete-link" onClick={() => onDelete(message.id)}>Verwijderen</button>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
 }
 
 function FilesPanel({ files, songs, audioUrls, isAdmin, busy, onCreate, onUpload, onDeleteAudio }: { files: BandFile[]; songs: Song[]; audioUrls: Record<string, string>; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpload: (event: React.FormEvent<HTMLFormElement>) => void; onDeleteAudio: (file: BandFile) => void }) {

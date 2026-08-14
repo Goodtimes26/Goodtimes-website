@@ -25,6 +25,7 @@ import {
   type UserRole,
 } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
+import { clearAppBadge, countUnreadMessages, syncAppBadge } from "../../lib/appBadge";
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
 
 type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | BandAppTab;
@@ -151,6 +152,23 @@ export function BandPortal() {
     ));
   }, [month]);
 
+  const syncUnreadMessageBadge = useCallback(async (activeUserId: string) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const [messagesResult, readsResult] = await Promise.all([
+      supabase.from("band_messages").select("id"),
+      supabase.from("message_reads").select("message_id").eq("user_id", activeUserId),
+    ]);
+    if (messagesResult.error || readsResult.error) return;
+
+    const unreadCount = countUnreadMessages(
+      (messagesResult.data ?? []).map((row) => row.id as string),
+      (readsResult.data ?? []).map((row) => row.message_id as string),
+    );
+    await syncAppBadge(unreadCount);
+  }, []);
+
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -161,6 +179,7 @@ export function BandPortal() {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       if (!data.session) {
+        void clearAppBadge();
         router.replace("/bandinlog");
         return;
       }
@@ -188,7 +207,10 @@ export function BandPortal() {
       }
     });
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) router.replace("/bandinlog");
+      if (!session) {
+        void clearAppBadge();
+        router.replace("/bandinlog");
+      }
     });
     return () => {
       active = false;
@@ -196,12 +218,43 @@ export function BandPortal() {
     };
   }, [loadPortalData, router]);
 
+  useEffect(() => {
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const synchronize = () => { void syncUnreadMessageBadge(user.id); };
+    const synchronizeWhenVisible = () => {
+      if (document.visibilityState === "visible") synchronize();
+    };
+
+    synchronize();
+    const channel = supabase
+      .channel(`message-badge-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "band_messages" }, synchronize)
+      .on("postgres_changes", { event: "*", schema: "public", table: "message_reads", filter: `user_id=eq.${user.id}` }, synchronize)
+      .subscribe();
+    const pollingTimer = window.setInterval(synchronize, 30_000);
+    window.addEventListener("focus", synchronize);
+    window.addEventListener("goodtimes:messages-read", synchronize);
+    document.addEventListener("visibilitychange", synchronizeWhenVisible);
+
+    return () => {
+      window.clearInterval(pollingTimer);
+      window.removeEventListener("focus", synchronize);
+      window.removeEventListener("goodtimes:messages-read", synchronize);
+      document.removeEventListener("visibilitychange", synchronizeWhenVisible);
+      void supabase.removeChannel(channel);
+    };
+  }, [syncUnreadMessageBadge, user]);
+
   async function refresh() {
     if (!user) return;
     await loadPortalData(user, role);
   }
 
   async function signOut() {
+    await clearAppBadge();
     await getSupabaseClient()?.auth.signOut();
     router.replace("/bandinlog");
   }

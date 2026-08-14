@@ -102,6 +102,25 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  useEffect(() => {
+    if (tab !== "messages" || ready !== true) return;
+
+    const markVisibleMessagesRead = async () => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+      if (messages.length > 0) {
+        const { error } = await supabase.from("message_reads").upsert(
+          messages.map((message) => ({ message_id: message.id, user_id: user.id })),
+          { onConflict: "message_id,user_id", ignoreDuplicates: true },
+        );
+        if (error) return;
+      }
+      window.dispatchEvent(new Event("goodtimes:messages-read"));
+    };
+
+    void markVisibleMessagesRead();
+  }, [messages, ready, tab, user.id]);
+
   async function submit(table: string, payload: Record<string, unknown>, success: string) {
     setBusy(true);
     const { error } = await getSupabaseClient()!.from(table).insert(payload);

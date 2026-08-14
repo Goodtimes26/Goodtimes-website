@@ -13,7 +13,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const seoKey = slug === "fotos-videos" ? "media" : slug;
   const entry = pageSeo[seoKey as keyof typeof pageSeo];
-  return entry ? createMetadata(entry) : {};
+  if (!entry) return {};
+  const metadata = createMetadata(entry);
+  return slug === "fotos-videos"
+    ? { ...metadata, robots: { index: false, follow: true } }
+    : metadata;
 }
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {

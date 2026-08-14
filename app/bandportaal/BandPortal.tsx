@@ -27,6 +27,7 @@ import {
 import { getSupabaseClient } from "../../lib/supabase";
 import { clearAppBadge, countUnreadMessages, syncAppBadge } from "../../lib/appBadge";
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
+import { PwaBadgePermission } from "./PwaBadgePermission";
 
 type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | BandAppTab;
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
@@ -237,12 +238,14 @@ export function BandPortal() {
     const pollingTimer = window.setInterval(synchronize, 30_000);
     window.addEventListener("focus", synchronize);
     window.addEventListener("goodtimes:messages-read", synchronize);
+    window.addEventListener("goodtimes:badge-permission-granted", synchronize);
     document.addEventListener("visibilitychange", synchronizeWhenVisible);
 
     return () => {
       window.clearInterval(pollingTimer);
       window.removeEventListener("focus", synchronize);
       window.removeEventListener("goodtimes:messages-read", synchronize);
+      window.removeEventListener("goodtimes:badge-permission-granted", synchronize);
       document.removeEventListener("visibilitychange", synchronizeWhenVisible);
       void supabase.removeChannel(channel);
     };
@@ -431,6 +434,7 @@ export function BandPortal() {
       </nav>
 
       <section className="portal-content">
+        <PwaBadgePermission />
         {message && <div className="portal-notice" role="status">{message}<button onClick={() => setMessage("")} aria-label="Melding sluiten">×</button></div>}
         {error && <div className="portal-notice portal-notice-error" role="alert">{error}<button onClick={() => setError("")} aria-label="Foutmelding sluiten">×</button></div>}
 

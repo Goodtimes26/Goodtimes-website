@@ -110,6 +110,8 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase || ready !== true) return;
+    let active = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const announceChange = () => window.dispatchEvent(new Event("goodtimes:messages-changed"));
     const refreshMessages = async () => {
@@ -120,32 +122,55 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       if (!error) setMessages((data ?? []) as BandMessage[]);
     };
 
-    const channel = supabase
-      .channel(`band-messages-live-${user.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "band_messages" }, (payload) => {
-        const incoming = payload.new as BandMessage;
-        setMessages((current) => newestMessagesFirst([incoming, ...current.filter((message) => message.id !== incoming.id)]));
-        announceChange();
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "band_messages" }, (payload) => {
-        const updated = payload.new as BandMessage;
-        setMessages((current) => newestMessagesFirst([updated, ...current.filter((message) => message.id !== updated.id)]));
-        announceChange();
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "band_messages" }, (payload) => {
-        const deletedId = String(payload.old.id ?? "");
-        setMessages((current) => current.filter((message) => message.id !== deletedId));
-        announceChange();
-      })
-      .subscribe((status) => {
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") void refreshMessages();
-      });
+    const connectRealtime = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (!active) return;
+      if (error || !data.session) {
+        console.error("[GoodTimes berichten] Geen geldige sessie voor Realtime", error);
+        return;
+      }
 
-    const pollingFallback = window.setInterval(() => { void refreshMessages(); }, 30_000);
+      await supabase.realtime.setAuth(data.session.access_token);
+      if (!active) return;
+
+      channel = supabase
+        .channel(`band-messages-live-${user.id}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "band_messages" }, (payload) => {
+          const incoming = payload.new as BandMessage;
+          console.info("[GoodTimes berichten] Realtime INSERT ontvangen", { messageId: incoming.id });
+          setMessages((current) => newestMessagesFirst([incoming, ...current.filter((message) => message.id !== incoming.id)]));
+          console.info("[GoodTimes berichten] Bericht verwerkt", { messageId: incoming.id });
+          announceChange();
+        })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "band_messages" }, (payload) => {
+          const updated = payload.new as BandMessage;
+          console.info("[GoodTimes berichten] Realtime UPDATE ontvangen", { messageId: updated.id });
+          setMessages((current) => newestMessagesFirst([updated, ...current.filter((message) => message.id !== updated.id)]));
+          console.info("[GoodTimes berichten] Bericht verwerkt", { messageId: updated.id });
+          announceChange();
+        })
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "band_messages" }, (payload) => {
+          const deletedId = String(payload.old.id ?? "");
+          console.info("[GoodTimes berichten] Realtime DELETE ontvangen", { messageId: deletedId });
+          setMessages((current) => current.filter((message) => message.id !== deletedId));
+          console.info("[GoodTimes berichten] Bericht verwijderd uit weergave", { messageId: deletedId });
+          announceChange();
+        })
+        .subscribe((status, error) => {
+          console.info("[GoodTimes berichten] Realtime status", { status });
+          if (error) console.error("[GoodTimes berichten] Realtime fout", error);
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") void refreshMessages();
+        });
+    };
+
+    void connectRealtime();
+
+    const pollingFallback = window.setInterval(() => { void refreshMessages(); }, 5_000);
 
     return () => {
+      active = false;
       window.clearInterval(pollingFallback);
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [ready, user.id]);
 

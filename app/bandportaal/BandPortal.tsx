@@ -167,6 +167,7 @@ export function BandPortal() {
       (messagesResult.data ?? []).map((row) => row.id as string),
       (readsResult.data ?? []).map((row) => row.message_id as string),
     );
+    setMessageCount(messagesResult.data?.length ?? 0);
     await syncAppBadge(unreadCount);
   }, []);
 
@@ -237,6 +238,7 @@ export function BandPortal() {
       .subscribe();
     const pollingTimer = window.setInterval(synchronize, 30_000);
     window.addEventListener("focus", synchronize);
+    window.addEventListener("goodtimes:messages-changed", synchronize);
     window.addEventListener("goodtimes:messages-read", synchronize);
     window.addEventListener("goodtimes:badge-permission-granted", synchronize);
     document.addEventListener("visibilitychange", synchronizeWhenVisible);
@@ -244,6 +246,7 @@ export function BandPortal() {
     return () => {
       window.clearInterval(pollingTimer);
       window.removeEventListener("focus", synchronize);
+      window.removeEventListener("goodtimes:messages-changed", synchronize);
       window.removeEventListener("goodtimes:messages-read", synchronize);
       window.removeEventListener("goodtimes:badge-permission-granted", synchronize);
       document.removeEventListener("visibilitychange", synchronizeWhenVisible);

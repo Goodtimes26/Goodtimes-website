@@ -25,6 +25,10 @@ type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | 
 const songStatus: Record<string, string> = { new: "Nieuw", attention: "Aandacht nodig", almost: "Bijna goed", ready: "Klaar", active: "Actief", inactive: "Niet actief" };
 const audioTypes: Record<string, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav" };
 
+function newestMessagesFirst(messages: BandMessage[]) {
+  return [...messages].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
 function audioType(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
   return audioTypes[extension] ?? null;
@@ -102,6 +106,48 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase || ready !== true) return;
+
+    const announceChange = () => window.dispatchEvent(new Event("goodtimes:messages-changed"));
+    const refreshMessages = async () => {
+      const { data, error } = await supabase
+        .from("band_messages")
+        .select("id,author_id,title,body,important,created_at")
+        .order("created_at", { ascending: false });
+      if (!error) setMessages((data ?? []) as BandMessage[]);
+    };
+
+    const channel = supabase
+      .channel(`band-messages-live-${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "band_messages" }, (payload) => {
+        const incoming = payload.new as BandMessage;
+        setMessages((current) => newestMessagesFirst([incoming, ...current.filter((message) => message.id !== incoming.id)]));
+        announceChange();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "band_messages" }, (payload) => {
+        const updated = payload.new as BandMessage;
+        setMessages((current) => newestMessagesFirst([updated, ...current.filter((message) => message.id !== updated.id)]));
+        announceChange();
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "band_messages" }, (payload) => {
+        const deletedId = String(payload.old.id ?? "");
+        setMessages((current) => current.filter((message) => message.id !== deletedId));
+        announceChange();
+      })
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") void refreshMessages();
+      });
+
+    const pollingFallback = window.setInterval(() => { void refreshMessages(); }, 30_000);
+
+    return () => {
+      window.clearInterval(pollingFallback);
+      void supabase.removeChannel(channel);
+    };
+  }, [ready, user.id]);
 
   useEffect(() => {
     if (tab !== "messages" || ready !== true) return;

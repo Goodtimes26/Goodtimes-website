@@ -32,6 +32,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     "@type": "Event",
     name: "GoodTimes live in Café-Zaal De Gouwe Leeuw",
     startDate: "2026-10-10T20:30:00+02:00",
+    endDate: "2026-10-11T00:00:00+02:00",
     eventStatus: "https://schema.org/EventScheduled",
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     url: `${siteUrl}/agenda/`,
@@ -51,6 +52,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       "@id": `${siteUrl}/#goodtimes`,
       name: "GoodTimes",
       url: siteUrl,
+    },
+    offers: {
+      "@type": "Offer",
+      price: 0,
+      priceCurrency: "EUR",
+      availability: "https://schema.org/InStock",
     },
     organizer: { "@id": `${siteUrl}/#goodtimes` },
   } : null;

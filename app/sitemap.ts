@@ -17,12 +17,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
     pageSeo["coverband-brabant"],
     pageSeo["coverband-bedrijfsfeest"],
   ];
-  return locales.flatMap((locale) => publicPages.map((page) => ({
+  const localizedEntries = locales.flatMap((locale) => publicPages.map((page) => ({
       url: `${siteUrl}${localizedPath(locale, page.path)}`,
       lastModified: new Date("2026-08-15"),
       changeFrequency: ["/", "/agenda/", "/repertoire/"].includes(page.path) ? "weekly" as const : "monthly" as const,
       priority: page.path === "/" ? 1 : page.path === "/contact/" ? 0.9 : 0.8,
       alternates: { languages: languageAlternates(page.path) },
     })));
+  return [...localizedEntries, {
+    url: `${siteUrl}/de/80er-jahre-coverband-nrw/`,
+    lastModified: new Date("2026-08-15"),
+    changeFrequency: "monthly" as const,
+    priority: 0.9,
+    alternates: { languages: {
+      nl: `${siteUrl}/80s-coverband-boeken/`,
+      de: `${siteUrl}/de/80er-jahre-coverband-nrw/`,
+      en: `${siteUrl}/en/80s-coverband-boeken/`,
+      "x-default": `${siteUrl}/80s-coverband-boeken/`,
+    } },
+  }];
 }
 

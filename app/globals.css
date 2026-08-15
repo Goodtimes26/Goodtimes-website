@@ -585,3 +585,13 @@ footer{padding-top:68px}
 .media-hero-photo img{display:block;width:100%;height:auto;object-fit:contain}
 .media-hero+.audio-anchor+.audio-list{padding-top:22px}
 @media(max-width:900px){.media-hero{grid-template-columns:1fr}.media-hero .media-intro{padding-bottom:30px}.media-hero-photo{margin:0 22px 34px}.media-hero-photo img{width:100%;height:auto}}
+
+/* Subtiele taalkeuze voor de openbare website. */
+.language-switcher{display:flex;align-items:center;gap:5px;margin-left:12px;padding-left:12px;border-left:1px solid rgba(255,255,255,.12)}
+.language-switcher a{display:grid;place-items:center;width:30px;height:30px;border:1px solid transparent;border-radius:7px;font-size:18px;line-height:1;filter:saturate(.82);transition:border-color .2s ease,background .2s ease,filter .2s ease,transform .2s ease}
+.language-switcher a:hover,.language-switcher a[aria-current="true"]{border-color:rgba(40,215,255,.4);background:rgba(40,215,255,.08);filter:saturate(1);transform:translateY(-1px)}
+.language-switcher a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media(max-width:1100px){.language-switcher{gap:2px;margin-left:6px;padding-left:6px}.language-switcher a{width:27px;height:30px;font-size:16px}}
+@media(min-width:901px) and (max-width:1180px){.menu{display:flex;order:3}.language-switcher{order:2;margin-left:auto}.nav{position:absolute;top:78px;left:0;right:0;display:none;flex-direction:column;align-items:stretch;padding:28px;background:#0b0c10;border-bottom:1px solid rgba(40,215,255,.24);box-shadow:0 22px 40px rgba(0,0,0,.45)}.nav.open{display:flex}.nav a{display:flex;min-height:44px;align-items:center;padding:9px}.nav a.active:after{display:none}}
+@media(max-width:900px){.topbar{justify-content:flex-start}.topbar .brand{margin-right:auto}.language-switcher{order:2;margin:0 10px 0 0;padding:0 10px 0 0;border-left:0;border-right:1px solid rgba(255,255,255,.12)}.menu{order:3}.language-switcher a{width:30px;height:36px;font-size:18px}}
+@media(max-width:420px){.language-switcher{gap:0;margin-right:5px;padding-right:5px}.language-switcher a{width:27px;font-size:16px}.menu{padding-inline:8px}.topbar .brand{font-size:25px}}

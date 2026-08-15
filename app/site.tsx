@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import NextLink, { type LinkProps } from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type AnchorHTMLAttributes, type ReactNode } from "react";
 import { getSupabaseClient } from "../lib/supabase";
+import { localizeNode, localizedPath, type Locale } from "./i18n";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "techniek-productie" | "contact" | "bandinlog" | "80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest";
 
@@ -18,7 +19,20 @@ const nav = [
 ] as const;
 
 const facebookUrl = "https://www.facebook.com/share/14sZgHUpgHK/?mibextid=wwXIfr";
-const whatsappUrl = "https://wa.me/31615066740?text=Hallo%20GoodTimes%21%20Ik%20ben%20benieuwd%20naar%20de%20mogelijkheden%20voor%20een%20optreden.%20Kunnen%20jullie%20contact%20met%20mij%20opnemen%3F";
+const whatsappMessages: Record<Locale, string> = {
+  nl: "Hallo GoodTimes! Ik ben benieuwd naar de mogelijkheden voor een optreden. Kunnen jullie contact met mij opnemen?",
+  de: "Hallo GoodTimes! Ich interessiere mich für die Möglichkeiten eines Auftritts. Könnt ihr mich bitte kontaktieren?",
+  en: "Hello GoodTimes! I would like to know more about booking a performance. Could you please contact me?",
+};
+function whatsappUrl(locale: Locale) { return `https://wa.me/31615066740?text=${encodeURIComponent(whatsappMessages[locale])}`; }
+
+const LocaleContext = createContext<Locale>("nl");
+function useLocale() { return useContext(LocaleContext); }
+function Localized({ children }: { children: ReactNode }) { return <>{localizeNode(useLocale(), children)}</>; }
+function Link({ href, ...props }: LinkProps & AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const locale = useLocale();
+  return <NextLink href={typeof href === "string" ? localizedPath(locale, href) : href} {...props} />;
+}
 
 function FacebookIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24"><path fill="currentColor" d="M14 8.5V7c0-.8.5-1 1-1h2V2.1L14.1 2C10.6 2 9 4.1 9 6.7v1.8H6V13h3v9h4.5v-9h3l.5-4.5h-3Z" /></svg>;
@@ -29,19 +43,20 @@ function WhatsAppIcon() {
 }
 
 function FloatingWhatsApp() {
-  return <a className="whatsapp-fab" href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp met GoodTimes over een optreden">
+  const locale = useLocale();
+  return <Localized><a className="whatsapp-fab" href={whatsappUrl(locale)} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp met GoodTimes over een optreden">
     <WhatsAppIcon />
-  </a>;
+  </a></Localized>;
 }
 
 function Arrow() {
   return <span aria-hidden="true">↗</span>;
 }
 
-function Header({ page }: { page: PageKey }) {
+function Header({ page, locale }: { page: PageKey; locale: Locale }) {
   const [open, setOpen] = useState(false);
   return (
-    <header className="topbar">
+    <Localized><header className="topbar">
       <Link className="brand" href="/" aria-label="GoodTimes home">
         GOOD<span>TIMES</span><small>THE 80’S LIVE</small>
       </Link>
@@ -52,13 +67,16 @@ function Header({ page }: { page: PageKey }) {
         {nav.map(([key, href, label]) => <Link className={page === key ? "active" : ""} href={href} key={key} aria-current={page === key ? "page" : undefined} onClick={() => setOpen(false)}>{label}</Link>)}
         <Link className="nav-cta" href="/contact" onClick={() => setOpen(false)}>Boek de band <Arrow /></Link>
       </nav>
-    </header>
+      <nav className="language-switcher" aria-label="Taal kiezen">
+        {(["nl", "de", "en"] as const).map((language) => <NextLink href={localizedPath(language, page === "home" ? "/" : `/${page === "fotos-videos" ? "media" : page}`)} key={language} hrefLang={language} lang={language} aria-label={language === "nl" ? "Nederlands" : language === "de" ? "Deutsch" : "English"} aria-current={locale === language ? "true" : undefined}>{language === "nl" ? "🇳🇱" : language === "de" ? "🇩🇪" : "🇬🇧"}</NextLink>)}
+      </nav>
+    </header></Localized>
   );
 }
 
 function Footer() {
   return (
-    <footer>
+    <Localized><footer>
       <div className="brand footer-brand">GOOD<span>TIMES</span><small>THE 80’S LIVE</small></div>
       <p>De soundtrack van jouw beste avond.</p>
       <div className="socials">
@@ -72,13 +90,13 @@ function Footer() {
         <Link href="/coverband-bedrijfsfeest">Coverband bedrijfsfeest</Link>
       </nav>
       <div className="footer-bottom"><span>© 2026 GoodTimes. Alle rechten voorbehouden.</span><span>Privacy · Cookies</span></div>
-    </footer>
+    </footer></Localized>
   );
 }
 
 function Hero() {
   return (
-    <section className="hero home-hero">
+    <Localized><section className="hero home-hero">
       {/* Vervang dit bestand om de hero-foto later te wijzigen; behoud de afmetingen voor een stabiele layout. */}
       <Image className="hero-image" src="/goodtimes-group-hero.jpeg" width={1536} height={1024} sizes="(max-width: 767px) 100vw, 45vw" alt="De zes muzikanten van GoodTimes, professionele jaren 80-coverband uit Brabant" preload />
       <div className="hero-overlay" />
@@ -91,12 +109,12 @@ function Hero() {
         </div>
       </div>
       <div className="scroll">SCROLL TO THE 80’S <span>↓</span></div>
-    </section>
+    </section></Localized>
   );
 }
 
 function HomePage() {
-  return <><Hero />
+  return <Localized><><Hero />
     <section className="home-usp-strip" aria-label="Waarom GoodTimes">
       <ul>
         <li>100% Live</li>
@@ -121,11 +139,11 @@ function HomePage() {
       </nav>
     </section>
     <section className="booking-band"><p className="eyebrow">Klaar voor een tijdreis?</p><h2>MAAK VAN JOUW EVENT<br /><span>EEN GOOD TIME.</span></h2><Link className="primary" href="/contact">Check beschikbaarheid <Arrow /></Link></section>
-  </>;
+  </></Localized>;
 }
 
 function PageIntro({ kicker, title, accent, text, className = "" }: { kicker: string; title: string; accent: string; text: string; className?: string }) {
-  return <section className={`page-intro ${className}`.trim()}><p className="eyebrow">{kicker}</p><h1>{title}<br /><em>{accent}</em></h1>{text && <p>{text}</p>}</section>;
+  return <Localized><section className={`page-intro ${className}`.trim()}><p className="eyebrow">{kicker}</p><h1>{title}<br /><em>{accent}</em></h1>{text && <p>{text}</p>}</section></Localized>;
 }
 
 function About() {
@@ -137,7 +155,7 @@ function About() {
     ["EDDIE", "Basgitaar", "/members/eddie-basgitaar.png", "Eddie speelt basgitaar bij GoodTimes"],
     ["ERIC", "Drums", "/members/eric-drums.jpg", "Eric achter het drumstel bij GoodTimes"],
   ];
-  return <><PageIntro kicker="Zes muzikanten. Eén tijdmachine." title="DIT IS" accent="GOODTIMES." text="Een energieke Nederlandse liveband met een zwak voor grote refreinen, analoge synths en volle dansvloeren." />
+  return <Localized><><PageIntro kicker="Zes muzikanten. Eén tijdmachine." title="DIT IS" accent="GOODTIMES." text="Een energieke Nederlandse liveband met een zwak voor grote refreinen, analoge synths en volle dansvloeren." />
     <section className="about-story">
       <div className="about-story-inner">
         <p className="eyebrow">Ons verhaal</p>
@@ -161,7 +179,7 @@ function About() {
       </div>
     </section>
     <section className="members"><p className="eyebrow">The band</p><h2>De muzikanten achter de sound</h2><div className="member-grid">{members.map(([name, role, image, alt],i)=><article key={name}><div className={`portrait p${i+1}`}><Image src={image} alt={alt} width={1200} height={800} sizes="(max-width: 900px) 50vw, 17vw" /><span aria-hidden="true">0{i+1}</span></div><h3>{name}</h3><p>{role}</p></article>)}</div><Link className="text-link about-repertoire-link" href="/repertoire">Bekijk ons jaren 80-repertoire <Arrow /></Link></section>
-  </>;
+  </></Localized>;
 }
 
 type RepertoireSong = { id: string; title: string; artist?: string; category?: string };
@@ -210,7 +228,7 @@ function Repertoire() {
     }));
   }, [songs]);
 
-  return <><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="" />
+  return <Localized><><PageIntro kicker="All killer. No filler." title="ONS" accent="REPERTOIRE." text="" />
     <section className="repertoire-grid">
       {status === "loading" && <article><span>LIVE</span><h2>Repertoire laden…</h2></article>}
       {status === "error" && <article><span>LET OP</span><h2>Repertoire tijdelijk niet beschikbaar</h2></article>}
@@ -218,11 +236,11 @@ function Repertoire() {
       {categories.map((category, i)=><article key={category.name}><span>{String(i+1).padStart(2, "0")}</span><h2>{category.name}</h2><ol>{category.songs.map((song)=><li key={song.id || `${song.title}-${song.artist}`}><strong>{song.title}</strong></li>)}</ol></article>)}
     </section>
     <section className="note"><p>Ons repertoire groeit voortdurend. Voor een bruiloft of bedrijfsevent denken we graag mee over de perfecte set.</p><Link className="primary" href="/contact">Bespreek jouw event <Arrow /></Link></section>
-  </>;
+  </></Localized>;
 }
 
 function Agenda() {
-  return <><PageIntro kicker="GoodTimes live" title="AGENDA." accent="VENRAY." text="Een avond vol herkenbare hits uit de jaren 80." />
+  return <Localized><><PageIntro kicker="GoodTimes live" title="AGENDA." accent="VENRAY." text="Een avond vol herkenbare hits uit de jaren 80." />
     <section className="agenda-page">
       <article className="agenda-event">
         <div className="agenda-event-date">
@@ -240,7 +258,7 @@ function Agenda() {
         </div>
       </article>
     </section>
-  </>;
+  </></Localized>;
 }
 
 function Media() {
@@ -256,7 +274,7 @@ function Media() {
       .then((tracks) => setAudioTracks(Array.isArray(tracks) ? tracks : []))
       .catch(() => setAudioTracks([]));
   }, []);
-  return <><div className="media-hero">
+  return <Localized><><div className="media-hero">
       <PageIntro className="media-intro" kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="De opnames zijn gemaakt tijdens onze repetities. Ongeslepen, puur en ruw. Precies zoals GoodTimes live klinkt. Een eerlijk voorproefje van de energie en sfeer die je tijdens een optreden kunt verwachten." />
       <figure className="media-hero-photo">
         <Image src="/goodtimes-zangeressen-media.jpg" alt="Zangeressen van GoodTimes 80’s coverband" width={1075} height={1463} sizes="(max-width: 900px) calc(100vw - 44px), 42vw" priority />
@@ -266,7 +284,7 @@ function Media() {
     <section className="audio-list" aria-label="Audio van GoodTimes">
       {audioTracks.map((track)=><article className="audio-track" key={track.src}><h2>{track.title}</h2><audio controls preload="metadata" src={track.src} onPlay={(event) => pauseOtherTracks(event.currentTarget)}>Je browser ondersteunt deze audioplayer niet.</audio></article>)}
     </section>
-  </>;
+  </></Localized>;
 }
 
 function TechniqueProduction() {
@@ -292,7 +310,7 @@ function TechniqueProduction() {
     ["✓", "Betrouwbare opbouw, bediening en ondersteuning"],
   ];
 
-  return <>
+  return <Localized><>
     <PageIntro kicker="GoodTimes achter de knoppen" title="TECHNIEK &" accent="PRODUCTIE." text="Professionele techniek, volledig afgestemd op de band en jouw evenement." />
     <section className={`tech-banner-grid ${bannerImages.length > 1 ? "has-multiple" : ""}`} aria-label="GoodTimes techniek en productie">
       {bannerImages.map((image) => <figure className="tech-banner" key={image.src}><Image src={image.src} alt={image.alt} width={1179} height={855} sizes="(max-width: 900px) 100vw, 84vw" /></figure>)}
@@ -326,11 +344,12 @@ function TechniqueProduction() {
       <aside className="tech-notice"><p>Wanneer je kiest voor GoodTimes inclusief techniek verzorgen wij de volledige technische ondersteuning altijd met onze eigen vaste geluidstechnicus. Hierdoor kunnen wij de kwaliteit, betrouwbaarheid en uitstraling garanderen waar GoodTimes voor staat.</p></aside>
     </section>
     <section className="tech-cta"><p className="eyebrow">Benieuwd naar de mogelijkheden?</p><h2>Wij denken graag met je mee.</h2><p>Of je nu alleen GoodTimes wilt boeken of kiest voor een compleet verzorgd optreden inclusief professionele techniek, wij denken graag met je mee en adviseren graag over de mogelijkheden.</p><Link className="primary" href="/contact">Informeer naar de mogelijkheden <Arrow /></Link></section>
-  </>;
+  </></Localized>;
 }
 
 function Contact() {
-  return <section className="contact-page">
+  const locale = useLocale();
+  return <Localized><section className="contact-page">
     <div className="contact-card">
       <p className="eyebrow">GoodTimes direct</p>
       <h1>Neem contact op</h1>
@@ -341,13 +360,13 @@ function Contact() {
       </div>
       <a className="primary contact-mail-button" href="mailto:info@goodtimescoverband.nl">Stuur een e-mail <Arrow /></a>
       <a className="primary contact-facebook-button" href={facebookUrl} target="_blank" rel="noopener noreferrer"><FacebookIcon /> Bekijk GoodTimes op Facebook <Arrow /></a>
-      <a className="primary contact-whatsapp-button" href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp met GoodTimes openen in een nieuw tabblad"><WhatsAppIcon /> WhatsApp met GoodTimes <Arrow /></a>
+      <a className="primary contact-whatsapp-button" href={whatsappUrl(locale)} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp met GoodTimes openen in een nieuw tabblad"><WhatsAppIcon /> WhatsApp met GoodTimes <Arrow /></a>
       <div className="contact-bookings">
         <p className="eyebrow">Boekingen</p>
         <p>GoodTimes is beschikbaar als live band voor bruiloften, bedrijfsfeesten, personeelsfeesten, festivals en evenementen in Brabant en heel Nederland.</p>
       </div>
     </div>
-  </section>;
+  </section></Localized>;
 }
 
 type LandingPageContent = {
@@ -473,7 +492,7 @@ const landingPages: Record<"80s-coverband-boeken" | "coverband-brabant" | "cover
 
 function SeoLandingPage({ page }: { page: keyof typeof landingPages }) {
   const content = landingPages[page];
-  return <>
+  return <Localized><>
     <PageIntro kicker={content.kicker} title={content.title} accent={content.accent} text={content.introduction} className="seo-landing-intro" />
     <section className="seo-landing-content">
       <div className="seo-landing-main">
@@ -495,10 +514,15 @@ function SeoLandingPage({ page }: { page: keyof typeof landingPages }) {
         {content.relatedLinks.map((link) => <Link className="text-link" href={link.href} key={link.href}>{link.label} <Arrow /></Link>)}
       </nav>
     </section>
-  </>;
+  </></Localized>;
 }
 
-export function GoodTimesSite({ page }: { page: PageKey }) {
+export function GoodTimesSite({ page, locale = "nl" }: { page: PageKey; locale?: Locale }) {
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    try { window.localStorage.setItem("goodtimes_language", locale); } catch { /* taal-URL blijft leidend */ }
+  }, [locale]);
+
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase || page === "bandinlog") return;
@@ -544,6 +568,6 @@ export function GoodTimesSite({ page }: { page: PageKey }) {
   }, [page]);
 
   const content = page === "home" ? <HomePage /> : page === "over-de-band" ? <About /> : page === "repertoire" ? <Repertoire /> : page === "agenda" ? <Agenda /> : page === "media" || page === "fotos-videos" ? <Media /> : page === "techniek-productie" ? <TechniqueProduction /> : page === "contact" ? <Contact /> : page === "bandinlog" ? <Contact /> : <SeoLandingPage page={page} />;
-  return <><a className="skip-link" href="#main-content">Ga direct naar de inhoud</a><Header page={page === "fotos-videos" ? "media" : page} /><main id="main-content" tabIndex={-1}>{content}</main><Footer />{page !== "bandinlog" && <FloatingWhatsApp />}</>;
+  return <LocaleContext.Provider value={locale}><a className="skip-link" href="#main-content">{locale === "de" ? "Direkt zum Inhalt" : locale === "en" ? "Skip to content" : "Ga direct naar de inhoud"}</a><Header page={page === "fotos-videos" ? "media" : page} locale={locale} /><main id="main-content" lang={locale} tabIndex={-1}>{content}</main><Footer />{page !== "bandinlog" && <FloatingWhatsApp />}</LocaleContext.Provider>;
 }
 

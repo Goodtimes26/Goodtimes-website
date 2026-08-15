@@ -1,13 +1,41 @@
 import type { Metadata } from "next";
+import { languageAlternates, localizedPath, translate, type Locale } from "./i18n";
 
 export const siteUrl = "https://goodtimescoverband.nl";
 export const socialImage = "/og.png";
 export const facebookUrl = "https://www.facebook.com/share/14sZgHUpgHK/?mibextid=wwXIfr";
 
-type SeoEntry = {
+export type SeoEntry = {
   title: string;
   description: string;
   path: string;
+};
+
+const localizedSeo: Record<"de" | "en", Record<keyof typeof pageSeo, Pick<SeoEntry, "title" | "description">>> = {
+  de: {
+    home: { title: "80er Coverband aus den Niederlanden | GoodTimes Liveband", description: "GoodTimes ist eine professionelle 80er-Coverband und Partyband für Firmenfeiern, Festivals, Hochzeiten und Events in den Niederlanden." },
+    "over-de-band": { title: "Über GoodTimes | Professionelle 80er-Liveband", description: "Lerne die sechs erfahrenen Musiker von GoodTimes kennen: eine professionelle niederländische Liveband für Partys, Festivals und Events." },
+    repertoire: { title: "80er Coverband Repertoire | GoodTimes Liveband", description: "Entdecke das aktuelle GoodTimes-Repertoire mit tanzbaren Disco-, Funk-, Pop- und Partyklassikern aus den 80ern – immer 100 % live gespielt." },
+    media: { title: "GoodTimes live anhören | 80er Coverband", description: "Höre Probenaufnahmen von GoodTimes und erlebe Energie, mehrstimmigen Gesang und den Live-Sound dieser professionellen 80er-Coverband." },
+    agenda: { title: "GoodTimes Termine | 80er Coverband live", description: "Sieh, wann und wo GoodTimes live spielt, und erlebe die größten Disco-, Funk- und Partyhits der 80er." },
+    "techniek-productie": { title: "Licht und Ton für eine Liveband | GoodTimes Technik", description: "Buche GoodTimes inklusive professioneller Technik, Licht und Ton für Partys, Festivals und Events." },
+    contact: { title: "80er Coverband buchen | Kontakt GoodTimes", description: "GoodTimes für Firmenfeier, Hochzeit, Festival oder Event buchen? Nimm direkt Kontakt mit der niederländischen 80er-Liveband auf." },
+    "80s-coverband-boeken": { title: "80er Coverband buchen | GoodTimes 100 % live", description: "Buche GoodTimes als 80er-Coverband: Disco, Funk und Pop mit sechs Musikern, Live-Gesang und einer vollständig live gespielten Show." },
+    "coverband-brabant": { title: "80er Coverband aus Brabant | GoodTimes live", description: "GoodTimes ist eine professionelle 80er-Coverband aus Brabant. Sechs Musiker spielen Disco, Funk und Pop 100 % live." },
+    "coverband-bedrijfsfeest": { title: "80er Liveband für Firmenfeiern | GoodTimes", description: "GoodTimes spielt bekannte 80er-Hits 100 % live auf Firmenfeiern, Mitarbeiterfesten und Business-Events." },
+  },
+  en: {
+    home: { title: "Dutch 80s cover band | GoodTimes live band", description: "Book GoodTimes, a professional Dutch 80s cover band and party band for corporate events, weddings, festivals and celebrations in the Netherlands." },
+    "over-de-band": { title: "About GoodTimes | Professional Dutch 80s band", description: "Meet the six experienced musicians of GoodTimes, a professional Dutch live band for parties, festivals and events." },
+    repertoire: { title: "80s cover band repertoire | GoodTimes live band", description: "Explore the GoodTimes repertoire of danceable disco, funk, pop and party classics from the 80s, always performed 100% live." },
+    media: { title: "Listen to GoodTimes live | 80s cover band", description: "Hear GoodTimes rehearsal recordings and experience the energy, harmonies and live sound of this professional Dutch 80s cover band." },
+    agenda: { title: "GoodTimes shows | 80s cover band live", description: "See where and when GoodTimes performs live and experience the greatest disco, funk and party hits of the 80s." },
+    "techniek-productie": { title: "Live band sound and lighting | GoodTimes production", description: "Book GoodTimes with professional sound, lighting and technical production for parties, festivals and events." },
+    contact: { title: "Book a Dutch 80s cover band | Contact GoodTimes", description: "Book GoodTimes for a corporate party, wedding, festival or event in the Netherlands. Contact our professional 80s live band directly." },
+    "80s-coverband-boeken": { title: "Book an 80s cover band | GoodTimes 100% live", description: "Book GoodTimes as an 80s cover band: disco, funk and pop with six musicians, live vocals and a completely live performance." },
+    "coverband-brabant": { title: "80s cover band from Brabant | GoodTimes live", description: "GoodTimes is a professional 80s cover band from Brabant. Six musicians perform disco, funk and pop completely live." },
+    "coverband-bedrijfsfeest": { title: "80s live band for corporate events | GoodTimes", description: "GoodTimes performs familiar 80s hits completely live at corporate parties, staff celebrations and business events." },
+  },
 };
 
 export const pageSeo = {
@@ -63,12 +91,18 @@ export const pageSeo = {
   },
 } satisfies Record<string, SeoEntry>;
 
-export function createMetadata(entry: SeoEntry): Metadata {
+export function getSeoEntry(key: keyof typeof pageSeo, locale: Locale = "nl"): SeoEntry {
+  const base = pageSeo[key];
+  return locale === "nl" ? base : { ...base, ...localizedSeo[locale][key], path: localizedPath(locale, base.path) };
+}
+
+export function createMetadata(entry: SeoEntry, locale: Locale = "nl", basePath?: string): Metadata {
   const canonical = `${siteUrl}${entry.path}`;
+  const alternatePath = basePath ?? (entry.path.replace(/^\/(de|en)(?=\/|$)/, "") || "/");
   return {
     title: entry.title,
     description: entry.description,
-    alternates: { canonical },
+    alternates: { canonical, languages: languageAlternates(alternatePath) },
     robots: {
       index: true,
       follow: true,
@@ -85,9 +119,9 @@ export function createMetadata(entry: SeoEntry): Metadata {
       description: entry.description,
       url: canonical,
       siteName: "GoodTimes",
-      locale: "nl_NL",
+      locale: locale === "de" ? "de_DE" : locale === "en" ? "en_GB" : "nl_NL",
       type: "website",
-      images: [{ url: socialImage, width: 1672, height: 941, alt: "GoodTimes, professionele live jaren 80-coverband" }],
+      images: [{ url: socialImage, width: 1672, height: 941, alt: locale === "de" ? "GoodTimes, professionelle 80er-Live-Coverband" : locale === "en" ? "GoodTimes, professional live 80s cover band" : "GoodTimes, professionele live jaren 80-coverband" }],
     },
     twitter: {
       card: "summary_large_image",
@@ -121,7 +155,7 @@ export const musicGroupJsonLd = {
     contactType: "boekingen",
     email: "info@goodtimescoverband.nl",
     telephone: "+31615066740",
-    availableLanguage: ["nl"],
+    availableLanguage: ["nl", "de", "en"],
     areaServed: "NL",
   },
   member: [
@@ -142,11 +176,11 @@ export const websiteJsonLd = {
   name: "GoodTimes",
   alternateName: "GoodTimes 80's Coverband",
   description: pageSeo.home.description,
-  inLanguage: "nl-NL",
+  inLanguage: ["nl-NL", "de-DE", "en-GB"],
   publisher: { "@id": `${siteUrl}/#goodtimes` },
 };
 
-export function createWebPageJsonLd(entry: SeoEntry) {
+export function createWebPageJsonLd(entry: SeoEntry, locale: Locale = "nl") {
   const url = `${siteUrl}${entry.path}`;
   return {
     "@context": "https://schema.org",
@@ -155,7 +189,7 @@ export function createWebPageJsonLd(entry: SeoEntry) {
     url,
     name: entry.title,
     description: entry.description,
-    inLanguage: "nl-NL",
+    inLanguage: locale === "de" ? "de-DE" : locale === "en" ? "en-GB" : "nl-NL",
     isPartOf: { "@id": `${siteUrl}/#website` },
     about: { "@id": `${siteUrl}/#goodtimes` },
   };
@@ -173,16 +207,17 @@ const breadcrumbLabels: Record<string, string> = {
   "coverband-bedrijfsfeest": "Coverband bedrijfsfeest",
 };
 
-export function createBreadcrumbJsonLd(slug: string) {
+export function createBreadcrumbJsonLd(slug: string, locale: Locale = "nl") {
   const canonicalSlug = slug === "fotos-videos" ? "media" : slug;
-  const entry = pageSeo[canonicalSlug as keyof typeof pageSeo];
+  const key = canonicalSlug as keyof typeof pageSeo;
+  const entry = getSeoEntry(key, locale);
   if (!entry) return null;
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: `${siteUrl}/` },
-      { "@type": "ListItem", position: 2, name: breadcrumbLabels[canonicalSlug], item: `${siteUrl}${entry.path}` },
+      { "@type": "ListItem", position: 1, name: "Home", item: `${siteUrl}${localizedPath(locale, "/")}` },
+      { "@type": "ListItem", position: 2, name: translate(locale, breadcrumbLabels[canonicalSlug]), item: `${siteUrl}${entry.path}` },
     ],
   };
 }

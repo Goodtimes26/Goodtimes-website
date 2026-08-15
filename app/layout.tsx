@@ -47,6 +47,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Oxanium:wght@500;600;700;800&display=swap" rel="stylesheet" />
+      <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=location.pathname.startsWith('/de/')||location.pathname==='/de'?'de':location.pathname.startsWith('/en/')||location.pathname==='/en'?'en':'nl';` }} />
       <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y9T36EJ1Z6" />
       <script dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}window.gtag=gtag;if(!/^\\/(bandinlog|bandportaal)(\\/|$)/.test(window.location.pathname)){gtag('js',new Date());gtag('config','G-Y9T36EJ1Z6');}` }} />
     </head>

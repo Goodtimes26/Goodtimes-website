@@ -256,7 +256,12 @@ function Media() {
       .then((tracks) => setAudioTracks(Array.isArray(tracks) ? tracks : []))
       .catch(() => setAudioTracks([]));
   }, []);
-  return <><PageIntro className="media-intro" kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="De opnames zijn gemaakt tijdens onze repetities. Ongeslepen, puur en ruw. Precies zoals GoodTimes live klinkt. Een eerlijk voorproefje van de energie en sfeer die je tijdens een optreden kunt verwachten." />
+  return <><div className="media-hero">
+      <PageIntro className="media-intro" kicker="Turn it up" title="ZIEN. HOREN." accent="MEEMAKEN." text="De opnames zijn gemaakt tijdens onze repetities. Ongeslepen, puur en ruw. Precies zoals GoodTimes live klinkt. Een eerlijk voorproefje van de energie en sfeer die je tijdens een optreden kunt verwachten." />
+      <figure className="media-hero-photo">
+        <Image src="/goodtimes-zangeressen-media.jpg" alt="Zangeressen van GoodTimes 80’s coverband" width={1075} height={1463} sizes="(max-width: 900px) calc(100vw - 44px), 42vw" priority />
+      </figure>
+    </div>
     <div id="audio" className="audio-anchor" aria-hidden="true" />
     <section className="audio-list" aria-label="Audio van GoodTimes">
       {audioTracks.map((track)=><article className="audio-track" key={track.src}><h2>{track.title}</h2><audio controls preload="metadata" src={track.src} onPlay={(event) => pauseOtherTracks(event.currentTarget)}>Je browser ondersteunt deze audioplayer niet.</audio></article>)}

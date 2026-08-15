@@ -4,6 +4,7 @@ import NextLink, { type LinkProps } from "next/link";
 import Image from "next/image";
 import { createContext, useContext, useEffect, useMemo, useState, type AnchorHTMLAttributes, type ReactNode } from "react";
 import { getSupabaseClient } from "../lib/supabase";
+import { loadPublicRepertoire, type PublicRepertoireSong } from "../lib/publicRepertoire";
 import { localizeNode, localizedPath, type Locale } from "./i18n";
 
 export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "techniek-productie" | "contact" | "bandinlog" | "80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest" | "80er-jahre-coverband-nrw";
@@ -187,31 +188,23 @@ function About() {
   </></Localized>;
 }
 
-type RepertoireSong = { id: string; title: string; artist?: string; category?: string };
-
 function Repertoire() {
-  const [songs, setSongs] = useState<RepertoireSong[]>([]);
+  const [songs, setSongs] = useState<PublicRepertoireSong[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     const controller = new AbortController();
-    const legacyUrl = "https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site/api/repertoire";
-    async function loadRepertoire() {
+    async function loadSupabaseFallback() {
       const supabase = getSupabaseClient();
       if (supabase) {
         const result = await supabase.from("public_repertoire").select("id,title,category,source_order").order("source_order", { nullsFirst: false });
-        if (!result.error && result.data?.length) return { songs: result.data as RepertoireSong[] };
+        if (!result.error) return { songs: (result.data ?? []) as PublicRepertoireSong[] };
       }
-      const response = await fetch(legacyUrl, {
-      signal: controller.signal,
-      cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Repertoire kon niet worden geladen");
-      return response.json() as Promise<{ songs?: RepertoireSong[] }>;
+      throw new Error("Repertoire kon niet worden geladen");
     }
-    loadRepertoire()
+    loadPublicRepertoire(loadSupabaseFallback, controller.signal)
       .then((data) => {
-        setSongs(Array.isArray(data.songs) ? data.songs : []);
+        setSongs(data.songs);
         setStatus("ready");
       })
       .catch((error) => {
@@ -222,7 +215,7 @@ function Repertoire() {
   }, []);
 
   const categories = useMemo(() => {
-    const grouped = new Map<string, RepertoireSong[]>();
+    const grouped = new Map<string, PublicRepertoireSong[]>();
     songs.forEach((song) => {
       const category = song.category?.trim() || "Repertoire";
       grouped.set(category, [...(grouped.get(category) ?? []), song]);

@@ -576,3 +576,12 @@ footer{padding-top:68px}
 @media(max-width:1100px){.nav{gap:14px;font-size:12px}.nav-cta{padding-left:14px;padding-right:14px}.tech-benefit-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.tech-intro,.tech-tail{grid-template-columns:1fr}.tech-intro{row-gap:30px}.tech-option-grid{grid-template-columns:1fr}.tech-benefit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.tech-banner-grid{padding:24px 14px}.tech-banner-grid.has-multiple{grid-template-columns:1fr}.tech-banner{border-radius:10px}.tech-banner img{aspect-ratio:4/3;object-position:center center}.tech-section-heading{margin-bottom:30px}.tech-option-grid{gap:16px}.tech-option-grid article{padding:30px 22px}.tech-capabilities li{grid-template-columns:48px 1fr;min-height:82px}.tech-benefit-grid{grid-template-columns:1fr;gap:14px}.tech-benefit-grid article{min-height:auto}.tech-tail{gap:16px}.tech-custom,.tech-notice{padding:30px 22px}.tech-cta .primary{width:100%;justify-content:space-between;text-align:left}}
+
+/* Media — uitsluitend de intro en foto; audio blijft in de bestaande volledige breedte. */
+.media-hero{display:grid;grid-template-columns:minmax(0,55fr) minmax(320px,45fr);align-items:center;background:radial-gradient(circle at 85% 15%,rgba(56,44,172,.25),transparent 32%)}
+.media-hero .media-intro{min-width:0;background:none}
+.media-hero-photo{position:relative;margin:110px 6vw 54px 0;overflow:hidden;border:1px solid rgba(40,215,255,.24);border-radius:var(--radius-card);background:#080a12;box-shadow:var(--shadow-panel)}
+.media-hero-photo:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(237,69,255,.08),inset 0 -45px 70px rgba(5,7,14,.16)}
+.media-hero-photo img{display:block;width:100%;height:auto;object-fit:contain}
+.media-hero+.audio-anchor+.audio-list{padding-top:22px}
+@media(max-width:900px){.media-hero{grid-template-columns:1fr}.media-hero .media-intro{padding-bottom:30px}.media-hero-photo{margin:0 22px 34px}.media-hero-photo img{width:100%;height:auto}}

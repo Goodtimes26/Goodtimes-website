@@ -26,6 +26,12 @@ import {
 } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
 import { clearAppBadge, countUnreadMessages, syncAppBadge } from "../../lib/appBadge";
+import {
+  activityAgeInDays,
+  deduplicateDashboardActivities,
+  setlistActivityKey,
+  type DashboardActivity,
+} from "../../lib/dashboardActivities";
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
 import { PwaBadgePermission } from "./PwaBadgePermission";
 
@@ -33,25 +39,8 @@ type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "m
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
-type DashboardActivity = {
-  id: string;
-  kind: "message" | "setlist" | "rehearsal" | "performance";
-  detail: string;
-  updatedAt: string;
-  actorId: string | null;
-  isNew: boolean;
-};
-
 function isNewActivity(createdAt: string, updatedAt: string) {
   return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) < 5_000;
-}
-
-function activityAgeInDays(value: string, now = new Date()) {
-  const changed = new Date(value);
-  if (Number.isNaN(changed.getTime())) return null;
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const changedDay = new Date(changed.getFullYear(), changed.getMonth(), changed.getDate()).getTime();
-  return Math.max(0, Math.round((today - changedDay) / 86_400_000));
 }
 
 function activityAgeLabel(value: string) {
@@ -163,28 +152,29 @@ export function BandPortal() {
     if (!supabase) return;
     const [messageResult, setlistResult, rehearsalResult, rehearsalPlanningResult, performanceResult] = await Promise.all([
       supabase.from("band_messages").select("id,title,author_id,created_at,updated_at").order("updated_at", { ascending: false }).limit(6),
-      supabase.from("setlists").select("id,name,created_at,updated_at,updated_by").eq("archived", false).order("updated_at", { ascending: false }).limit(6),
+      supabase.from("setlists").select("id,name,event_id,setlist_date,source_system,source_id,created_at,updated_at,updated_by").eq("archived", false).order("updated_at", { ascending: false }).limit(12),
       supabase.from("rehearsals").select("id,name,rehearsal_date,created_at,updated_at,created_by").order("updated_at", { ascending: false }).limit(6),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,created_at,updated_at,rehearsals(name,rehearsal_date)").order("updated_at", { ascending: false }).limit(6),
       supabase.from("events").select("id,description,created_at,updated_at,created_by").eq("event_type", "performance").order("updated_at", { ascending: false }).limit(6),
     ]);
     const candidates: DashboardActivity[] = [];
-    for (const row of messageResult.data ?? []) candidates.push({ id: `message:${row.id}`, kind: "message", detail: row.title, updatedAt: row.updated_at, actorId: row.author_id, isNew: true });
-    for (const row of setlistResult.data ?? []) candidates.push({ id: `setlist:${row.id}`, kind: "setlist", detail: row.name, updatedAt: row.updated_at, actorId: row.updated_by, isNew: isNewActivity(row.created_at, row.updated_at) });
-    for (const row of rehearsalResult.data ?? []) candidates.push({ id: `rehearsal:${row.id}`, kind: "rehearsal", detail: row.name || row.rehearsal_date || "Repetitie", updatedAt: row.updated_at, actorId: isNewActivity(row.created_at, row.updated_at) ? row.created_by : null, isNew: isNewActivity(row.created_at, row.updated_at) });
+    for (const row of messageResult.data ?? []) candidates.push({ id: `message:${row.id}`, entityKey: `message:${row.id}`, kind: "message", detail: row.title, updatedAt: row.updated_at, actorId: row.author_id, isNew: true });
+    for (const row of setlistResult.data ?? []) candidates.push({
+      id: `setlist:${row.id}`,
+      entityKey: setlistActivityKey({ id: row.id, name: row.name, eventId: row.event_id, setlistDate: row.setlist_date, sourceSystem: row.source_system, sourceId: row.source_id }),
+      kind: "setlist",
+      detail: row.name,
+      updatedAt: row.updated_at,
+      actorId: row.updated_by,
+      isNew: isNewActivity(row.created_at, row.updated_at),
+    });
+    for (const row of rehearsalResult.data ?? []) candidates.push({ id: `rehearsal:${row.id}`, entityKey: `rehearsal:${row.id}`, kind: "rehearsal", detail: row.name || row.rehearsal_date || "Repetitie", updatedAt: row.updated_at, actorId: isNewActivity(row.created_at, row.updated_at) ? row.created_by : null, isNew: isNewActivity(row.created_at, row.updated_at) });
     for (const row of rehearsalPlanningResult.data ?? []) {
       const rehearsal = Array.isArray(row.rehearsals) ? row.rehearsals[0] : row.rehearsals;
-      candidates.push({ id: `rehearsal-planning:${row.rehearsal_id}`, kind: "rehearsal", detail: rehearsal?.name || rehearsal?.rehearsal_date || "Repetitieplanning", updatedAt: row.updated_at, actorId: null, isNew: false });
+      candidates.push({ id: `rehearsal-planning:${row.rehearsal_id}`, entityKey: `rehearsal-planning:${row.rehearsal_id}`, kind: "rehearsal", detail: rehearsal?.name || rehearsal?.rehearsal_date || "Repetitieplanning", updatedAt: row.updated_at, actorId: null, isNew: false });
     }
-    for (const row of performanceResult.data ?? []) candidates.push({ id: `performance:${row.id}`, kind: "performance", detail: row.description || "Optreden", updatedAt: row.updated_at, actorId: isNewActivity(row.created_at, row.updated_at) ? row.created_by : null, isNew: isNewActivity(row.created_at, row.updated_at) });
-    candidates.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    const uniqueCandidates = [...new Map(candidates.map((activity) => [activity.id, activity])).values()]
-      .filter((activity) => {
-        const age = activityAgeInDays(activity.updatedAt);
-        return age !== null && age <= 14;
-      })
-      .slice(0, 4);
-    setRecentActivities(uniqueCandidates);
+    for (const row of performanceResult.data ?? []) candidates.push({ id: `performance:${row.id}`, entityKey: `performance:${row.id}`, kind: "performance", detail: row.description || "Optreden", updatedAt: row.updated_at, actorId: isNewActivity(row.created_at, row.updated_at) ? row.created_by : null, isNew: isNewActivity(row.created_at, row.updated_at) });
+    setRecentActivities(deduplicateDashboardActivities(candidates));
   }, []);
 
   const syncUnreadMessageBadge = useCallback(async (activeUserId: string) => {

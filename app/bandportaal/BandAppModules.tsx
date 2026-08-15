@@ -394,6 +394,22 @@ function YoutubeEditor({ song, busy, onSave }: { song: Song; busy: boolean; onSa
     </form></details>;
 }
 
+function CompactRepertoireSong({ song, busy, isAdmin, onUpdateYoutube }: { song: Song; busy: boolean; isAdmin: boolean; onUpdateYoutube: (song: Song, url: string) => Promise<boolean> }) {
+  const metadata = [song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null].filter(Boolean).join(" · ");
+  return <article className="portal-data-card portal-repertoire-song">
+    <div className="portal-repertoire-song-head">
+      <span>{songStatus[song.status] ?? song.status}</span>
+      {song.score && <b>Score {song.score}/5</b>}
+      <div className="portal-repertoire-song-tools">
+        {song.notes && <details className="portal-song-notes"><summary>Notitie</summary><small>{song.notes}</small></details>}
+        {isAdmin && <YoutubeEditor key={`${song.id}-${song.youtube_url ?? "empty"}`} song={song} busy={busy} onSave={onUpdateYoutube} />}
+      </div>
+    </div>
+    <div className="portal-repertoire-song-copy"><h2>{song.title}</h2>{metadata && <p>{metadata}</p>}</div>
+    <CompactYoutubeLink song={song} />
+  </article>;
+}
+
 function SongsPanel({ songs, busy, isAdmin, onImport, onCreate, onUpdateYoutube }: { songs: Song[]; busy: boolean; isAdmin: boolean; onImport: (file: File) => Promise<void>; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpdateYoutube: (song: Song, url: string) => Promise<boolean> }) {
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Centrale database</p><h1>Repertoire / nummers</h1></div><span className="portal-count">{songs.length} nummers</span></div>
     {isAdmin && <details className="portal-editor"><summary>Bestaande Setlist Maker importeren</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); const file = new FormData(event.currentTarget).get("setlist_export"); if (file instanceof File && file.size) void onImport(file); }}><p>Gebruik een JSON-export van de bestaande Setlist Maker. Herhaald importeren maakt geen dubbele bronrecords.</p><label>Setlist Maker-export<input name="setlist_export" type="file" accept="application/json,.json" required /></label><button className="portal-primary" disabled={busy}>Repertoire veilig importeren</button></form></details>}
@@ -404,7 +420,7 @@ function SongsPanel({ songs, busy, isAdmin, onImport, onCreate, onUpdateYoutube 
       <div className="portal-field-row"><label>Status<select name="status"><option value="active">Actief</option><option value="new">Nieuw</option><option value="attention">Aandacht nodig</option><option value="almost">Bijna goed</option><option value="ready">Klaar</option><option value="inactive">Niet actief</option></select></label><label>Score 1–5<input name="score" type="number" min="1" max="5" /></label></div>
       <label>YouTube-link<input name="youtube_url" type="url" /></label><label>Notities<textarea name="notes" /></label><button className="portal-primary" disabled={busy}>Nummer opslaan</button>
     </form></details>}
-    <div className="portal-data-list portal-song-list">{songs.map((song) => <article className="portal-data-card portal-song-card" key={song.id}><div className="portal-song-status"><span>{songStatus[song.status] ?? song.status}</span>{song.score && <b>Score {song.score}/5</b>}</div><h2>{song.title}</h2><p>{[song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null].filter(Boolean).join(" · ")}</p>{song.notes && <small>{song.notes}</small>}<YoutubeLink song={song} />{isAdmin && <YoutubeEditor key={`${song.id}-${song.youtube_url ?? "empty"}`} song={song} busy={busy} onSave={onUpdateYoutube} />}</article>)}{!songs.length && <div className="portal-empty">De nummersdatabase is nog leeg. Voeg een nummer toe of migreer het bestaande repertoire.</div>}</div>
+    <div className="portal-data-list portal-song-list">{songs.map((song) => <CompactRepertoireSong key={song.id} song={song} busy={busy} isAdmin={isAdmin} onUpdateYoutube={onUpdateYoutube} />)}{!songs.length && <div className="portal-empty">De nummersdatabase is nog leeg. Voeg een nummer toe of migreer het bestaande repertoire.</div>}</div>
   </div>;
 }
 

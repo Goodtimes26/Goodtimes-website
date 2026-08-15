@@ -33,7 +33,28 @@ type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "m
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
-type DashboardSetlist = { id: string; name: string; updated_at: string; archived: boolean };
+type DashboardActivity = {
+  id: string;
+  kind: "message" | "setlist" | "rehearsal" | "performance";
+  detail: string;
+  updatedAt: string;
+};
+
+function activityAgeInDays(value: string, now = new Date()) {
+  const changed = new Date(value);
+  if (Number.isNaN(changed.getTime())) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const changedDay = new Date(changed.getFullYear(), changed.getMonth(), changed.getDate()).getTime();
+  return Math.max(0, Math.round((today - changedDay) / 86_400_000));
+}
+
+function activityAgeLabel(value: string) {
+  const days = activityAgeInDays(value);
+  if (days === null) return "";
+  if (days === 0) return "vandaag";
+  if (days === 1) return "1 dag geleden";
+  return `${days} dagen geleden`;
+}
 function monthDays(month: Date) {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const start = new Date(first);
@@ -70,7 +91,7 @@ export function BandPortal() {
   const [responses, setResponses] = useState<RequestResponse[]>([]);
   const [events, setEvents] = useState<BandEvent[]>([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [recentSetlist, setRecentSetlist] = useState<DashboardSetlist | null>(null);
+  const [recentActivity, setRecentActivity] = useState<DashboardActivity | null>(null);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [checkDate, setCheckDate] = useState(toIsoDate(new Date()));
@@ -97,12 +118,11 @@ export function BandPortal() {
       const result = await supabase.rpc("team_availability", { target_date: date });
       return { date, ...result };
     }));
-    const [profilesResult, requestsResult, responsesResult, eventsResult, setlistResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
+    const [profilesResult, requestsResult, responsesResult, eventsResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
       supabase.from("profiles").select("id,display_name,email").order("display_name"),
       supabase.from("requests").select("*").order("event_date"),
       supabase.from("request_responses").select("id,request_id,user_id,status,note"),
       supabase.from("events").select("id,event_date,start_time,end_time,location,description,notes,event_type").order("event_date"),
-      supabase.from("setlists").select("id,name,updated_at,archived").eq("archived", false).order("updated_at", { ascending: false }).limit(1),
       activeRole === "admin"
         ? supabase.from("user_roles").select("user_id,role")
         : Promise.resolve({ data: [{ user_id: activeUser.id, role: activeRole }], error: null }),
@@ -125,13 +145,34 @@ export function BandPortal() {
     setRequests((requestsResult.data ?? []) as BookingRequest[]);
     setResponses((responsesResult.data ?? []) as RequestResponse[]);
     setEvents((eventsResult.data ?? []) as BandEvent[]);
-    if (!setlistResult.error) setRecentSetlist((setlistResult.data?.[0] as DashboardSetlist | undefined) ?? null);
     setRoles((rolesResult.data ?? []) as RoleRow[]);
     setPageViews((pageViewsResult.data ?? []) as PageView[]);
     setTeamCalendarAvailability(teamAvailabilityResults.flatMap((result) =>
       ((result.data ?? []) as TeamAvailability[]).map((row) => ({ ...row, date: result.date })),
     ));
   }, [month]);
+
+  const loadDashboardActivity = useCallback(async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    const [messageResult, setlistResult, rehearsalResult, performanceResult] = await Promise.all([
+      supabase.from("band_messages").select("id,title,updated_at").order("updated_at", { ascending: false }).limit(1),
+      supabase.from("setlists").select("id,name,updated_at").eq("archived", false).order("updated_at", { ascending: false }).limit(1),
+      supabase.from("rehearsals").select("id,name,rehearsal_date,updated_at").order("updated_at", { ascending: false }).limit(1),
+      supabase.from("events").select("id,description,updated_at").eq("event_type", "performance").order("updated_at", { ascending: false }).limit(1),
+    ]);
+    const candidates: DashboardActivity[] = [];
+    const messageRow = messageResult.data?.[0];
+    const setlistRow = setlistResult.data?.[0];
+    const rehearsalRow = rehearsalResult.data?.[0];
+    const performanceRow = performanceResult.data?.[0];
+    if (messageRow) candidates.push({ id: messageRow.id, kind: "message", detail: messageRow.title, updatedAt: messageRow.updated_at });
+    if (setlistRow) candidates.push({ id: setlistRow.id, kind: "setlist", detail: setlistRow.name, updatedAt: setlistRow.updated_at });
+    if (rehearsalRow) candidates.push({ id: rehearsalRow.id, kind: "rehearsal", detail: rehearsalRow.name || rehearsalRow.rehearsal_date || "Repetitie", updatedAt: rehearsalRow.updated_at });
+    if (performanceRow) candidates.push({ id: performanceRow.id, kind: "performance", detail: performanceRow.description || "Optreden", updatedAt: performanceRow.updated_at });
+    candidates.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    setRecentActivity(candidates[0] ?? null);
+  }, []);
 
   const syncUnreadMessageBadge = useCallback(async (activeUserId: string) => {
     const supabase = getSupabaseClient();
@@ -181,7 +222,7 @@ export function BandPortal() {
       setProfile(profileResult.data as Profile);
       setRole(activeRole);
       try {
-        await loadPortalData(activeUser, activeRole);
+        await Promise.all([loadPortalData(activeUser, activeRole), loadDashboardActivity()]);
       } catch {
         setError("De bandgegevens konden niet veilig worden geladen.");
       } finally {
@@ -198,7 +239,7 @@ export function BandPortal() {
       active = false;
       authListener.subscription.unsubscribe();
     };
-  }, [loadPortalData, router]);
+  }, [loadDashboardActivity, loadPortalData, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -233,6 +274,21 @@ export function BandPortal() {
       void supabase.removeChannel(channel);
     };
   }, [syncUnreadMessageBadge, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    const synchronize = () => { void loadDashboardActivity(); };
+    const channel = supabase
+      .channel(`dashboard-activity-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "band_messages" }, synchronize)
+      .on("postgres_changes", { event: "*", schema: "public", table: "setlists" }, synchronize)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rehearsals" }, synchronize)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, synchronize)
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [loadDashboardActivity, user]);
 
   async function refresh() {
     if (!user) return;
@@ -381,7 +437,7 @@ export function BandPortal() {
         {message && <div className="portal-notice" role="status">{message}<button onClick={() => setMessage("")} aria-label="Melding sluiten">×</button></div>}
         {error && <div className="portal-notice portal-notice-error" role="alert">{error}<button onClick={() => setError("")} aria-label="Foutmelding sluiten">×</button></div>}
 
-        {tab === "home" && <PortalDashboard profile={profile} events={events} requests={requests} unreadMessageCount={unreadMessageCount} recentSetlist={recentSetlist} isAdmin={isAdmin} setTab={setTab} />}
+        {tab === "home" && <PortalDashboard profile={profile} events={events} unreadMessageCount={unreadMessageCount} recentActivity={recentActivity} setTab={setTab} />}
 
         {tab === "agenda" && (
           <div className="portal-section">
@@ -553,23 +609,27 @@ export function BandPortal() {
   );
 }
 
-function PortalDashboard({ profile, events, requests, unreadMessageCount, recentSetlist, isAdmin, setTab }: {
+function PortalDashboard({ profile, events, unreadMessageCount, recentActivity, setTab }: {
   profile: Profile;
   events: BandEvent[];
-  requests: BookingRequest[];
   unreadMessageCount: number;
-  recentSetlist: DashboardSetlist | null;
-  isAdmin: boolean;
+  recentActivity: DashboardActivity | null;
   setTab: (tab: PortalTab) => void;
 }) {
   const today = toIsoDate(new Date());
   const nextEvent = events.filter((item) => item.event_type === "performance" && item.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
-  const openRequests = requests.filter((item) => ["new", "pending", "option"].includes(item.status)).length;
   const firstName = bandMemberFirstName(profile);
   const daysUntilEvent = nextEvent
     ? Math.round((new Date(`${nextEvent.event_date}T12:00:00`).getTime() - new Date(`${today}T12:00:00`).getTime()) / 86_400_000)
     : null;
-  const hasUpdates = unreadMessageCount > 0 || Boolean(recentSetlist) || openRequests > 0;
+  const activityAge = recentActivity ? activityAgeInDays(recentActivity.updatedAt) : null;
+  const visibleActivity = recentActivity && activityAge !== null && activityAge <= 14 ? recentActivity : null;
+  const activityPresentation = visibleActivity ? {
+    message: { icon: "●", title: "Nieuw bericht", tab: "messages" as PortalTab, className: "is-message" },
+    setlist: { icon: "≡", title: "Setlist bijgewerkt", tab: "setlists" as PortalTab, className: "is-setlist" },
+    rehearsal: { icon: "●", title: "Repetitie bijgewerkt", tab: "rehearsals" as PortalTab, className: "is-rehearsal" },
+    performance: { icon: "□", title: "Optreden bijgewerkt", tab: "agenda" as PortalTab, className: "is-performance" },
+  }[visibleActivity.kind] : null;
 
   return <div className="portal-section portal-dashboard">
     <div className="portal-dashboard-welcome">
@@ -587,12 +647,10 @@ function PortalDashboard({ profile, events, requests, unreadMessageCount, recent
       </button> : <p>Er staat nog geen optreden gepland.</p>}
     </article>
 
-    {hasUpdates && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
+    {visibleActivity && activityPresentation && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
       <div className="portal-dashboard-heading"><h2 id="portal-updates-title">Wat is er nieuw?</h2></div>
       <div className="portal-update-list">
-        {unreadMessageCount > 0 ? <button onClick={() => setTab("messages")}><span className="portal-update-icon is-message" aria-hidden="true">●</span><span><strong>{unreadMessageCount === 1 ? "1 ongelezen bericht" : `${unreadMessageCount} ongelezen berichten`}</strong><small>Open Berichten</small></span><b aria-hidden="true">→</b></button>
-          : recentSetlist ? <button onClick={() => setTab("setlists")}><span className="portal-update-icon is-setlist" aria-hidden="true">≡</span><span><strong>Setlist bijgewerkt</strong><small>{recentSetlist.name}</small></span><b aria-hidden="true">→</b></button>
-            : <button onClick={() => setTab("requests")}><span className="portal-update-icon is-request" aria-hidden="true">?</span><span><strong>{openRequests === 1 ? "1 openstaande aanvraag" : `${openRequests} openstaande aanvragen`}</strong><small>{isAdmin ? "Bekijk en beheer" : "Controleer je beschikbaarheid"}</small></span><b aria-hidden="true">→</b></button>}
+        <button onClick={() => setTab(activityPresentation.tab)}><span className={`portal-update-icon ${activityPresentation.className}`} aria-hidden="true">{activityPresentation.icon}</span><span><strong>{activityPresentation.title}</strong><small>{visibleActivity.detail} · {activityAgeLabel(visibleActivity.updatedAt)}</small></span><b aria-hidden="true">→</b></button>
       </div>
     </section>}
 

@@ -38,7 +38,13 @@ type DashboardActivity = {
   kind: "message" | "setlist" | "rehearsal" | "performance";
   detail: string;
   updatedAt: string;
+  actorId: string | null;
+  isNew: boolean;
 };
+
+function isNewActivity(createdAt: string, updatedAt: string) {
+  return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) < 5_000;
+}
 
 function activityAgeInDays(value: string, now = new Date()) {
   const changed = new Date(value);
@@ -91,7 +97,7 @@ export function BandPortal() {
   const [responses, setResponses] = useState<RequestResponse[]>([]);
   const [events, setEvents] = useState<BandEvent[]>([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [recentActivity, setRecentActivity] = useState<DashboardActivity | null>(null);
+  const [recentActivities, setRecentActivities] = useState<DashboardActivity[]>([]);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [checkDate, setCheckDate] = useState(toIsoDate(new Date()));
@@ -155,23 +161,30 @@ export function BandPortal() {
   const loadDashboardActivity = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const [messageResult, setlistResult, rehearsalResult, performanceResult] = await Promise.all([
-      supabase.from("band_messages").select("id,title,updated_at").order("updated_at", { ascending: false }).limit(1),
-      supabase.from("setlists").select("id,name,updated_at").eq("archived", false).order("updated_at", { ascending: false }).limit(1),
-      supabase.from("rehearsals").select("id,name,rehearsal_date,updated_at").order("updated_at", { ascending: false }).limit(1),
-      supabase.from("events").select("id,description,updated_at").eq("event_type", "performance").order("updated_at", { ascending: false }).limit(1),
+    const [messageResult, setlistResult, rehearsalResult, rehearsalPlanningResult, performanceResult] = await Promise.all([
+      supabase.from("band_messages").select("id,title,author_id,created_at,updated_at").order("updated_at", { ascending: false }).limit(6),
+      supabase.from("setlists").select("id,name,created_at,updated_at,updated_by").eq("archived", false).order("updated_at", { ascending: false }).limit(6),
+      supabase.from("rehearsals").select("id,name,rehearsal_date,created_at,updated_at,created_by").order("updated_at", { ascending: false }).limit(6),
+      supabase.from("rehearsal_songs").select("id,rehearsal_id,created_at,updated_at,rehearsals(name,rehearsal_date)").order("updated_at", { ascending: false }).limit(6),
+      supabase.from("events").select("id,description,created_at,updated_at,created_by").eq("event_type", "performance").order("updated_at", { ascending: false }).limit(6),
     ]);
     const candidates: DashboardActivity[] = [];
-    const messageRow = messageResult.data?.[0];
-    const setlistRow = setlistResult.data?.[0];
-    const rehearsalRow = rehearsalResult.data?.[0];
-    const performanceRow = performanceResult.data?.[0];
-    if (messageRow) candidates.push({ id: messageRow.id, kind: "message", detail: messageRow.title, updatedAt: messageRow.updated_at });
-    if (setlistRow) candidates.push({ id: setlistRow.id, kind: "setlist", detail: setlistRow.name, updatedAt: setlistRow.updated_at });
-    if (rehearsalRow) candidates.push({ id: rehearsalRow.id, kind: "rehearsal", detail: rehearsalRow.name || rehearsalRow.rehearsal_date || "Repetitie", updatedAt: rehearsalRow.updated_at });
-    if (performanceRow) candidates.push({ id: performanceRow.id, kind: "performance", detail: performanceRow.description || "Optreden", updatedAt: performanceRow.updated_at });
+    for (const row of messageResult.data ?? []) candidates.push({ id: `message:${row.id}`, kind: "message", detail: row.title, updatedAt: row.updated_at, actorId: row.author_id, isNew: true });
+    for (const row of setlistResult.data ?? []) candidates.push({ id: `setlist:${row.id}`, kind: "setlist", detail: row.name, updatedAt: row.updated_at, actorId: row.updated_by, isNew: isNewActivity(row.created_at, row.updated_at) });
+    for (const row of rehearsalResult.data ?? []) candidates.push({ id: `rehearsal:${row.id}`, kind: "rehearsal", detail: row.name || row.rehearsal_date || "Repetitie", updatedAt: row.updated_at, actorId: isNewActivity(row.created_at, row.updated_at) ? row.created_by : null, isNew: isNewActivity(row.created_at, row.updated_at) });
+    for (const row of rehearsalPlanningResult.data ?? []) {
+      const rehearsal = Array.isArray(row.rehearsals) ? row.rehearsals[0] : row.rehearsals;
+      candidates.push({ id: `rehearsal-planning:${row.rehearsal_id}`, kind: "rehearsal", detail: rehearsal?.name || rehearsal?.rehearsal_date || "Repetitieplanning", updatedAt: row.updated_at, actorId: null, isNew: false });
+    }
+    for (const row of performanceResult.data ?? []) candidates.push({ id: `performance:${row.id}`, kind: "performance", detail: row.description || "Optreden", updatedAt: row.updated_at, actorId: isNewActivity(row.created_at, row.updated_at) ? row.created_by : null, isNew: isNewActivity(row.created_at, row.updated_at) });
     candidates.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    setRecentActivity(candidates[0] ?? null);
+    const uniqueCandidates = [...new Map(candidates.map((activity) => [activity.id, activity])).values()]
+      .filter((activity) => {
+        const age = activityAgeInDays(activity.updatedAt);
+        return age !== null && age <= 14;
+      })
+      .slice(0, 4);
+    setRecentActivities(uniqueCandidates);
   }, []);
 
   const syncUnreadMessageBadge = useCallback(async (activeUserId: string) => {
@@ -285,9 +298,19 @@ export function BandPortal() {
       .on("postgres_changes", { event: "*", schema: "public", table: "band_messages" }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "setlists" }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "rehearsals" }, synchronize)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rehearsal_songs" }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, synchronize)
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    const pollingTimer = window.setInterval(synchronize, 30_000);
+    const synchronizeWhenVisible = () => { if (document.visibilityState === "visible") synchronize(); };
+    window.addEventListener("focus", synchronize);
+    document.addEventListener("visibilitychange", synchronizeWhenVisible);
+    return () => {
+      window.clearInterval(pollingTimer);
+      window.removeEventListener("focus", synchronize);
+      document.removeEventListener("visibilitychange", synchronizeWhenVisible);
+      void supabase.removeChannel(channel);
+    };
   }, [loadDashboardActivity, user]);
 
   async function refresh() {
@@ -432,12 +455,12 @@ export function BandPortal() {
         <button className={tab === "more" ? "active" : ""} onClick={() => setTab("more")}>Meer</button>
       </nav>
 
-      <section className="portal-content">
+      <section className={`portal-content ${tab === "home" ? "portal-content-home" : ""}`}>
         <PwaBadgePermission />
         {message && <div className="portal-notice" role="status">{message}<button onClick={() => setMessage("")} aria-label="Melding sluiten">×</button></div>}
         {error && <div className="portal-notice portal-notice-error" role="alert">{error}<button onClick={() => setError("")} aria-label="Foutmelding sluiten">×</button></div>}
 
-        {tab === "home" && <PortalDashboard profile={profile} events={events} unreadMessageCount={unreadMessageCount} recentActivity={recentActivity} setTab={setTab} />}
+        {tab === "home" && <PortalDashboard profile={profile} profiles={profiles} events={events} unreadMessageCount={unreadMessageCount} recentActivities={recentActivities} setTab={setTab} />}
 
         {tab === "agenda" && (
           <div className="portal-section">
@@ -609,11 +632,12 @@ export function BandPortal() {
   );
 }
 
-function PortalDashboard({ profile, events, unreadMessageCount, recentActivity, setTab }: {
+function PortalDashboard({ profile, profiles, events, unreadMessageCount, recentActivities, setTab }: {
   profile: Profile;
+  profiles: Profile[];
   events: BandEvent[];
   unreadMessageCount: number;
-  recentActivity: DashboardActivity | null;
+  recentActivities: DashboardActivity[];
   setTab: (tab: PortalTab) => void;
 }) {
   const today = toIsoDate(new Date());
@@ -622,14 +646,12 @@ function PortalDashboard({ profile, events, unreadMessageCount, recentActivity, 
   const daysUntilEvent = nextEvent
     ? Math.round((new Date(`${nextEvent.event_date}T12:00:00`).getTime() - new Date(`${today}T12:00:00`).getTime()) / 86_400_000)
     : null;
-  const activityAge = recentActivity ? activityAgeInDays(recentActivity.updatedAt) : null;
-  const visibleActivity = recentActivity && activityAge !== null && activityAge <= 14 ? recentActivity : null;
-  const activityPresentation = visibleActivity ? {
+  const activityPresentation = (activity: DashboardActivity) => ({
     message: { icon: "●", title: "Nieuw bericht", tab: "messages" as PortalTab, className: "is-message" },
-    setlist: { icon: "≡", title: "Setlist bijgewerkt", tab: "setlists" as PortalTab, className: "is-setlist" },
-    rehearsal: { icon: "●", title: "Repetitie bijgewerkt", tab: "rehearsals" as PortalTab, className: "is-rehearsal" },
-    performance: { icon: "□", title: "Optreden bijgewerkt", tab: "agenda" as PortalTab, className: "is-performance" },
-  }[visibleActivity.kind] : null;
+    setlist: { icon: "≡", title: activity.isNew ? "Nieuwe setlist" : "Setlist gewijzigd", tab: "setlists" as PortalTab, className: "is-setlist" },
+    rehearsal: { icon: "●", title: activity.id.startsWith("rehearsal-planning:") ? "Repetitieplanning aangepast" : activity.isNew ? "Repetitie toegevoegd" : "Repetitie gewijzigd", tab: "rehearsals" as PortalTab, className: "is-rehearsal" },
+    performance: { icon: "□", title: activity.isNew ? "Optreden toegevoegd" : "Optreden gewijzigd", tab: "agenda" as PortalTab, className: "is-performance" },
+  }[activity.kind]);
 
   return <div className="portal-section portal-dashboard">
     <div className="portal-dashboard-welcome">
@@ -647,10 +669,15 @@ function PortalDashboard({ profile, events, unreadMessageCount, recentActivity, 
       </button> : <p>Er staat nog geen optreden gepland.</p>}
     </article>
 
-    {visibleActivity && activityPresentation && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
+    {recentActivities.length > 0 && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
       <div className="portal-dashboard-heading"><h2 id="portal-updates-title">Wat is er nieuw?</h2></div>
       <div className="portal-update-list">
-        <button onClick={() => setTab(activityPresentation.tab)}><span className={`portal-update-icon ${activityPresentation.className}`} aria-hidden="true">{activityPresentation.icon}</span><span><strong>{activityPresentation.title}</strong><small>{visibleActivity.detail} · {activityAgeLabel(visibleActivity.updatedAt)}</small></span><b aria-hidden="true">→</b></button>
+        {recentActivities.map((activity) => {
+          const presentation = activityPresentation(activity);
+          const actor = activity.actorId ? profiles.find((candidate) => candidate.id === activity.actorId) : null;
+          const meta = [activity.detail, activityAgeLabel(activity.updatedAt), actor ? `door ${bandMemberFirstName(actor)}` : null].filter(Boolean).join(" · ");
+          return <button key={activity.id} onClick={() => setTab(presentation.tab)}><span className={`portal-update-icon ${presentation.className}`} aria-hidden="true">{presentation.icon}</span><span><strong>{presentation.title}</strong><small>{meta}</small></span><b aria-hidden="true">→</b></button>;
+        })}
       </div>
     </section>}
 

@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type AnchorHTM
 import { getSupabaseClient } from "../lib/supabase";
 import { localizeNode, localizedPath, type Locale } from "./i18n";
 
-export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "techniek-productie" | "contact" | "bandinlog" | "80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest";
+export type PageKey = "home" | "over-de-band" | "repertoire" | "agenda" | "media" | "fotos-videos" | "techniek-productie" | "contact" | "bandinlog" | "80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest" | "80er-jahre-coverband-nrw";
 
 const nav = [
   ["home", "/", "Home"],
@@ -55,6 +55,7 @@ function Arrow() {
 
 function Header({ page, locale }: { page: PageKey; locale: Locale }) {
   const [open, setOpen] = useState(false);
+  const languagePath = page === "home" ? "/" : `/${page === "fotos-videos" ? "media" : page === "80er-jahre-coverband-nrw" ? "80s-coverband-boeken" : page}`;
   return (
     <Localized><header className="topbar">
       <Link className="brand" href="/" aria-label="GoodTimes home">
@@ -68,13 +69,14 @@ function Header({ page, locale }: { page: PageKey; locale: Locale }) {
         <Link className="nav-cta" href="/contact" onClick={() => setOpen(false)}>Boek de band <Arrow /></Link>
       </nav>
       <nav className="language-switcher" aria-label="Taal kiezen">
-        {(["nl", "de", "en"] as const).map((language) => <NextLink href={localizedPath(language, page === "home" ? "/" : `/${page === "fotos-videos" ? "media" : page}`)} key={language} hrefLang={language} lang={language} aria-label={language === "nl" ? "Nederlands" : language === "de" ? "Deutsch" : "English"} aria-current={locale === language ? "true" : undefined}>{language === "nl" ? "🇳🇱" : language === "de" ? "🇩🇪" : "🇬🇧"}</NextLink>)}
+        {(["nl", "de", "en"] as const).map((language) => <NextLink href={language === "de" && page === "80er-jahre-coverband-nrw" ? "/de/80er-jahre-coverband-nrw" : localizedPath(language, languagePath)} key={language} hrefLang={language} lang={language} aria-label={language === "nl" ? "Nederlands" : language === "de" ? "Deutsch" : "English"} aria-current={locale === language ? "true" : undefined}>{language === "nl" ? "🇳🇱" : language === "de" ? "🇩🇪" : "🇬🇧"}</NextLink>)}
       </nav>
     </header></Localized>
   );
 }
 
 function Footer() {
+  const locale = useLocale();
   return (
     <Localized><footer>
       <div className="brand footer-brand">GOOD<span>TIMES</span><small>THE 80’S LIVE</small></div>
@@ -88,6 +90,7 @@ function Footer() {
         <Link href="/80s-coverband-boeken">80’s coverband boeken</Link>
         <Link href="/coverband-brabant">Coverband Brabant</Link>
         <Link href="/coverband-bedrijfsfeest">Coverband bedrijfsfeest</Link>
+        {locale === "de" && <Link href="/80er-jahre-coverband-nrw">80er-Jahre-Coverband NRW</Link>}
       </nav>
       <div className="footer-bottom"><span>© 2026 GoodTimes. Alle rechten voorbehouden.</span><span>Privacy · Cookies</span></div>
     </footer></Localized>
@@ -114,6 +117,7 @@ function Hero() {
 }
 
 function HomePage() {
+  const locale = useLocale();
   return <Localized><><Hero />
     <section className="home-usp-strip" aria-label="Waarom GoodTimes">
       <ul>
@@ -136,6 +140,7 @@ function HomePage() {
       <nav className="home-links" aria-label="Ontdek GoodTimes">
         <Link className="text-link" href="/repertoire">Bekijk het jaren 80-repertoire <Arrow /></Link>
         <Link className="text-link" href="/media">Beluister GoodTimes live <Arrow /></Link>
+        {locale === "de" && <Link className="text-link" href="/80er-jahre-coverband-nrw">80er-Jahre-Coverband für Events in NRW <Arrow /></Link>}
       </nav>
     </section>
     <section className="booking-band"><p className="eyebrow">Klaar voor een tijdreis?</p><h2>MAAK VAN JOUW EVENT<br /><span>EEN GOOD TIME.</span></h2><Link className="primary" href="/contact">Check beschikbaarheid <Arrow /></Link></section>
@@ -380,7 +385,7 @@ type LandingPageContent = {
   relatedLinks: Array<{ href: string; label: string }>;
 };
 
-const landingPages: Record<"80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest", LandingPageContent> = {
+const landingPages: Record<"80s-coverband-boeken" | "coverband-brabant" | "coverband-bedrijfsfeest" | "80er-jahre-coverband-nrw", LandingPageContent> = {
   "80s-coverband-boeken": {
     kicker: "De jaren 80, volledig live",
     title: "JAREN 80 BAND",
@@ -488,10 +493,54 @@ const landingPages: Record<"80s-coverband-boeken" | "coverband-brabant" | "cover
       { href: "/contact", label: "Bespreek het bedrijfsfeest" },
     ],
   },
+  "80er-jahre-coverband-nrw": {
+    kicker: "GoodTimes live in Nordrhein-Westfalen",
+    title: "80ER-JAHRE-COVERBAND",
+    accent: "NRW.",
+    introduction: "GoodTimes – die niederländische 80er-Jahre-Coverband für Live-Events in NRW. Sechs Musiker, zwei Sängerinnen und eine vollständig live gespielte Show ohne Backingtracks bringen Disco, Funk, Dance und Nederpop auf die Bühne.",
+    sections: [
+      {
+        title: "Eine niederländische 80er-Jahre-Liveband für NRW",
+        paragraphs: [
+          "GoodTimes kommt aus den Niederlanden und ist auch für Veranstaltungen in Nordrhein-Westfalen und im deutsch-niederländischen Grenzgebiet buchbar. Damit richtet sich die Band an Veranstalter, die eine professionelle 80er-Jahre-Liveband mit echter Bühnenenergie suchen.",
+          "Ob am Niederrhein, in Kleve, Krefeld, Mönchengladbach, Düsseldorf oder Duisburg: GoodTimes reist für passende Live-Events nach Deutschland, ohne vorzugeben, in einer dieser Städte ansässig zu sein.",
+        ],
+      },
+      {
+        title: "100 % live – sechs Musiker, zwei Sängerinnen",
+        paragraphs: [
+          "Bei GoodTimes entsteht die Musik komplett auf der Bühne. Zwei Sängerinnen, Keyboards, Gitarre, Bass und Schlagzeug formen einen dynamischen Bandsound – ohne Backingtracks.",
+          "Das Repertoire verbindet Disco, Funk, Dance, Pop und Nederpop aus den 80ern. Bekannte Melodien, mehrstimmiger Gesang und die Spontaneität einer echten Liveband sorgen für Wiedererkennung und eine volle Tanzfläche.",
+        ],
+      },
+      {
+        title: "Für Firmenfeier, Stadtfest, Festival und Veranstaltung",
+        paragraphs: [
+          "GoodTimes passt zu Firmenfeiern, Stadtfesten, Festivals, Themenpartys und anderen Veranstaltungen, bei denen ein professioneller Live-Auftritt und tanzbare 80er-Musik gefragt sind.",
+          "Im Repertoire findest du die musikalische Richtung. Die unverfälschten Probenaufnahmen auf der Mediaseite vermitteln einen ehrlichen Eindruck davon, wie GoodTimes live klingt.",
+        ],
+      },
+      {
+        title: "GoodTimes für Ihre Veranstaltung anfragen",
+        paragraphs: [
+          "Planen Sie eine Veranstaltung in NRW oder im Grenzgebiet? Über die Kontaktseite können Sie Termin, Location, Publikum und technische Anforderungen direkt mit GoodTimes besprechen.",
+        ],
+      },
+    ],
+    highlights: ["Sechs erfahrene Musiker", "Zwei Sängerinnen", "100 % live ohne Backingtracks", "Für Live-Events in NRW"],
+    cta: "GoodTimes für Ihre Veranstaltung anfragen",
+    relatedLinks: [
+      { href: "/repertoire", label: "80er-Repertoire ansehen" },
+      { href: "/media", label: "GoodTimes live anhören" },
+      { href: "/over-de-band", label: "Die Band kennenlernen" },
+      { href: "/contact", label: "GoodTimes in NRW anfragen" },
+    ],
+  },
 };
 
 function SeoLandingPage({ page }: { page: keyof typeof landingPages }) {
   const content = landingPages[page];
+  const locale = useLocale();
   return <Localized><>
     <PageIntro kicker={content.kicker} title={content.title} accent={content.accent} text={content.introduction} className="seo-landing-intro" />
     <section className="seo-landing-content">
@@ -512,6 +561,7 @@ function SeoLandingPage({ page }: { page: keyof typeof landingPages }) {
       <h2>Bekijk en beluister de band</h2>
       <nav aria-label="Meer over GoodTimes">
         {content.relatedLinks.map((link) => <Link className="text-link" href={link.href} key={link.href}>{link.label} <Arrow /></Link>)}
+        {locale === "de" && page !== "80er-jahre-coverband-nrw" && <Link className="text-link" href="/80er-jahre-coverband-nrw">80er-Jahre-Coverband für Events in NRW <Arrow /></Link>}
       </nav>
     </section>
   </></Localized>;

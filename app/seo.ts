@@ -11,18 +11,19 @@ export type SeoEntry = {
   path: string;
 };
 
-const localizedSeo: Record<"de" | "en", Record<keyof typeof pageSeo, Pick<SeoEntry, "title" | "description">>> = {
+const localizedSeo: Record<"de" | "en", Partial<Record<keyof typeof pageSeo, Pick<SeoEntry, "title" | "description">>>> = {
   de: {
-    home: { title: "80er Coverband aus den Niederlanden | GoodTimes Liveband", description: "GoodTimes ist eine professionelle 80er-Coverband und Partyband für Firmenfeiern, Festivals, Hochzeiten und Events in den Niederlanden." },
-    "over-de-band": { title: "Über GoodTimes | Professionelle 80er-Liveband", description: "Lerne die sechs erfahrenen Musiker von GoodTimes kennen: eine professionelle niederländische Liveband für Partys, Festivals und Events." },
-    repertoire: { title: "80er Coverband Repertoire | GoodTimes Liveband", description: "Entdecke das aktuelle GoodTimes-Repertoire mit tanzbaren Disco-, Funk-, Pop- und Partyklassikern aus den 80ern – immer 100 % live gespielt." },
-    media: { title: "GoodTimes live anhören | 80er Coverband", description: "Höre Probenaufnahmen von GoodTimes und erlebe Energie, mehrstimmigen Gesang und den Live-Sound dieser professionellen 80er-Coverband." },
-    agenda: { title: "GoodTimes Termine | 80er Coverband live", description: "Sieh, wann und wo GoodTimes live spielt, und erlebe die größten Disco-, Funk- und Partyhits der 80er." },
+    home: { title: "80er Jahre Coverband buchen | GoodTimes Liveband", description: "GoodTimes ist die niederländische 80er-Jahre-Coverband für Firmenfeiern, Festivals, Stadtfeste und Veranstaltungen in NRW – mit sechs Musikern, zwei Sängerinnen und 100 % Livemusik." },
+    "over-de-band": { title: "Über GoodTimes | Niederländische 80er Jahre Liveband", description: "Sechs Musiker, zwei Sängerinnen und keine Backingtracks: Lerne GoodTimes kennen, die professionelle niederländische 80er-Jahre-Liveband für Veranstaltungen." },
+    repertoire: { title: "80er Jahre Coverband Repertoire | GoodTimes live", description: "Entdecke das GoodTimes-Repertoire aus Disco, Funk, Dance, Pop und Nederpop – von sechs Musikern und zwei Sängerinnen vollständig live gespielt." },
+    media: { title: "80er Jahre Liveband anhören | GoodTimes Media", description: "Höre echte Probenaufnahmen von GoodTimes und erlebe den Sound einer professionellen 80er-Jahre-Coverband – vollständig live und ohne Backingtracks." },
+    agenda: { title: "GoodTimes live | Termine der 80er Jahre Coverband", description: "Sieh, wann und wo GoodTimes live spielt, und erlebe eine niederländische 80er-Jahre-Liveband mit Disco, Funk, Dance und Partyhits." },
     "techniek-productie": { title: "Licht und Ton für eine Liveband | GoodTimes Technik", description: "Buche GoodTimes inklusive professioneller Technik, Licht und Ton für Partys, Festivals und Events." },
-    contact: { title: "80er Coverband buchen | Kontakt GoodTimes", description: "GoodTimes für Firmenfeier, Hochzeit, Festival oder Event buchen? Nimm direkt Kontakt mit der niederländischen 80er-Liveband auf." },
-    "80s-coverband-boeken": { title: "80er Coverband buchen | GoodTimes 100 % live", description: "Buche GoodTimes als 80er-Coverband: Disco, Funk und Pop mit sechs Musikern, Live-Gesang und einer vollständig live gespielten Show." },
-    "coverband-brabant": { title: "80er Coverband aus Brabant | GoodTimes live", description: "GoodTimes ist eine professionelle 80er-Coverband aus Brabant. Sechs Musiker spielen Disco, Funk und Pop 100 % live." },
-    "coverband-bedrijfsfeest": { title: "80er Liveband für Firmenfeiern | GoodTimes", description: "GoodTimes spielt bekannte 80er-Hits 100 % live auf Firmenfeiern, Mitarbeiterfesten und Business-Events." },
+    contact: { title: "80er Jahre Band buchen | Kontakt GoodTimes", description: "GoodTimes für Firmenfeier, Stadtfest, Festival oder Veranstaltung in Deutschland buchen? Frage die niederländische 80er-Jahre-Liveband direkt an." },
+    "80s-coverband-boeken": { title: "80er Jahre Band buchen | GoodTimes 100 % live", description: "GoodTimes als 80er-Jahre-Coverband buchen: sechs Musiker, zwei Sängerinnen, Disco, Funk und Dance – vollständig live und ohne Backingtracks." },
+    "coverband-brabant": { title: "Niederländische 80er Coverband | GoodTimes live", description: "GoodTimes ist eine professionelle niederländische 80er-Jahre-Coverband. Sechs Musiker spielen Disco, Funk, Dance und Nederpop vollständig live." },
+    "coverband-bedrijfsfeest": { title: "Coverband für Firmenfeier | GoodTimes 80er Liveband", description: "GoodTimes bringt bekannte 80er-Hits vollständig live auf Firmenfeiern, Mitarbeiterfeste und Business-Events – mit sechs Musikern und zwei Sängerinnen." },
+    "80er-jahre-coverband-nrw": { title: "80er Jahre Coverband NRW buchen | GoodTimes Liveband", description: "GoodTimes ist die niederländische 80er-Jahre-Coverband für Firmenfeiern, Stadtfeste, Festivals und Veranstaltungen in NRW – 100 % live, ohne Backingtracks." },
   },
   en: {
     home: { title: "Dutch 80s cover band | GoodTimes live band", description: "Book GoodTimes, a professional Dutch 80s cover band and party band for corporate events, weddings, festivals and celebrations in the Netherlands." },
@@ -89,11 +90,16 @@ export const pageSeo = {
     description: "Zoek je een live band voor een bedrijfsfeest? GoodTimes speelt herkenbare jaren 80-hits volledig live op personeelsfeesten en zakelijke evenementen.",
     path: "/coverband-bedrijfsfeest/",
   },
+  "80er-jahre-coverband-nrw": {
+    title: "80er Jahre Coverband NRW buchen | GoodTimes Liveband",
+    description: "GoodTimes ist die niederländische 80er-Jahre-Coverband für Firmenfeiern, Stadtfeste, Festivals und Veranstaltungen in NRW – 100 % live, ohne Backingtracks.",
+    path: "/80er-jahre-coverband-nrw/",
+  },
 } satisfies Record<string, SeoEntry>;
 
 export function getSeoEntry(key: keyof typeof pageSeo, locale: Locale = "nl"): SeoEntry {
   const base = pageSeo[key];
-  return locale === "nl" ? base : { ...base, ...localizedSeo[locale][key], path: localizedPath(locale, base.path) };
+  return locale === "nl" ? base : { ...base, ...(localizedSeo[locale][key] ?? {}), path: localizedPath(locale, base.path) };
 }
 
 export function createMetadata(entry: SeoEntry, locale: Locale = "nl", basePath?: string): Metadata {
@@ -205,6 +211,7 @@ const breadcrumbLabels: Record<string, string> = {
   "80s-coverband-boeken": "80's coverband boeken",
   "coverband-brabant": "Coverband Brabant",
   "coverband-bedrijfsfeest": "Coverband bedrijfsfeest",
+  "80er-jahre-coverband-nrw": "80er-Jahre-Coverband NRW",
 };
 
 export function createBreadcrumbJsonLd(slug: string, locale: Locale = "nl") {

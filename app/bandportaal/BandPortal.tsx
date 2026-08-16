@@ -25,7 +25,7 @@ import {
   type UserRole,
 } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
-import { clearAppBadge, countUnreadMessages, syncAppBadge } from "../../lib/appBadge";
+import { clearAppBadge, syncAppBadge, unreadMessageIds } from "../../lib/appBadge";
 import {
   activityAgeInDays,
   deduplicateDashboardActivities,
@@ -147,18 +147,28 @@ export function BandPortal() {
     ));
   }, [month]);
 
-  const loadDashboardActivity = useCallback(async () => {
+  const loadDashboardActivity = useCallback(async (activeUserId: string) => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const [messageResult, setlistResult, rehearsalResult, rehearsalPlanningResult, performanceResult] = await Promise.all([
-      supabase.from("band_messages").select("id,title,author_id,created_at,updated_at").order("updated_at", { ascending: false }).limit(6),
+    const activitySince = new Date();
+    activitySince.setDate(activitySince.getDate() - 14);
+    const [messageResult, messageReadsResult, setlistResult, rehearsalResult, rehearsalPlanningResult, performanceResult] = await Promise.all([
+      supabase.from("band_messages").select("id,title,author_id,created_at,updated_at").gte("updated_at", activitySince.toISOString()).order("updated_at", { ascending: false }),
+      supabase.from("message_reads").select("message_id").eq("user_id", activeUserId),
       supabase.from("setlists").select("id,name,event_id,setlist_date,source_system,source_id,created_at,updated_at,updated_by").eq("archived", false).order("updated_at", { ascending: false }).limit(12),
       supabase.from("rehearsals").select("id,name,rehearsal_date,created_at,updated_at,created_by").order("updated_at", { ascending: false }).limit(6),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,created_at,updated_at,rehearsals(name,rehearsal_date)").order("updated_at", { ascending: false }).limit(6),
       supabase.from("events").select("id,description,created_at,updated_at,created_by").eq("event_type", "performance").order("updated_at", { ascending: false }).limit(6),
     ]);
+    const unreadIds = new Set(unreadMessageIds(
+      (messageResult.data ?? []).map((row) => ({ id: row.id, author_id: row.author_id })),
+      (messageReadsResult.data ?? []).map((row) => row.message_id),
+      activeUserId,
+    ));
     const candidates: DashboardActivity[] = [];
-    for (const row of messageResult.data ?? []) candidates.push({ id: `message:${row.id}`, entityKey: `message:${row.id}`, kind: "message", detail: row.title, updatedAt: row.updated_at, actorId: row.author_id, isNew: true });
+    for (const row of messageResult.data ?? []) {
+      if (unreadIds.has(row.id)) candidates.push({ id: `message:${row.id}`, entityKey: `message:${row.id}`, kind: "message", detail: row.title, updatedAt: row.updated_at, actorId: row.author_id, isNew: true });
+    }
     for (const row of setlistResult.data ?? []) candidates.push({
       id: `setlist:${row.id}`,
       entityKey: setlistActivityKey({ id: row.id, name: row.name, eventId: row.event_id, setlistDate: row.setlist_date, sourceSystem: row.source_system, sourceId: row.source_id }),
@@ -182,15 +192,16 @@ export function BandPortal() {
     if (!supabase) return;
 
     const [messagesResult, readsResult] = await Promise.all([
-      supabase.from("band_messages").select("id"),
+      supabase.from("band_messages").select("id,author_id"),
       supabase.from("message_reads").select("message_id").eq("user_id", activeUserId),
     ]);
     if (messagesResult.error || readsResult.error) return;
 
-    const unreadCount = countUnreadMessages(
-      (messagesResult.data ?? []).map((row) => row.id as string),
+    const unreadCount = unreadMessageIds(
+      (messagesResult.data ?? []).map((row) => ({ id: row.id as string, author_id: row.author_id as string })),
       (readsResult.data ?? []).map((row) => row.message_id as string),
-    );
+      activeUserId,
+    ).length;
     setUnreadMessageCount(unreadCount);
     await syncAppBadge(unreadCount);
   }, []);
@@ -225,7 +236,7 @@ export function BandPortal() {
       setProfile(profileResult.data as Profile);
       setRole(activeRole);
       try {
-        await Promise.all([loadPortalData(activeUser, activeRole), loadDashboardActivity()]);
+        await Promise.all([loadPortalData(activeUser, activeRole), loadDashboardActivity(activeUser.id)]);
       } catch {
         setError("De bandgegevens konden niet veilig worden geladen.");
       } finally {
@@ -282,10 +293,11 @@ export function BandPortal() {
     if (!user) return;
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const synchronize = () => { void loadDashboardActivity(); };
+    const synchronize = () => { void loadDashboardActivity(user.id); };
     const channel = supabase
       .channel(`dashboard-activity-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "band_messages" }, synchronize)
+      .on("postgres_changes", { event: "*", schema: "public", table: "message_reads", filter: `user_id=eq.${user.id}` }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "setlists" }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "rehearsals" }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "rehearsal_songs" }, synchronize)
@@ -294,10 +306,14 @@ export function BandPortal() {
     const pollingTimer = window.setInterval(synchronize, 30_000);
     const synchronizeWhenVisible = () => { if (document.visibilityState === "visible") synchronize(); };
     window.addEventListener("focus", synchronize);
+    window.addEventListener("goodtimes:messages-changed", synchronize);
+    window.addEventListener("goodtimes:messages-read", synchronize);
     document.addEventListener("visibilitychange", synchronizeWhenVisible);
     return () => {
       window.clearInterval(pollingTimer);
       window.removeEventListener("focus", synchronize);
+      window.removeEventListener("goodtimes:messages-changed", synchronize);
+      window.removeEventListener("goodtimes:messages-read", synchronize);
       document.removeEventListener("visibilitychange", synchronizeWhenVisible);
       void supabase.removeChannel(channel);
     };

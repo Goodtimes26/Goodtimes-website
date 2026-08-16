@@ -291,8 +291,32 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
 
   if (tab === "messages") return <MessagesPanel messages={messages} profiles={profiles} userId={user.id} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
-    const ok = await submit("band_messages", { author_id: user.id, title: String(data.get("title")), body: String(data.get("body")), important: data.get("important") === "on" }, "Bandbericht geplaatst.");
-    if (ok) form.currentTarget.reset();
+    setBusy(true);
+    const supabase = getSupabaseClient()!;
+    const { data: createdMessage, error: createError } = await supabase.from("band_messages").insert({
+      author_id: user.id,
+      title: String(data.get("title")),
+      body: String(data.get("body")),
+      important: data.get("important") === "on",
+    }).select("id").single();
+    if (createError || !createdMessage) {
+      setBusy(false);
+      reportError("Opslaan is niet gelukt. Controleer de invoer en probeer opnieuw.");
+      return;
+    }
+    const { error: readError } = await supabase.from("message_reads").upsert(
+      { message_id: createdMessage.id, user_id: user.id },
+      { onConflict: "message_id,user_id" },
+    );
+    setBusy(false);
+    if (readError) {
+      reportError("Het bericht is geplaatst, maar de leesstatus kon niet worden opgeslagen.");
+      return;
+    }
+    notify("Bandbericht geplaatst.");
+    form.currentTarget.reset();
+    await load();
+    window.dispatchEvent(new Event("goodtimes:messages-changed"));
   }} onDelete={async (id) => {
     const { error } = await getSupabaseClient()!.from("band_messages").delete().eq("id", id);
     if (error) reportError("Het bericht kon niet worden verwijderd."); else { notify("Bericht verwijderd."); await load(); }

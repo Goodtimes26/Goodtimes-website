@@ -28,6 +28,17 @@ export function countUnreadMessages(messageIds: string[], readMessageIds: string
   return messageIds.filter((messageId) => !readIds.has(messageId)).length;
 }
 
+export function unreadMessageIds(
+  messages: Array<{ id: string; author_id: string }>,
+  readMessageIds: string[],
+  userId: string,
+) {
+  const readIds = new Set(readMessageIds);
+  return messages
+    .filter((message) => message.author_id !== userId && !readIds.has(message.id))
+    .map((message) => message.id);
+}
+
 export async function syncAppBadge(unreadCount: number) {
   if (typeof navigator === "undefined") return;
 

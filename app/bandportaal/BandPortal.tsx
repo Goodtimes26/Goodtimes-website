@@ -121,7 +121,7 @@ export function BandPortal() {
       supabase.from("profiles").select("id,display_name,email").order("display_name"),
       supabase.from("requests").select("*").order("event_date"),
       supabase.from("request_responses").select("id,request_id,user_id,status,note"),
-      supabase.from("events").select("id,event_date,start_time,end_time,location,description,notes,event_type").order("event_date"),
+      supabase.from("events").select("id,event_date,start_time,end_time,location,description,notes,event_type,is_public").order("event_date"),
       activeRole === "admin"
         ? supabase.from("user_roles").select("user_id,role")
         : Promise.resolve({ data: [{ user_id: activeUser.id, role: activeRole }], error: null }),
@@ -690,8 +690,7 @@ export function BandPortal() {
       <nav className="portal-mobile-nav" aria-label="Mobiele bandnavigatie">
         <button className={tab === "home" ? "active" : ""} onClick={() => setTab("home")}><span>⌂</span>Home</button>
         <button className={tab === "agenda" ? "active" : ""} onClick={() => setTab("agenda")}><span>□</span>Agenda</button>
-        <button className={tab === "setlists" ? "active" : ""} onClick={() => setTab("setlists")}><span>≡</span>Setlists</button>
-        <button className={tab === "rehearsals" ? "active" : ""} onClick={() => setTab("rehearsals")}><span>●</span>Repetities</button>
+        <button className={tab === "messages" ? "active" : ""} onClick={() => setTab("messages")}><span>●</span>Berichten</button>
         <button className={tab === "more" ? "active" : ""} onClick={() => setTab("more")}><span>•••</span>Meer</button>
       </nav>
     </main>
@@ -747,6 +746,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
   recentActivities: DashboardActivity[];
   setTab: (tab: PortalTab) => void;
 }) {
+  const [showAllUpdates, setShowAllUpdates] = useState(false);
   const today = toIsoDate(new Date());
   const nextEvent = events.filter((item) => item.event_type === "performance" && item.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
   const firstName = bandMemberFirstName(profile);
@@ -759,6 +759,10 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     rehearsal: { icon: "●", title: activity.id.startsWith("rehearsal-planning:") ? "Repetitieplanning aangepast" : activity.isNew ? "Repetitie toegevoegd" : "Repetitie gewijzigd", tab: "rehearsals" as PortalTab, className: "is-rehearsal" },
     performance: { icon: "□", title: activity.isNew ? "Optreden toegevoegd" : "Optreden gewijzigd", tab: "agenda" as PortalTab, className: "is-performance" },
   }[activity.kind]);
+  const openActivity = (activity: DashboardActivity) => setTab(activityPresentation(activity).tab);
+  const updateLabel = recentActivities.length === 1
+    ? activityPresentation(recentActivities[0]).title
+    : `${recentActivities.length} nieuwe updates`;
 
   return <div className="portal-section portal-dashboard">
     <div className="portal-dashboard-welcome">
@@ -771,29 +775,36 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
       <div className="portal-next-event-label"><span>Volgende optreden</span>{daysUntilEvent !== null && <b>{daysUntilEvent === 0 ? "Vandaag" : daysUntilEvent === 1 ? "Morgen" : `Nog ${daysUntilEvent} dagen`}</b>}</div>
       {nextEvent ? <button className="portal-next-event-content" onClick={() => setTab("agenda")}>
         <time>{formatDate(nextEvent.event_date)}</time>
-        <strong>{nextEvent.description || "GoodTimes live"}</strong>
+        <strong>{nextEvent.description || "GoodTimes live"}<em>{nextEvent.is_public ? "Openbaar" : "Besloten"}</em></strong>
         <span>{nextEvent.location || "Locatie volgt"}{nextEvent.start_time ? ` · ${nextEvent.start_time.slice(0, 5)} uur` : ""}</span>
       </button> : <p>Er staat nog geen optreden gepland.</p>}
     </article>
 
     {recentActivities.length > 0 && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
-      <div className="portal-dashboard-heading"><h2 id="portal-updates-title">Wat is er nieuw?</h2></div>
-      <div className="portal-update-list">
+      <button className="portal-update-summary" onClick={() => recentActivities.length === 1 ? openActivity(recentActivities[0]) : setShowAllUpdates((visible) => !visible)} aria-expanded={recentActivities.length > 1 ? showAllUpdates : undefined}>
+        <span className="portal-update-summary-icon" aria-hidden="true">✦</span>
+        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{updateLabel}</strong></span>
+        <b aria-hidden="true">{recentActivities.length > 1 ? (showAllUpdates ? "−" : "+") : "→"}</b>
+      </button>
+      {showAllUpdates && recentActivities.length > 1 && <div className="portal-update-list portal-update-overview">
         {recentActivities.map((activity) => {
           const presentation = activityPresentation(activity);
           const actor = activity.actorId ? profiles.find((candidate) => candidate.id === activity.actorId) : null;
           const meta = [activity.detail, activityAgeLabel(activity.updatedAt), actor ? `door ${bandMemberFirstName(actor)}` : null].filter(Boolean).join(" · ");
           return <button key={activity.id} onClick={() => setTab(presentation.tab)}><span className={`portal-update-icon ${presentation.className}`} aria-hidden="true">{presentation.icon}</span><span><strong>{presentation.title}</strong><small>{meta}</small></span><b aria-hidden="true">→</b></button>;
         })}
-      </div>
+      </div>}
     </section>}
 
     <section className="portal-dashboard-actions" aria-labelledby="portal-actions-title">
-      <div className="portal-dashboard-heading"><h2 id="portal-actions-title">Snel naar</h2></div>
+      <h2 className="portal-sr-only" id="portal-actions-title">Hoofdfuncties</h2>
       <div className="portal-dashboard-grid">
-        <button className="portal-dashboard-tile" onClick={() => setTab("availability")}><span className="portal-dashboard-icon" aria-hidden="true">✓</span><strong>Beschikbaarheid</strong><small>Kies een datum en check de band</small></button>
-        <button className="portal-dashboard-tile portal-dashboard-message" onClick={() => setTab("messages")}><span className="portal-dashboard-icon" aria-hidden="true">●</span><strong>Berichten</strong><small>{unreadMessageCount === 0 ? "Alles gelezen" : unreadMessageCount === 1 ? "1 ongelezen" : `${unreadMessageCount} ongelezen`}</small></button>
-        <button className="portal-dashboard-tile" onClick={() => setTab("songs")}><span className="portal-dashboard-icon" aria-hidden="true">80</span><strong>Repertoire</strong><small>Alle nummers bij elkaar</small></button>
+        <button className="portal-dashboard-tile tone-agenda" onClick={() => setTab("agenda")}><span className="portal-dashboard-icon" aria-hidden="true">□</span><strong>Agenda</strong><small>Alles op één plek</small></button>
+        <button className="portal-dashboard-tile tone-availability" onClick={() => setTab("availability")}><span className="portal-dashboard-icon" aria-hidden="true">✓</span><strong>Beschikbaarheid</strong><small>Check de band</small></button>
+        <button className="portal-dashboard-tile tone-setlists" onClick={() => setTab("setlists")}><span className="portal-dashboard-icon" aria-hidden="true">≡</span><strong>Setlists</strong><small>Sets en speelvolgorde</small></button>
+        <button className="portal-dashboard-tile tone-repertoire" onClick={() => setTab("songs")}><span className="portal-dashboard-icon" aria-hidden="true">80</span><strong>Repertoire</strong><small>Alle nummers</small></button>
+        <button className="portal-dashboard-tile tone-rehearsals" onClick={() => setTab("rehearsals")}><span className="portal-dashboard-icon" aria-hidden="true">●</span><strong>Repetities</strong><small>Planning en nummers</small></button>
+        <button className="portal-dashboard-tile tone-messages" onClick={() => setTab("messages")}><span className="portal-dashboard-icon" aria-hidden="true">✦</span><strong>Berichten</strong><small>{unreadMessageCount === 0 ? "Alles gelezen" : unreadMessageCount === 1 ? "1 ongelezen" : `${unreadMessageCount} ongelezen`}</small>{unreadMessageCount > 0 && <b className="portal-tile-badge" aria-label={`${unreadMessageCount} ongelezen berichten`}>{unreadMessageCount}</b>}</button>
       </div>
     </section>
   </div>;

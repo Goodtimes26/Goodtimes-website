@@ -35,10 +35,12 @@ import {
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
 import { PwaBadgePermission } from "./PwaBadgePermission";
 
-type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | BandAppTab;
+type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | "app-activity" | BandAppTab;
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
+type AppActivityRow = { user_id: string; last_active_at: string; last_login_at: string | null };
+const ONLINE_WINDOW_MS = 3 * 60 * 1_000;
 function isNewActivity(createdAt: string, updatedAt: string) {
   return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) < 5_000;
 }
@@ -88,6 +90,8 @@ export function BandPortal() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [recentActivities, setRecentActivities] = useState<DashboardActivity[]>([]);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
+  const [appActivity, setAppActivity] = useState<AppActivityRow[]>([]);
+  const [activityNow, setActivityNow] = useState(() => Date.now());
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [checkDate, setCheckDate] = useState(toIsoDate(new Date()));
   const [checkRows, setCheckRows] = useState<TeamAvailability[] | null>(null);
@@ -146,6 +150,15 @@ export function BandPortal() {
       ((result.data ?? []) as TeamAvailability[]).map((row) => ({ ...row, date: result.date })),
     ));
   }, [month]);
+
+  const loadAppActivity = useCallback(async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    const result = await supabase.from("app_activity").select("user_id,last_active_at,last_login_at").order("last_active_at", { ascending: false });
+    if (result.error) throw result.error;
+    setAppActivity((result.data ?? []) as AppActivityRow[]);
+    setActivityNow(Date.now());
+  }, []);
 
   const loadDashboardActivity = useCallback(async (activeUserId: string) => {
     const supabase = getSupabaseClient();
@@ -318,6 +331,50 @@ export function BandPortal() {
       void supabase.removeChannel(channel);
     };
   }, [loadDashboardActivity, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    let lastTouch = 0;
+    const touch = async (force = false) => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (!force && now - lastTouch < 60_000) return;
+      lastTouch = now;
+      await supabase.rpc("touch_app_activity");
+    };
+    const touchWhenVisible = () => { if (document.visibilityState === "visible") void touch(true); };
+    const touchFromUse = () => { void touch(false); };
+    void touch(true);
+    const timer = window.setInterval(() => { void touch(false); }, 120_000);
+    window.addEventListener("focus", touchWhenVisible);
+    window.addEventListener("pointerdown", touchFromUse, { passive: true });
+    window.addEventListener("keydown", touchFromUse);
+    document.addEventListener("visibilitychange", touchWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", touchWhenVisible);
+      window.removeEventListener("pointerdown", touchFromUse);
+      window.removeEventListener("keydown", touchFromUse);
+      document.removeEventListener("visibilitychange", touchWhenVisible);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!isAdmin || tab !== "app-activity") return;
+    const initialTimer = window.setTimeout(() => {
+      void loadAppActivity().catch(() => setError("De app-activiteit kon niet worden geladen. Controleer database-migratie 009."));
+    }, 0);
+    const timer = window.setInterval(() => {
+      setActivityNow(Date.now());
+      void loadAppActivity().catch(() => undefined);
+    }, 30_000);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(timer);
+    };
+  }, [isAdmin, loadAppActivity, tab]);
 
   async function refresh() {
     if (!user) return;
@@ -598,6 +655,8 @@ export function BandPortal() {
 
         {tab === "analytics" && isAdmin && <AnalyticsDashboard pageViews={pageViews} />}
 
+        {tab === "app-activity" && isAdmin && <AppActivityDashboard profiles={profiles} rows={appActivity} now={activityNow} />}
+
         {(["setlists", "songs", "rehearsals", "messages", "files", "profile"] as BandAppTab[]).includes(tab as BandAppTab) && (
           <BandAppModules
             tab={tab as BandAppTab}
@@ -622,6 +681,7 @@ export function BandPortal() {
               <button onClick={() => setTab("events")}><strong>Activiteiten</strong><span>Repetities en optredens beheren</span></button>
               {isAdmin && <button onClick={() => setTab("users")}><strong>Gebruikers</strong><span>Bandleden en rollen beheren</span></button>}
               {isAdmin && <button onClick={() => setTab("analytics")}><strong>Bezoekers</strong><span>Websitebezoek bekijken</span></button>}
+              {isAdmin && <button onClick={() => setTab("app-activity")}><strong>App-activiteit</strong><span>Bekijk wanneer bandleden actief zijn</span></button>}
             </div>
           </div>
         )}
@@ -636,6 +696,52 @@ export function BandPortal() {
       </nav>
     </main>
   );
+}
+
+function activityMomentLabel(value: string | null, now: number) {
+  if (!value) return "Nog nooit actief";
+  const moment = new Date(value);
+  const elapsed = Math.max(0, now - moment.getTime());
+  if (elapsed <= ONLINE_WINDOW_MS) return "Nu online";
+  const today = new Date(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const sameDate = (left: Date, right: Date) => left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+  const time = new Intl.DateTimeFormat("nl-NL", { hour: "2-digit", minute: "2-digit" }).format(moment);
+  if (sameDate(moment, today)) return `Vandaag, ${time}`;
+  if (sameDate(moment, yesterday)) return `Gisteren, ${time}`;
+  const days = Math.floor(elapsed / 86_400_000);
+  if (days < 7) return `${days} dagen geleden`;
+  return new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(moment);
+}
+
+function loginMomentLabel(value: string | null) {
+  if (!value) return "Niet beschikbaar";
+  return new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function AppActivityDashboard({ profiles, rows, now }: { profiles: Profile[]; rows: AppActivityRow[]; now: number }) {
+  const activeSince = now - 7 * 86_400_000;
+  const activeLastWeek = rows.filter((row) => new Date(row.last_active_at).getTime() >= activeSince).length;
+  const sortedProfiles = [...profiles].sort((left, right) => {
+    const leftTime = new Date(rows.find((row) => row.user_id === left.id)?.last_active_at ?? 0).getTime();
+    const rightTime = new Date(rows.find((row) => row.user_id === right.id)?.last_active_at ?? 0).getTime();
+    return rightTime - leftTime || bandMemberFirstName(left).localeCompare(bandMemberFirstName(right), "nl");
+  });
+  return <div className="portal-section portal-app-activity">
+    <div className="portal-section-head"><div><p className="portal-eyebrow">Beheerder</p><h1>App-activiteit</h1></div></div>
+    <div className="portal-activity-summary"><strong>{profiles.length}</strong><span>gebruikers</span><strong>{activeLastWeek}</strong><span>actief in de afgelopen 7 dagen</span></div>
+    <div className="portal-user-list">
+      {sortedProfiles.map((member) => {
+        const activity = rows.find((row) => row.user_id === member.id);
+        const status = activityMomentLabel(activity?.last_active_at ?? null, now);
+        return <article className="portal-user-card portal-activity-card" key={member.id}>
+          <div><strong>{bandMemberFirstName(member)}</strong><span className={status === "Nu online" ? "is-online" : ""}>{status}</span></div>
+          <small>Laatste inlog: {loginMomentLabel(activity?.last_login_at ?? null)}</small>
+        </article>;
+      })}
+    </div>
+  </div>;
 }
 
 function PortalDashboard({ profile, profiles, events, unreadMessageCount, recentActivities, setTab }: {

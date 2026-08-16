@@ -39,7 +39,7 @@ type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "m
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
-type AppActivityRow = { user_id: string; last_active_at: string; last_login_at: string | null };
+type AppActivityRow = { user_id: string; last_active_at: string };
 const ONLINE_WINDOW_MS = 3 * 60 * 1_000;
 function isNewActivity(createdAt: string, updatedAt: string) {
   return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) < 5_000;
@@ -154,7 +154,7 @@ export function BandPortal() {
   const loadAppActivity = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const result = await supabase.from("app_activity").select("user_id,last_active_at,last_login_at").order("last_active_at", { ascending: false });
+    const result = await supabase.from("app_activity").select("user_id,last_active_at").order("last_active_at", { ascending: false });
     if (result.error) throw result.error;
     setAppActivity((result.data ?? []) as AppActivityRow[]);
     setActivityNow(Date.now());
@@ -698,26 +698,20 @@ export function BandPortal() {
   );
 }
 
-function activityMomentLabel(value: string | null, now: number) {
+function lastActiveDetailLabel(value: string | null, now: number) {
   if (!value) return "Nog nooit actief";
   const moment = new Date(value);
   const elapsed = Math.max(0, now - moment.getTime());
-  if (elapsed <= ONLINE_WINDOW_MS) return "Nu online";
   const today = new Date(now);
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const sameDate = (left: Date, right: Date) => left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
   const time = new Intl.DateTimeFormat("nl-NL", { hour: "2-digit", minute: "2-digit" }).format(moment);
-  if (sameDate(moment, today)) return `Vandaag, ${time}`;
-  if (sameDate(moment, yesterday)) return `Gisteren, ${time}`;
+  if (sameDate(moment, today)) return `vandaag, ${time}`;
+  if (sameDate(moment, yesterday)) return `gisteren, ${time}`;
   const days = Math.floor(elapsed / 86_400_000);
-  if (days < 7) return `${days} dagen geleden`;
+  if (days < 7) return `${days} dagen geleden, ${time}`;
   return new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(moment);
-}
-
-function loginMomentLabel(value: string | null) {
-  if (!value) return "Niet beschikbaar";
-  return new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
 function AppActivityDashboard({ profiles, rows, now }: { profiles: Profile[]; rows: AppActivityRow[]; now: number }) {
@@ -734,10 +728,11 @@ function AppActivityDashboard({ profiles, rows, now }: { profiles: Profile[]; ro
     <div className="portal-user-list">
       {sortedProfiles.map((member) => {
         const activity = rows.find((row) => row.user_id === member.id);
-        const status = activityMomentLabel(activity?.last_active_at ?? null, now);
+        const lastActive = activity?.last_active_at ?? null;
+        const isOnline = lastActive !== null && now - new Date(lastActive).getTime() <= ONLINE_WINDOW_MS;
         return <article className="portal-user-card portal-activity-card" key={member.id}>
-          <div><strong>{bandMemberFirstName(member)}</strong><span className={status === "Nu online" ? "is-online" : ""}>{status}</span></div>
-          <small>Laatste inlog: {loginMomentLabel(activity?.last_login_at ?? null)}</small>
+          <div><strong>{bandMemberFirstName(member)}</strong>{isOnline && <span className="is-online">Nu online</span>}</div>
+          <small>{lastActive ? `Laatst actief: ${lastActiveDetailLabel(lastActive, now)}` : "Nog nooit actief"}</small>
         </article>;
       })}
     </div>

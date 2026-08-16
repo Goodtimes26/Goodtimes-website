@@ -16,6 +16,14 @@ test("activiteit wordt beperkt en zonder paginatracking bijgewerkt", () => {
   assert.doesNotMatch(migration, /last_page|page_path|route_name|click_count/i);
 });
 
+test("online-status en Laatst actief gebruiken dezelfde last_active_at registratie", () => {
+  assert.doesNotMatch(portal, /Laatste inlog|last_login_at/);
+  assert.match(portal, /const lastActive = activity\?\.last_active_at/);
+  assert.match(portal, /isOnline = lastActive !== null/);
+  assert.match(portal, /Laatst actief: \$\{lastActiveDetailLabel\(lastActive, now\)\}/);
+  assert.match(portal, /"Nog nooit actief"/);
+});
+
 test("RLS laat alleen beheerders activiteit lezen en touch werkt alleen voor auth uid", () => {
   assert.match(migration, /for select to authenticated\s+using \(public\.is_admin\(\)\)/s);
   assert.match(migration, /actor uuid := auth\.uid\(\)/);

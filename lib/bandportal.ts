@@ -74,6 +74,7 @@ export type BandEvent = {
   description: string;
   notes: string | null;
   event_type: EventType;
+  is_public: boolean;
 };
 
 export type PageView = {

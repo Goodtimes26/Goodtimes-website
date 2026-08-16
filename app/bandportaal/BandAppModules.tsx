@@ -5,15 +5,12 @@ import type { User } from "@supabase/supabase-js";
 import type { BandEvent, Profile } from "../../lib/bandportal";
 import { bandMemberFirstName, formatDate } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
+import { buildSongSyncPlan, fetchSetlistMakerSongs, type CentralSong } from "../../lib/setlistMakerSongs";
 import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
 
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
-type Song = {
-  id: string; title: string; artist: string | null; vocalist: string | null; musical_key: string | null;
-  bpm: number | null; duration_seconds: number | null; youtube_url: string | null; status: string;
-  score: number | null; notes: string | null; active: boolean;
-};
+type Song = CentralSong;
 type Setlist = { id: string; name: string; event_id: string | null; setlist_date: string | null; version: number; archived: boolean; updated_at: string; updated_by: string };
 type SetlistItem = { id: string; setlist_id: string; song_id: string; position: number };
 type Rehearsal = { id: string; event_id: string | null; name?: string | null; rehearsal_date?: string | null; status: string; general_notes: string | null };
@@ -64,11 +61,56 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile>(profile);
   const [busy, setBusy] = useState(false);
 
+  const loadAndSyncSongs = useCallback(async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return null;
+    const selection = "id,title,artist,vocalist,musical_key,bpm,duration_seconds,youtube_url,status,score,notes,active,source_order,category,source_system,source_id";
+    const currentResult = await supabase.from("songs").select(selection).order("source_order", { nullsFirst: false }).order("title");
+    if (currentResult.error) return null;
+    let currentSongs = (currentResult.data ?? []) as Song[];
+
+    try {
+      const sourceSongs = await fetchSetlistMakerSongs();
+      const plan = buildSongSyncPlan(currentSongs, sourceSongs);
+      const errors: unknown[] = [];
+
+      for (const update of plan.updates) {
+        const result = await supabase.from("songs").update(update.values).eq("id", update.id);
+        if (result.error) errors.push(result.error);
+      }
+      if (plan.inserts.length) {
+        const result = await supabase.from("songs").insert(plan.inserts.map((song) => ({ ...song, created_by: user.id })));
+        if (result.error) errors.push(result.error);
+      }
+      for (const id of plan.deactivateIds) {
+        const result = await supabase.from("songs").update({ active: false }).eq("id", id);
+        if (result.error) errors.push(result.error);
+      }
+
+      if (errors.length) console.error("[GoodTimes repertoire] Synchronisatie kon niet volledig worden opgeslagen", errors);
+      if (plan.updates.length || plan.inserts.length || plan.deactivateIds.length) {
+        const refreshed = await supabase.from("songs").select(selection).order("source_order", { nullsFirst: false }).order("title");
+        if (!refreshed.error) currentSongs = (refreshed.data ?? []) as Song[];
+      }
+      console.info("[GoodTimes repertoire] Gesynchroniseerd met Setlist Maker", {
+        sourceCount: sourceSongs.length,
+        inserted: plan.inserts.length,
+        updated: plan.updates.length,
+        deactivated: plan.deactivateIds.length,
+        duplicatesPrevented: plan.duplicatesPrevented,
+      });
+    } catch (error) {
+      console.warn("[GoodTimes repertoire] Setlist Maker tijdelijk niet bereikbaar; bestaande centrale nummers blijven zichtbaar", error);
+    }
+
+    return currentSongs;
+  }, [user.id]);
+
   const load = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const songProbe = await supabase.from("songs").select("id,title,artist,vocalist,musical_key,bpm,duration_seconds,youtube_url,status,score,notes,active").order("source_order", { nullsFirst: false }).order("title");
-    if (songProbe.error) {
+    const synchronizedSongs = await loadAndSyncSongs();
+    if (!synchronizedSongs) {
       setReady(false);
       return;
     }
@@ -85,7 +127,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       setReady(false);
       return;
     }
-    setSongs((songProbe.data ?? []) as Song[]);
+    setSongs(synchronizedSongs);
     setSetlists((setlistResult.data ?? []) as Setlist[]);
     setSetlistItems((setlistItemsResult.data ?? []) as SetlistItem[]);
     setRehearsals((rehearsalResult.data ?? []) as Rehearsal[]);
@@ -100,12 +142,29 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setAudioUrls(Object.fromEntries(signedAudio.filter((entry): entry is readonly [string, string] => Boolean(entry))));
     if (!profileResult.error) setExtendedProfile(profileResult.data as ExtendedProfile);
     setReady(true);
-  }, [user.id]);
+  }, [loadAndSyncSongs, user.id]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    if (ready !== true) return;
+    const synchronize = async () => {
+      const synchronizedSongs = await loadAndSyncSongs();
+      if (synchronizedSongs) setSongs(synchronizedSongs);
+    };
+    const synchronizeWhenVisible = () => { if (document.visibilityState === "visible") void synchronize(); };
+    const timer = window.setInterval(() => { void synchronize(); }, 30_000);
+    window.addEventListener("focus", synchronize);
+    document.addEventListener("visibilitychange", synchronizeWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", synchronize);
+      document.removeEventListener("visibilitychange", synchronizeWhenVisible);
+    };
+  }, [loadAndSyncSongs, ready]);
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -205,7 +264,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   if (ready === null) return <div className="portal-loading-inline"><div className="portal-loader" />Bandgegevens laden…</div>;
   if (!ready) return <MissingMigration />;
 
-  if (tab === "songs") return <SongsPanel songs={songs} busy={busy} isAdmin={isAdmin} onImport={async (file) => {
+  if (tab === "songs") return <SongsPanel songs={songs.filter((song) => song.active)} busy={busy} isAdmin={isAdmin} onImport={async (file) => {
     setBusy(true);
     try {
       const payload = JSON.parse(await file.text()) as Record<string, unknown>;

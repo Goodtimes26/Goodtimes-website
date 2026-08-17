@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { GoodTimesSite, type PageKey } from "./site";
 import { createBreadcrumbJsonLd, createMetadata, createWebPageJsonLd, getSeoEntry, pageSeo, siteUrl } from "./seo";
 import type { Locale } from "./i18n";
+import { createPublicEventJsonLd } from "./event-schema";
 
 export const localizedPages: PageKey[] = ["over-de-band", "repertoire", "agenda", "media", "techniek-productie", "contact", "80s-coverband-boeken", "coverband-brabant", "coverband-bedrijfsfeest"];
 export const germanLocalizedPages: PageKey[] = [...localizedPages, "80er-jahre-coverband-nrw"];
@@ -45,16 +46,7 @@ export function LocalizedPage({ locale, slug }: { locale: Locale; slug: string }
   const entry = getSeoEntry(key, locale);
   const breadcrumb = createBreadcrumbJsonLd(slug, locale);
   const webPage = createWebPageJsonLd(entry, locale);
-  const event = slug === "agenda" ? {
-    "@context": "https://schema.org", "@type": "Event", name: "GoodTimes live in Café-Zaal De Gouwe Leeuw",
-    startDate: "2026-10-10T20:30:00+02:00", endDate: "2026-10-11T00:00:00+02:00",
-    eventStatus: "https://schema.org/EventScheduled", eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-    url: `${siteUrl}${entry.path}`, image: `${siteUrl}/goodtimes-group-hero.jpeg`,
-    description: locale === "de" ? "Ein Abend voller bekannter Hits aus den 80ern." : locale === "en" ? "A night packed with familiar hits from the 80s." : "Een avond vol herkenbare hits uit de jaren 80.",
-    location: { "@type": "Place", name: "Café-Zaal De Gouwe Leeuw", address: { "@type": "PostalAddress", addressLocality: "Venray", addressCountry: "NL" } },
-    performer: { "@type": "MusicGroup", "@id": `${siteUrl}/#goodtimes`, name: "GoodTimes", url: siteUrl },
-    offers: { "@type": "Offer", price: 0, priceCurrency: "EUR", availability: "https://schema.org/InStock" }, organizer: { "@id": `${siteUrl}/#goodtimes` },
-  } : null;
+  const event = slug === "agenda" ? createPublicEventJsonLd(locale) : null;
   const service = slug === "80er-jahre-coverband-nrw" ? {
     "@context": "https://schema.org",
     "@type": "Service",

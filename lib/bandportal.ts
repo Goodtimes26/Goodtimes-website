@@ -77,6 +77,10 @@ export type BandEvent = {
   is_public: boolean;
 };
 
+export function eventVisibilityLabel(event: Pick<BandEvent, "is_public">) {
+  return event.is_public ? "Openbaar" : "Besloten";
+}
+
 export type PageView = {
   id: number;
   path: string;

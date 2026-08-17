@@ -250,7 +250,7 @@ function Agenda() {
           <p className="eyebrow">GoodTimes live</p>
           <h2>Café-Zaal De Gouwe Leeuw</h2>
           <p className="agenda-location">Venray</p>
-          <p className="agenda-time">Aanvang 20:30 uur</p>
+          <p className="agenda-time">Aanvang 20:30 uur · Gratis toegang · Eindtijd 00:00 uur</p>
           <p className="agenda-description">Een avond vol herkenbare hits uit de jaren 80.</p>
           <Link className="text-link agenda-contact-link" href="/contact">Vraag naar beschikbaarheid <Arrow /></Link>
         </div>

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GoodTimesSite, type PageKey } from "../site";
-import { createBreadcrumbJsonLd, createMetadata, createWebPageJsonLd, pageSeo, siteUrl } from "../seo";
+import { createBreadcrumbJsonLd, createMetadata, createWebPageJsonLd, pageSeo } from "../seo";
+import { createPublicEventJsonLd } from "../event-schema";
 
 const pages: PageKey[] = ["over-de-band", "repertoire", "agenda", "media", "fotos-videos", "techniek-productie", "contact", "80s-coverband-boeken", "coverband-brabant", "coverband-bedrijfsfeest"];
 
@@ -27,40 +28,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const seoKey = slug === "fotos-videos" ? "media" : slug;
   const seoEntry = pageSeo[seoKey as keyof typeof pageSeo];
   const webPageJsonLd = seoEntry ? createWebPageJsonLd(seoEntry) : null;
-  const eventJsonLd = slug === "agenda" ? {
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "GoodTimes live in Café-Zaal De Gouwe Leeuw",
-    startDate: "2026-10-10T20:30:00+02:00",
-    endDate: "2026-10-11T00:00:00+02:00",
-    eventStatus: "https://schema.org/EventScheduled",
-    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-    url: `${siteUrl}/agenda/`,
-    image: `${siteUrl}/goodtimes-group-hero.jpeg`,
-    description: "Een avond vol herkenbare hits uit de jaren 80.",
-    location: {
-      "@type": "Place",
-      name: "Café-Zaal De Gouwe Leeuw",
-      address: {
-        "@type": "PostalAddress",
-        addressLocality: "Venray",
-        addressCountry: "NL",
-      },
-    },
-    performer: {
-      "@type": "MusicGroup",
-      "@id": `${siteUrl}/#goodtimes`,
-      name: "GoodTimes",
-      url: siteUrl,
-    },
-    offers: {
-      "@type": "Offer",
-      price: 0,
-      priceCurrency: "EUR",
-      availability: "https://schema.org/InStock",
-    },
-    organizer: { "@id": `${siteUrl}/#goodtimes` },
-  } : null;
+  const eventJsonLd = slug === "agenda" ? createPublicEventJsonLd("nl") : null;
   return <>
     {breadcrumbJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />}
     {webPageJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />}

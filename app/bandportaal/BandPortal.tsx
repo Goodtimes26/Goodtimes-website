@@ -8,6 +8,7 @@ import {
   availabilityLabels,
   bandMemberFirstName,
   eventLabels,
+  eventVisibilityLabel,
   formatDate,
   requestLabels,
   responseLabels,
@@ -35,7 +36,7 @@ import {
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
 import { PwaBadgePermission } from "./PwaBadgePermission";
 
-type PortalTab = "home" | "agenda" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | "app-activity" | BandAppTab;
+type PortalTab = "home" | "agenda" | "agenda-admin" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | "app-activity" | BandAppTab;
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
@@ -96,6 +97,7 @@ export function BandPortal() {
   const [checkDate, setCheckDate] = useState(toIsoDate(new Date()));
   const [checkRows, setCheckRows] = useState<TeamAvailability[] | null>(null);
   const [editingRequest, setEditingRequest] = useState<BookingRequest | null>(null);
+  const [editingEvent, setEditingEvent] = useState<BandEvent | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -463,6 +465,7 @@ export function BandPortal() {
       description: String(form.get("description")),
       notes: String(form.get("notes") || "") || null,
       event_type: String(form.get("event_type")) as EventType,
+      is_public: form.get("is_public") === "true",
       created_by: user.id,
     });
     if (eventError) setError("De activiteit kon niet worden opgeslagen.");
@@ -471,6 +474,30 @@ export function BandPortal() {
       setMessage("De activiteit is toegevoegd.");
       await refresh();
     }
+  }
+
+  async function updateEvent(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingEvent || !isAdmin) return;
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      event_date: String(form.get("event_date")),
+      start_time: String(form.get("start_time") || "") || null,
+      end_time: String(form.get("end_time") || "") || null,
+      location: String(form.get("location") || "") || null,
+      description: String(form.get("description")),
+      notes: String(form.get("notes") || "") || null,
+      event_type: String(form.get("event_type")) as EventType,
+      is_public: form.get("is_public") === "true",
+    };
+    const { error: eventError } = await getSupabaseClient()!.from("events").update(payload).eq("id", editingEvent.id);
+    if (eventError) {
+      setError("De agenda-afspraak kon niet worden opgeslagen.");
+      return;
+    }
+    setEditingEvent(null);
+    setMessage("De agenda-afspraak is bijgewerkt.");
+    await Promise.all([refresh(), user ? loadDashboardActivity(user.id) : Promise.resolve()]);
   }
 
   async function deleteEvent(id: string) {
@@ -657,6 +684,16 @@ export function BandPortal() {
 
         {tab === "app-activity" && isAdmin && <AppActivityDashboard profiles={profiles} rows={appActivity} now={activityNow} />}
 
+        {tab === "agenda-admin" && isAdmin && (
+          <AgendaAdmin
+            events={events}
+            editingEvent={editingEvent}
+            onEdit={setEditingEvent}
+            onCancel={() => setEditingEvent(null)}
+            onSubmit={updateEvent}
+          />
+        )}
+
         {(["setlists", "songs", "rehearsals", "messages", "files", "profile"] as BandAppTab[]).includes(tab as BandAppTab) && (
           <BandAppModules
             tab={tab as BandAppTab}
@@ -679,6 +716,7 @@ export function BandPortal() {
               <button onClick={() => setTab("songs")}><strong>Repertoire</strong><span>Nummers, notities en oefenstatus</span></button>
               <button onClick={() => setTab("files")}><strong>Bestanden & audio</strong><span>Documenten, links en oefenopnames</span></button>
               <button onClick={() => setTab("events")}><strong>Activiteiten</strong><span>Repetities en optredens beheren</span></button>
+              {isAdmin && <button onClick={() => { setEditingEvent(null); setTab("agenda-admin"); }}><strong>Agenda bewerken</strong><span>Bestaande afspraken aanpassen</span></button>}
               {isAdmin && <button onClick={() => setTab("users")}><strong>Gebruikers</strong><span>Bandleden en rollen beheren</span></button>}
               {isAdmin && <button onClick={() => setTab("analytics")}><strong>Bezoekers</strong><span>Websitebezoek bekijken</span></button>}
               {isAdmin && <button onClick={() => setTab("app-activity")}><strong>App-activiteit</strong><span>Bekijk wanneer bandleden actief zijn</span></button>}
@@ -775,7 +813,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
       <div className="portal-next-event-label"><span>Volgende optreden</span>{daysUntilEvent !== null && <b>{daysUntilEvent === 0 ? "Vandaag" : daysUntilEvent === 1 ? "Morgen" : `Nog ${daysUntilEvent} dagen`}</b>}</div>
       {nextEvent ? <button className="portal-next-event-content" onClick={() => setTab("agenda")}>
         <time>{formatDate(nextEvent.event_date)}</time>
-        <strong>{nextEvent.description || "GoodTimes live"}<em>{nextEvent.is_public ? "Openbaar" : "Besloten"}</em></strong>
+        <strong>{nextEvent.description || "GoodTimes live"}<em>{eventVisibilityLabel(nextEvent)}</em></strong>
         <span>{nextEvent.location || "Locatie volgt"}{nextEvent.start_time ? ` · ${nextEvent.start_time.slice(0, 5)} uur` : ""}</span>
       </button> : <p>Er staat nog geen optreden gepland.</p>}
     </article>
@@ -885,7 +923,40 @@ function EventForm({ onSubmit }: { onSubmit: (event: React.FormEvent<HTMLFormEle
     <label>Type<select name="event_type">{Object.entries(eventLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
     <label>Datum<input name="event_date" type="date" required /></label>
     <div className="portal-field-row"><label>Begintijd<input name="start_time" type="time" /></label><label>Eindtijd<input name="end_time" type="time" /></label></div>
-    <label>Locatie<input name="location" /></label><label>Omschrijving<input name="description" required /></label><label>Opmerkingen<textarea name="notes" /></label>
+    <label>Locatie<input name="location" /></label><label>Omschrijving<input name="description" required /></label><label>Zichtbaarheid<select name="is_public" defaultValue="false"><option value="false">Besloten</option><option value="true">Openbaar</option></select></label><label>Opmerkingen<textarea name="notes" /></label>
     <button className="portal-primary" type="submit">Activiteit toevoegen</button>
   </form></div>;
+}
+
+function AgendaAdmin({ events, editingEvent, onEdit, onCancel, onSubmit }: {
+  events: BandEvent[];
+  editingEvent: BandEvent | null;
+  onEdit: (event: BandEvent) => void;
+  onCancel: () => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  const sortedEvents = [...events].sort((left, right) => `${left.event_date}T${left.start_time ?? "00:00"}`.localeCompare(`${right.event_date}T${right.start_time ?? "00:00"}`));
+  return <div className="portal-section portal-agenda-admin">
+    <div className="portal-section-head"><div><p className="portal-eyebrow">Beheerder</p><h1>Agenda bewerken</h1></div></div>
+    {editingEvent && <form className="portal-form portal-card portal-agenda-edit-form" onSubmit={onSubmit} key={editingEvent.id}>
+      <h2>{editingEvent.description}</h2>
+      <label>Titel / omschrijving<input name="description" defaultValue={editingEvent.description} required maxLength={240} /></label>
+      <div className="portal-field-row"><label>Datum<input name="event_date" type="date" defaultValue={editingEvent.event_date} required /></label><label>Locatie<input name="location" defaultValue={editingEvent.location ?? ""} /></label></div>
+      <div className="portal-field-row"><label>Begintijd<input name="start_time" type="time" defaultValue={editingEvent.start_time?.slice(0, 5) ?? ""} /></label><label>Eindtijd<input name="end_time" type="time" defaultValue={editingEvent.end_time?.slice(0, 5) ?? ""} /></label></div>
+      <div className="portal-field-row"><label>Type afspraak<select name="event_type" defaultValue={editingEvent.event_type}>{Object.entries(eventLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Zichtbaarheid<select name="is_public" defaultValue={String(editingEvent.is_public)}><option value="true">Openbaar</option><option value="false">Besloten</option></select></label></div>
+      <label>Aanvullende informatie / opmerking<textarea name="notes" defaultValue={editingEvent.notes ?? ""} maxLength={2000} /></label>
+      <div className="portal-form-actions"><button className="portal-primary" type="submit">Wijzigingen opslaan</button><button type="button" onClick={onCancel}>Annuleren</button></div>
+    </form>}
+    <div className="portal-agenda-admin-list">
+      {sortedEvents.map((item) => <article className={`portal-event-card event-${item.event_type}`} key={item.id}>
+        <div className="portal-card-head"><span>{eventLabels[item.event_type]}</span><time>{formatDate(item.event_date)}</time></div>
+        <h2>{item.description}</h2>
+        <p>{[item.start_time?.slice(0, 5), item.end_time ? `tot ${item.end_time.slice(0, 5)}` : null, item.location].filter(Boolean).join(" · ") || "Tijd en locatie niet ingevuld"}</p>
+        <span className={`portal-visibility-badge ${item.is_public ? "is-public" : "is-private"}`}>{eventVisibilityLabel(item)}</span>
+        {item.notes && <p className="portal-card-note">{item.notes}</p>}
+        <div className="portal-card-actions"><button type="button" onClick={() => { onEdit(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Bewerken</button></div>
+      </article>)}
+      {!sortedEvents.length && <div className="portal-empty">Er zijn nog geen agenda-items.</div>}
+    </div>
+  </div>;
 }

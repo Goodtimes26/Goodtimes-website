@@ -4,12 +4,20 @@ import test from "node:test";
 
 const portal = readFileSync(new URL("../app/bandportaal/BandPortal.tsx", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/012_band_activity_details.sql", import.meta.url), "utf8");
+const triggerFix = readFileSync(new URL("../supabase/migrations/014_fix_band_activity_event_type.sql", import.meta.url), "utf8");
 
 test("activiteitenlog bewaart oude en nieuwe waarden zonder bestaande data te wijzigen", () => {
   assert.match(migration, /old_data jsonb/);
   assert.match(migration, /new_data jsonb not null/);
   assert.match(migration, /after insert or update/);
   assert.doesNotMatch(migration, /delete from|truncate/i);
+});
+
+test("generieke activity-trigger leest event_type niet rechtstreeks uit NEW", () => {
+  assert.doesNotMatch(triggerFix, /new\.event_type/i);
+  assert.match(triggerFix, /payload->>'event_type' is distinct from 'performance'/);
+  assert.match(triggerFix, /when 'band_messages' then 'message'/);
+  assert.match(triggerFix, /create or replace function public\.log_band_activity/);
 });
 
 test("Wat is er nieuw toont titel, wijzigingsregels en ondersteunt alle gevraagde typen", () => {

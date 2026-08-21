@@ -395,13 +395,38 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     const removedSongIds = currentSongIds.filter((id) => !songIds.includes(id));
     const addedSongIds = songIds.filter((id) => !currentSongIds.includes(id));
     const rehearsalResult = await supabase.from("rehearsals").update({ status, general_notes: notes || null }).eq("id", rehearsal.id);
+    if (rehearsalResult.error) {
+      setBusy(false);
+      console.error("[GoodTimes repetities] Repetitiegegevens bijwerken mislukt", rehearsalResult.error);
+      reportError("De repetitiegegevens konden niet worden bijgewerkt.");
+      return false;
+    }
     const eventResult = rehearsal.event_id
       ? await supabase.from("events").update({ event_date: date }).eq("id", rehearsal.event_id)
       : await supabase.from("rehearsals").update({ rehearsal_date: date }).eq("id", rehearsal.id);
-    const removeResult = removedSongIds.length ? await supabase.from("rehearsal_songs").delete().eq("rehearsal_id", rehearsal.id).in("song_id", removedSongIds) : { error: null };
+    if (eventResult.error) {
+      setBusy(false);
+      console.error("[GoodTimes repetities] Datum bijwerken mislukt", eventResult.error);
+      reportError("De repetitiedatum kon niet worden bijgewerkt.");
+      await load();
+      return false;
+    }
     const addResult = addedSongIds.length ? await supabase.from("rehearsal_songs").insert(addedSongIds.map((songId) => ({ rehearsal_id: rehearsal.id, song_id: songId, priority: 3, status: "new" }))) : { error: null };
+    if (addResult.error) {
+      setBusy(false);
+      console.error("[GoodTimes repetities] Nummers toevoegen mislukt", addResult.error);
+      reportError("De nieuwe nummers konden niet aan de repetitie worden toegevoegd. Bestaande koppelingen zijn behouden.");
+      await load();
+      return false;
+    }
+    const removeResult = removedSongIds.length ? await supabase.from("rehearsal_songs").delete().eq("rehearsal_id", rehearsal.id).in("song_id", removedSongIds) : { error: null };
     setBusy(false);
-    if (rehearsalResult.error || eventResult.error || removeResult.error || addResult.error) { reportError("De repetitie kon niet volledig worden bijgewerkt."); return false; }
+    if (removeResult.error) {
+      console.error("[GoodTimes repetities] Nummers verwijderen mislukt", removeResult.error);
+      reportError("Niet alle gekozen nummers konden uit de repetitie worden verwijderd. Repertoire-items zijn behouden.");
+      await load();
+      return false;
+    }
     notify("Repetitie bijgewerkt."); await load(); return true;
   }} onDelete={async (rehearsal) => {
     if (!isAdmin) return false;
@@ -440,12 +465,13 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setBusy(false);
     messageSubmitBusy.current = false;
     if (readError) {
+      console.error("[GoodTimes berichten] Bericht opgeslagen, leesstatus opslaan mislukt", readError);
       reportError("Het bericht is geplaatst, maar de leesstatus kon niet worden opgeslagen.");
-      return;
     }
-    notify("Bandbericht geplaatst.");
+    if (!readError) notify("Bandbericht geplaatst.");
     formElement.reset();
     await load();
+    formElement.closest("details")?.removeAttribute("open");
     window.dispatchEvent(new Event("goodtimes:messages-changed"));
   }} onUpdate={async (message, title, body, important) => {
     setBusy(true);

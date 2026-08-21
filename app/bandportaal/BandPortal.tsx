@@ -211,9 +211,15 @@ export function BandPortal() {
       (messageReadsResult.data ?? []).map((row) => row.message_id),
       activeUserId,
     ));
+    setUnreadMessageCount(unreadIds.size);
+    void syncAppBadge(unreadIds.size);
+    const existingMessageIds = new Set((messageResult.data ?? []).map((row) => row.id));
     const candidates: DashboardActivity[] = [];
     if (!activityLogResult.error) {
-      for (const row of (activityLogResult.data ?? []) as ActivityLogRow[]) candidates.push({ id: `${row.entity_type}:${row.entity_id}`, entityKey: `${row.entity_type}:${row.entity_id}`, kind: row.entity_type, detail: row.title, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created", changes: activityChanges(row) });
+      for (const row of (activityLogResult.data ?? []) as ActivityLogRow[]) {
+        if (row.entity_type === "message" && !existingMessageIds.has(row.entity_id)) continue;
+        candidates.push({ id: `${row.entity_type}:${row.entity_id}`, entityKey: `${row.entity_type}:${row.entity_id}`, kind: row.entity_type, detail: row.title, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created", changes: activityChanges(row) });
+      }
       setRecentActivities(deduplicateDashboardActivities(candidates));
       return;
     }
@@ -873,7 +879,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     }, 120);
   };
   const latestActivity = recentActivities[0] ?? null;
-  const hasNewActivities = unreadMessageCount > 0 || recentActivities.some((activity) => !activitySeenAt || new Date(activity.updatedAt).getTime() > new Date(activitySeenAt).getTime());
+  const hasNewActivities = unreadMessageCount > 0 || recentActivities.some((activity) => activity.kind === "message" || !activitySeenAt || new Date(activity.updatedAt).getTime() > new Date(activitySeenAt).getTime());
   const toggleActivityOverview = () => {
     setShowActivityOverview((visible) => !visible);
     if (!showActivityOverview) {

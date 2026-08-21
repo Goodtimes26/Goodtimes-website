@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const modules = readFileSync(new URL("../app/bandportaal/BandAppModules.tsx", import.meta.url), "utf8");
+const insertPolicy = readFileSync(new URL("../supabase/migrations/013_band_messages_insert_policy.sql", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/011_band_message_read_receipts.sql", import.meta.url), "utf8");
 
 test("berichten gebruiken per gebruiker een expliciete leesstatus", () => {
@@ -32,6 +33,13 @@ test("snelle dubbele inzending wordt geblokkeerd en het formulier wordt gewist",
   assert.match(modules, /formElement\.closest\("details"\)\?\.removeAttribute\("open"\)/);
   assert.match(modules, /Het bericht is geplaatst, maar de leesstatus kon niet worden opgeslagen/);
   assert.match(modules, /await load\(\);\s*formElement\.closest/);
+});
+
+test("bericht-insert gebruikt auth.uid en toont de echte Supabase-fout", () => {
+  assert.doesNotMatch(modules, /from\("band_messages"\)\.insert\(\{\s*author_id:/);
+  assert.match(modules, /Bericht plaatsen is mislukt: \$\{details\}/);
+  assert.match(insertPolicy, /for insert[\s\S]*public\.is_band_member\(auth\.uid\(\)\)[\s\S]*author_id = auth\.uid\(\)/);
+  assert.match(insertPolicy, /grant select, insert on public\.band_messages to authenticated/);
 });
 
 test("RLS deelt leesbevestigingen maar laat alleen eigen status schrijven", () => {

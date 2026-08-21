@@ -673,7 +673,7 @@ export function BandPortal() {
               <h1>Repetities & optredens</h1>
               <div className="portal-event-list">
                 {events.map((item) => (
-                  <article className={`portal-event-card event-${item.event_type}`} key={item.id}>
+                  <article className={`portal-event-card event-${item.event_type}`} data-portal-entity-id={`${item.event_type === "performance" ? "performance" : item.event_type}:${item.id}`} key={item.id}>
                     <span>{eventLabels[item.event_type]}</span><time>{formatDate(item.event_date)}</time>
                     <h2>{item.description}</h2>
                     <p>{[item.start_time?.slice(0, 5), item.end_time?.slice(0, 5), item.location].filter(Boolean).join(" · ")}</p>
@@ -806,6 +806,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
   recentActivities: DashboardActivity[];
   setTab: (tab: PortalTab) => void;
 }) {
+  const [showActivityOverview, setShowActivityOverview] = useState(false);
   const today = toIsoDate(new Date());
   const nextEvent = events.filter((item) => item.event_type === "performance" && item.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
   const firstName = bandMemberFirstName(profile);
@@ -821,11 +822,13 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     song: { icon: "80", title: activity.isNew ? "Nieuw repertoirenummer" : "Repertoire gewijzigd", tab: "songs" as PortalTab, className: "is-song" },
   }[activity.kind]);
   const openActivity = (activity: DashboardActivity) => {
+    window.sessionStorage.setItem("goodtimes:activity-target", JSON.stringify({ id: activity.id, title: activity.detail }));
     setTab(activityPresentation(activity).tab);
     window.setTimeout(() => {
       const target = document.querySelector<HTMLElement>(`[data-portal-entity-id="${CSS.escape(activity.id)}"]`) ?? [...document.querySelectorAll<HTMLElement>("article h2")].find((heading) => heading.textContent?.trim() === activity.detail)?.closest<HTMLElement>("article");
       target?.scrollIntoView({ behavior: "smooth", block: "center" });
       target?.classList.add("is-activity-target");
+      if (target) window.sessionStorage.removeItem("goodtimes:activity-target");
     }, 120);
   };
   const latestActivity = recentActivities[0] ?? null;
@@ -839,20 +842,21 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
 
     <article className="portal-card portal-next-event">
       <div className="portal-next-event-label"><span>Volgende optreden</span>{daysUntilEvent !== null && <b>{daysUntilEvent === 0 ? "Vandaag" : daysUntilEvent === 1 ? "Morgen" : `Nog ${daysUntilEvent} dagen`}</b>}</div>
-      {nextEvent ? <button className="portal-next-event-content" onClick={() => setTab("agenda")}>
+      {nextEvent ? <button className="portal-next-event-content" onClick={() => openActivity({ id: `performance:${nextEvent.id}`, entityKey: `performance:${nextEvent.id}`, kind: "performance", detail: nextEvent.description || "GoodTimes live", updatedAt: `${nextEvent.event_date}T${nextEvent.start_time ?? "00:00"}`, actorId: null, isNew: false })}>
         <time>{formatDate(nextEvent.event_date)}</time>
         <strong>{nextEvent.description || "GoodTimes live"}<em>{eventVisibilityLabel(nextEvent)}</em></strong>
         <span>{nextEvent.location || "Locatie volgt"}{nextEvent.start_time ? ` · ${nextEvent.start_time.slice(0, 5)} uur` : ""}</span>
       </button> : <p>Er staat nog geen optreden gepland.</p>}
     </article>
 
-    {latestActivity && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
-      <button className="portal-update-summary" onClick={() => openActivity(latestActivity)}>
+    <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
+      <button className="portal-update-summary" onClick={() => setShowActivityOverview((visible) => !visible)} aria-expanded={showActivityOverview}>
         <span className="portal-update-summary-icon" aria-hidden="true">✦</span>
-        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{activityPresentation(latestActivity).title}</strong><em>{latestActivity.detail}</em>{latestActivity.changes?.map((change) => <small key={change}>{change}</small>)}<small>{[activityAgeLabel(latestActivity.updatedAt), latestActivity.actorId ? `door ${bandMemberFirstName(profiles.find((candidate) => candidate.id === latestActivity.actorId) ?? profile)}` : null].filter(Boolean).join(" · ")}</small></span>
-        <b aria-hidden="true">→</b>
+        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{latestActivity ? activityPresentation(latestActivity).title : "Bekijk recente activiteiten"}</strong>{latestActivity && <em>{latestActivity.detail}</em>}{latestActivity && latestActivity.changes?.map((change) => <small key={change}>{change}</small>)}{latestActivity && <small>{activityAgeLabel(latestActivity.updatedAt)}</small>}</span>
+        <b aria-hidden="true">{showActivityOverview ? "−" : "+"}</b>
       </button>
-    </section>}
+      {showActivityOverview && <div className="portal-update-list portal-update-overview">{recentActivities.map((activity) => { const presentation = activityPresentation(activity); const actor = activity.actorId ? profiles.find((candidate) => candidate.id === activity.actorId) : null; return <button key={activity.id} onClick={() => openActivity(activity)}><span className={`portal-update-icon ${presentation.className}`} aria-hidden="true">{presentation.icon}</span><span><strong>{presentation.title}</strong><em>{activity.detail}</em>{activity.changes?.map((change) => <small key={change}>{change}</small>)}<small>{[activityAgeLabel(activity.updatedAt), actor ? `door ${bandMemberFirstName(actor)}` : null].filter(Boolean).join(" · ")}</small></span><b aria-hidden="true">→</b></button>; })}{!recentActivities.length && <p className="portal-dashboard-empty">Er zijn nog geen nieuwe wijzigingen sinds de activiteitenregistratie is gestart.</p>}</div>}
+    </section>
 
     <section className="portal-dashboard-actions" aria-labelledby="portal-actions-title">
       <h2 className="portal-sr-only" id="portal-actions-title">Hoofdfuncties</h2>
@@ -969,7 +973,7 @@ function AgendaAdmin({ events, editingEvent, onEdit, onCancel, onSubmit, onDelet
       <div className="portal-form-actions"><button className="portal-primary" type="submit">Wijzigingen opslaan</button><button type="button" onClick={onCancel}>Annuleren</button></div>
     </form>}
     <div className="portal-agenda-admin-list">
-      {sortedEvents.map((item) => <article className={`portal-event-card event-${item.event_type}`} key={item.id}>
+      {sortedEvents.map((item) => <article className={`portal-event-card event-${item.event_type}`} data-portal-entity-id={`${item.event_type === "performance" ? "performance" : item.event_type}:${item.id}`} key={item.id}>
         <div className="portal-card-head"><span>{eventLabels[item.event_type]}</span><time>{formatDate(item.event_date)}</time></div>
         <h2>{item.description}</h2>
         <p>{[item.start_time?.slice(0, 5), item.end_time ? `tot ${item.end_time.slice(0, 5)}` : null, item.location].filter(Boolean).join(" · ") || "Tijd en locatie niet ingevuld"}</p>

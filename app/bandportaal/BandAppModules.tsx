@@ -64,6 +64,44 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const [busy, setBusy] = useState(false);
   const messageSubmitBusy = useRef(false);
 
+  useEffect(() => {
+    if (ready !== true) return;
+    const storedTarget = window.sessionStorage.getItem("goodtimes:activity-target");
+    if (!storedTarget) return;
+
+    const timer = window.setTimeout(() => {
+      try {
+        const activity = JSON.parse(storedTarget) as { id?: string; title?: string };
+        if (!activity.id) return;
+        const [kind, entityId] = activity.id.split(":", 2);
+        const collections: Partial<Record<string, { selector: string; ids: string[] }>> = {
+          message: { selector: ".portal-message-card", ids: messages.map((item) => item.id) },
+          setlist: { selector: ".portal-setlist-list article", ids: setlists.map((item) => item.id) },
+          rehearsal: { selector: ".portal-rehearsal-list article", ids: rehearsals.map((item) => item.id) },
+          file: { selector: ".portal-file-grid article", ids: files.map((item) => item.id) },
+          song: { selector: ".portal-song-list article", ids: songs.map((item) => item.id) },
+        };
+        const collection = collections[kind];
+        const collectionIndex = collection?.ids.indexOf(entityId) ?? -1;
+        const byIndex = collection && collectionIndex >= 0
+          ? document.querySelectorAll<HTMLElement>(collection.selector)[collectionIndex]
+          : null;
+        const target = document.querySelector<HTMLElement>(`[data-portal-entity-id="${CSS.escape(activity.id)}"]`)
+          ?? byIndex
+          ?? [...document.querySelectorAll<HTMLElement>("article h2")].find((heading) => heading.textContent?.trim() === activity.title)?.closest<HTMLElement>("article");
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("is-activity-target");
+        window.sessionStorage.removeItem("goodtimes:activity-target");
+      } catch (error) {
+        console.warn("[GoodTimes activiteiten] Doelitem kon niet worden geopend", error);
+        window.sessionStorage.removeItem("goodtimes:activity-target");
+      }
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [files, messages, ready, rehearsals, setlists, songs, tab]);
+
   const loadAndSyncSongs = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return null;

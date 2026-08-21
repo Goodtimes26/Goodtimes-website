@@ -49,6 +49,8 @@
 .portal-read-receipts .is-unread i { color: #ff5b72; background: #ff5b72; }
 .portal-update-summary em { color: #fff; font-style: normal; font-weight: 700; line-height: 1.25; }
 .portal-update-summary span > small { overflow-wrap: anywhere; }
+.portal-update-list em { display:block; margin-top:.08rem; color:#fff; font-size:.68rem; font-style:normal; font-weight:700; overflow-wrap:anywhere; }
+.portal-update-list small { white-space:normal; overflow-wrap:anywhere; }
 .is-activity-target { animation: portal-activity-focus 1.8s ease-out; }
 @keyframes portal-activity-focus { 0%, 30% { box-shadow: 0 0 0 2px var(--portal-cyan), 0 0 1.4rem rgba(34, 211, 238, .45); } 100% { box-shadow: inherit; } }
 .portal-check-label { display: flex; align-items: center; gap: .7rem; }

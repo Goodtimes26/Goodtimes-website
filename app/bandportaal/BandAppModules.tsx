@@ -16,6 +16,7 @@ type SetlistItem = { id: string; setlist_id: string; song_id: string; position: 
 type Rehearsal = { id: string; event_id: string | null; name?: string | null; rehearsal_date?: string | null; status: string; general_notes: string | null };
 type RehearsalSong = { id: string; rehearsal_id: string; song_id: string; priority: number; status: string; notes: string | null };
 type BandMessage = { id: string; author_id: string; title: string; body: string; important: boolean; created_at: string };
+type MessageRead = { message_id: string; user_id: string; created_at: string };
 type BandFile = { id: string; title: string; category: string | null; external_url: string | null; storage_path: string | null; description: string | null; song_id: string | null; mime_type: string | null; size_bytes: number | null; original_name: string | null; created_at: string };
 type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | null; avatar_url?: string | null };
 
@@ -56,10 +57,12 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const [rehearsals, setRehearsals] = useState<Rehearsal[]>([]);
   const [rehearsalSongs, setRehearsalSongs] = useState<RehearsalSong[]>([]);
   const [messages, setMessages] = useState<BandMessage[]>([]);
+  const [messageReads, setMessageReads] = useState<MessageRead[]>([]);
   const [files, setFiles] = useState<BandFile[]>([]);
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile>(profile);
   const [busy, setBusy] = useState(false);
+  const messageSubmitBusy = useRef(false);
 
   const loadAndSyncSongs = useCallback(async () => {
     const supabase = getSupabaseClient();
@@ -114,16 +117,17 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       setReady(false);
       return;
     }
-    const [setlistResult, setlistItemsResult, rehearsalResult, rehearsalSongsResult, messageResult, fileResult, profileResult] = await Promise.all([
+    const [setlistResult, setlistItemsResult, rehearsalResult, rehearsalSongsResult, messageResult, messageReadsResult, fileResult, profileResult] = await Promise.all([
       supabase.from("setlists").select("id,name,event_id,setlist_date,version,archived,updated_at,updated_by").order("updated_at", { ascending: false }),
       supabase.from("setlist_items").select("id,setlist_id,song_id,position").order("position"),
       supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: false, nullsFirst: false }),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,song_id,priority,status,notes"),
       supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
+      supabase.from("message_reads").select("message_id,user_id,created_at"),
       supabase.from("band_files").select("id,title,category,external_url,storage_path,description,song_id,mime_type,size_bytes,original_name,created_at").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,display_name,email,instrument,phone,avatar_url").eq("id", user.id).single(),
     ]);
-    if ([setlistResult.error, setlistItemsResult.error, rehearsalResult.error, rehearsalSongsResult.error, messageResult.error, fileResult.error].some(Boolean)) {
+    if ([setlistResult.error, setlistItemsResult.error, rehearsalResult.error, rehearsalSongsResult.error, messageResult.error, messageReadsResult.error, fileResult.error].some(Boolean)) {
       setReady(false);
       return;
     }
@@ -133,6 +137,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setRehearsals((rehearsalResult.data ?? []) as Rehearsal[]);
     setRehearsalSongs((rehearsalSongsResult.data ?? []) as RehearsalSong[]);
     setMessages((messageResult.data ?? []) as BandMessage[]);
+    setMessageReads((messageReadsResult.data ?? []) as MessageRead[]);
     const loadedFiles = (fileResult.data ?? []) as BandFile[];
     setFiles(loadedFiles);
     const signedAudio = await Promise.all(loadedFiles.filter((file) => file.storage_path).map(async (file) => {
@@ -174,11 +179,12 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
 
     const announceChange = () => window.dispatchEvent(new Event("goodtimes:messages-changed"));
     const refreshMessages = async () => {
-      const { data, error } = await supabase
-        .from("band_messages")
-        .select("id,author_id,title,body,important,created_at")
-        .order("created_at", { ascending: false });
-      if (!error) setMessages((data ?? []) as BandMessage[]);
+      const [messageResult, readResult] = await Promise.all([
+        supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
+        supabase.from("message_reads").select("message_id,user_id,created_at"),
+      ]);
+      if (!messageResult.error) setMessages((messageResult.data ?? []) as BandMessage[]);
+      if (!readResult.error) setMessageReads((readResult.data ?? []) as MessageRead[]);
     };
 
     const connectRealtime = async () => {
@@ -215,6 +221,9 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
           console.info("[GoodTimes berichten] Bericht verwijderd uit weergave", { messageId: deletedId });
           announceChange();
         })
+        .on("postgres_changes", { event: "*", schema: "public", table: "message_reads" }, () => {
+          void refreshMessages();
+        })
         .subscribe((status, error) => {
           console.info("[GoodTimes berichten] Realtime status", { status });
           if (error) console.error("[GoodTimes berichten] Realtime fout", error);
@@ -232,25 +241,6 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       if (channel) void supabase.removeChannel(channel);
     };
   }, [ready, user.id]);
-
-  useEffect(() => {
-    if (tab !== "messages" || ready !== true) return;
-
-    const markVisibleMessagesRead = async () => {
-      const supabase = getSupabaseClient();
-      if (!supabase) return;
-      if (messages.length > 0) {
-        const { error } = await supabase.from("message_reads").upsert(
-          messages.map((message) => ({ message_id: message.id, user_id: user.id })),
-          { onConflict: "message_id,user_id", ignoreDuplicates: true },
-        );
-        if (error) return;
-      }
-      window.dispatchEvent(new Event("goodtimes:messages-read"));
-    };
-
-    void markVisibleMessagesRead();
-  }, [messages, ready, tab, user.id]);
 
   async function submit(table: string, payload: Record<string, unknown>, success: string) {
     setBusy(true);
@@ -346,10 +336,28 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     const eventId = String(data.get("event_id"));
     const ok = await submit("rehearsals", { event_id: eventId, status: "planned", general_notes: String(data.get("general_notes") || "") || null, created_by: user.id }, "Repetitie gekoppeld.");
     if (ok) form.currentTarget.reset();
+  }} onUpdate={async (rehearsal, status, notes) => {
+    setBusy(true);
+    const { error } = await getSupabaseClient()!.from("rehearsals").update({ status, general_notes: notes || null }).eq("id", rehearsal.id);
+    setBusy(false);
+    if (error) { reportError("De repetitie kon niet worden bijgewerkt."); return false; }
+    notify("Repetitie bijgewerkt."); await load(); return true;
+  }} onDelete={async (rehearsal) => {
+    if (!isAdmin) return false;
+    setBusy(true);
+    const supabase = getSupabaseClient()!;
+    const result = rehearsal.event_id
+      ? await supabase.from("events").delete().eq("id", rehearsal.event_id)
+      : await supabase.from("rehearsals").delete().eq("id", rehearsal.id);
+    setBusy(false);
+    if (result.error) { reportError("De repetitie kon niet worden verwijderd."); return false; }
+    notify("Repetitie verwijderd. Nummers in het repertoire zijn behouden."); await load(); return true;
   }} />;
 
-  if (tab === "messages") return <MessagesPanel messages={messages} profiles={profiles} userId={user.id} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
-    const data = new FormData(form.currentTarget);
+  if (tab === "messages") return <MessagesPanel messages={messages} reads={messageReads} profiles={profiles} userId={user.id} isAdmin={isAdmin} busy={busy} onCreate={async (formElement) => {
+    if (messageSubmitBusy.current) return;
+    messageSubmitBusy.current = true;
+    const data = new FormData(formElement);
     setBusy(true);
     const supabase = getSupabaseClient()!;
     const { data: createdMessage, error: createError } = await supabase.from("band_messages").insert({
@@ -360,6 +368,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     }).select("id").single();
     if (createError || !createdMessage) {
       setBusy(false);
+      messageSubmitBusy.current = false;
       reportError("Opslaan is niet gelukt. Controleer de invoer en probeer opnieuw.");
       return;
     }
@@ -368,15 +377,30 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       { onConflict: "message_id,user_id" },
     );
     setBusy(false);
+    messageSubmitBusy.current = false;
     if (readError) {
       reportError("Het bericht is geplaatst, maar de leesstatus kon niet worden opgeslagen.");
       return;
     }
     notify("Bandbericht geplaatst.");
-    form.currentTarget.reset();
+    formElement.reset();
     await load();
     window.dispatchEvent(new Event("goodtimes:messages-changed"));
+  }} onUpdate={async (message, title, body, important) => {
+    setBusy(true);
+    const { error } = await getSupabaseClient()!.from("band_messages").update({ title, body, important }).eq("id", message.id);
+    setBusy(false);
+    if (error) { reportError("Het bericht kon niet worden bijgewerkt."); return false; }
+    notify("Bericht bijgewerkt."); await load(); window.dispatchEvent(new Event("goodtimes:messages-changed")); return true;
+  }} onSetRead={async (messageId, read) => {
+    const supabase = getSupabaseClient()!;
+    const { error } = read
+      ? await supabase.from("message_reads").upsert({ message_id: messageId, user_id: user.id }, { onConflict: "message_id,user_id" })
+      : await supabase.from("message_reads").delete().eq("message_id", messageId).eq("user_id", user.id);
+    if (error) { reportError("De leesstatus kon niet worden bijgewerkt."); return; }
+    await load(); window.dispatchEvent(new Event("goodtimes:messages-read"));
   }} onDelete={async (id) => {
+    if (!window.confirm("Weet je zeker dat je dit bericht wilt verwijderen?")) return;
     const { error } = await getSupabaseClient()!.from("band_messages").delete().eq("id", id);
     if (error) reportError("Het bericht kon niet worden verwijderd."); else { notify("Bericht verwijderd."); await load(); }
   }} />;
@@ -618,17 +642,20 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
   </div>;
 }
 
-function RehearsalsPanel({ rehearsals, rehearsalSongs, songs, events, isAdmin, busy, onCreate }: { rehearsals: Rehearsal[]; rehearsalSongs: RehearsalSong[]; songs: Song[]; events: BandEvent[]; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void }) {
+function RehearsalsPanel({ rehearsals, rehearsalSongs, songs, events, isAdmin, busy, onCreate, onUpdate, onDelete }: { rehearsals: Rehearsal[]; rehearsalSongs: RehearsalSong[]; songs: Song[]; events: BandEvent[]; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpdate: (rehearsal: Rehearsal, status: string, notes: string) => Promise<boolean>; onDelete: (rehearsal: Rehearsal) => Promise<boolean> }) {
   const eventFor = (id: string | null) => events.find((event) => event.id === id);
+  const [editingId, setEditingId] = useState<string | null>(null);
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Samen voorbereiden</p><h1>Repetities</h1></div></div>
     {isAdmin && <details className="portal-editor"><summary>Bestaande activiteit als repetitie inrichten</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><label>Repetitie<select name="event_id" required><option value="">Kies een activiteit</option>{events.filter((item) => item.event_type === "rehearsal" && !rehearsals.some((row) => row.event_id === item.id)).map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><label>Algemene opmerkingen<textarea name="general_notes" /></label><button className="portal-primary" disabled={busy}>Repetitie koppelen</button></form></details>}
-    <div className="portal-data-list portal-rehearsal-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); const plannedSongs = rehearsalSongs.filter((item) => item.rehearsal_id === rehearsal.id); const rehearsalTotal = plannedSongs.reduce((sum, item) => sum + (songs.find((song) => song.id === item.song_id)?.duration_seconds ?? 0), 0); return <article className="portal-data-card" data-print-density={plannedSongs.length <= 10 ? "roomy" : plannedSongs.length <= 15 ? "normal" : "compact"} key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : rehearsal.rehearsal_date ? formatDate(rehearsal.rehearsal_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? rehearsal.name ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location, plannedSongs.length ? `${plannedSongs.length} nummers` : null].filter(Boolean).join(" · ")}</p><p className="portal-print-summary">{plannedSongs.length} nummers · {formatDuration(rehearsalTotal)} totale speelduur</p>{plannedSongs.length > 0 && <ol className="portal-song-order">{plannedSongs.map((item, index) => { const song = songs.find((candidate) => candidate.id === item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, item.notes ?? song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
+    <div className="portal-data-list portal-rehearsal-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); const plannedSongs = rehearsalSongs.filter((item) => item.rehearsal_id === rehearsal.id); const rehearsalTotal = plannedSongs.reduce((sum, item) => sum + (songs.find((song) => song.id === item.song_id)?.duration_seconds ?? 0), 0); return <article className="portal-data-card" data-print-density={plannedSongs.length <= 10 ? "roomy" : plannedSongs.length <= 15 ? "normal" : "compact"} key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : rehearsal.rehearsal_date ? formatDate(rehearsal.rehearsal_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? rehearsal.name ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location, plannedSongs.length ? `${plannedSongs.length} nummers` : null].filter(Boolean).join(" · ")}</p><p className="portal-print-summary">{plannedSongs.length} nummers · {formatDuration(rehearsalTotal)} totale speelduur</p>{plannedSongs.length > 0 && <ol className="portal-song-order">{plannedSongs.map((item, index) => { const song = songs.find((candidate) => candidate.id === item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, item.notes ?? song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}{isAdmin && <div className="portal-card-actions"><button type="button" onClick={() => setEditingId(editingId === rehearsal.id ? null : rehearsal.id)}>{editingId === rehearsal.id ? "Annuleren" : "Bewerken"}</button><button className="danger" type="button" onClick={() => { if (window.confirm("Weet je zeker dat je deze repetitie wilt verwijderen? De nummers blijven in het repertoire.")) void onDelete(rehearsal); }}>Verwijderen</button></div>}{isAdmin && editingId === rehearsal.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(submitEvent) => { submitEvent.preventDefault(); const data = new FormData(submitEvent.currentTarget); void onUpdate(rehearsal, String(data.get("status")), String(data.get("general_notes") || "")).then((ok) => { if (ok) setEditingId(null); }); }}><label>Status<select name="status" defaultValue={rehearsal.status}><option value="planned">Gepland</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label><label>Algemene opmerkingen<textarea name="general_notes" defaultValue={rehearsal.general_notes ?? ""} /></label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
   </div>;
 }
 
-function MessagesPanel({ messages, profiles, userId, isAdmin, busy, onCreate, onDelete }: { messages: BandMessage[]; profiles: Profile[]; userId: string; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onDelete: (id: string) => void }) {
-  return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Voor de hele band</p><h1>Bandberichten</h1></div></div><details className="portal-editor"><summary>Bericht plaatsen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><label>Titel<input name="title" required maxLength={160} /></label><label>Bericht<textarea name="body" required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" /> Markeer als belangrijk</label><button className="portal-primary" disabled={busy}>Bericht plaatsen</button></form></details>
-    <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small>{(isAdmin || message.author_id === userId) && <button className="portal-delete-link" onClick={() => onDelete(message.id)}>Verwijderen</button>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
+function MessagesPanel({ messages, reads, profiles, userId, isAdmin, busy, onCreate, onUpdate, onSetRead, onDelete }: { messages: BandMessage[]; reads: MessageRead[]; profiles: Profile[]; userId: string; isAdmin: boolean; busy: boolean; onCreate: (form: HTMLFormElement) => void; onUpdate: (message: BandMessage, title: string, body: string, important: boolean) => Promise<boolean>; onSetRead: (messageId: string, read: boolean) => void; onDelete: (id: string) => void }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const memberProfiles = profiles;
+  return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Voor de hele band</p><h1>Bandberichten</h1></div></div><details className="portal-editor"><summary>Bericht plaatsen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); onCreate(event.currentTarget); }}><label>Titel<input name="title" required maxLength={160} /></label><label>Bericht<textarea name="body" required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" /> Markeer als belangrijk</label><button className="portal-primary" disabled={busy}>{busy ? "Plaatsen…" : "Bericht plaatsen"}</button></form></details>
+    <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); const readIds = new Set(reads.filter((read) => read.message_id === message.id).map((read) => read.user_id)); const readNames = memberProfiles.filter((member) => readIds.has(member.id)).map(bandMemberFirstName); const unreadNames = memberProfiles.filter((member) => !readIds.has(member.id)).map(bandMemberFirstName); const canManage = isAdmin || message.author_id === userId; const isRead = readIds.has(userId); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small><div className="portal-read-receipts"><small><strong>Gelezen:</strong> {readNames.join(", ") || "nog niemand"}</small><small><strong>Nog niet gelezen:</strong> {unreadNames.join(", ") || "niemand"}</small></div><div className="portal-card-actions"><button type="button" onClick={() => onSetRead(message.id, !isRead)}>{isRead ? "Markeer als ongelezen" : "Markeer als gelezen"}</button>{canManage && <button type="button" onClick={() => setEditingId(editingId === message.id ? null : message.id)}>{editingId === message.id ? "Annuleren" : "Bewerken"}</button>}{canManage && <button className="danger" type="button" onClick={() => onDelete(message.id)}>Verwijderen</button>}</div>{canManage && editingId === message.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); void onUpdate(message, String(data.get("title")), String(data.get("body")), data.get("important") === "on").then((ok) => { if (ok) setEditingId(null); }); }}><label>Titel<input name="title" defaultValue={message.title} required maxLength={160} /></label><label>Bericht<textarea name="body" defaultValue={message.body} required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" defaultChecked={message.important} /> Markeer als belangrijk</label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
 }
 
 function FilesPanel({ files, songs, audioUrls, isAdmin, busy, onCreate, onUpload, onDeleteAudio }: { files: BandFile[]; songs: Song[]; audioUrls: Record<string, string>; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpload: (event: React.FormEvent<HTMLFormElement>) => void; onDeleteAudio: (file: BandFile) => void }) {

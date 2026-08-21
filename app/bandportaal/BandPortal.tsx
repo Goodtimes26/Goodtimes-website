@@ -40,7 +40,7 @@ type PortalTab = "home" | "agenda" | "agenda-admin" | "requests" | "availability
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
-type AppActivityRow = { user_id: string; last_active_at: string };
+type AppActivityRow = { user_id: string; last_active_at: string; last_login_at: string | null };
 const ONLINE_WINDOW_MS = 3 * 60 * 1_000;
 function isNewActivity(createdAt: string, updatedAt: string) {
   return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) < 5_000;
@@ -156,7 +156,7 @@ export function BandPortal() {
   const loadAppActivity = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    const result = await supabase.from("app_activity").select("user_id,last_active_at").order("last_active_at", { ascending: false });
+    const result = await supabase.from("app_activity").select("user_id,last_active_at,last_login_at").order("last_active_at", { ascending: false });
     if (result.error) throw result.error;
     setAppActivity((result.data ?? []) as AppActivityRow[]);
     setActivityNow(Date.now());
@@ -691,6 +691,7 @@ export function BandPortal() {
             onEdit={setEditingEvent}
             onCancel={() => setEditingEvent(null)}
             onSubmit={updateEvent}
+            onDelete={deleteEvent}
           />
         )}
 
@@ -770,6 +771,7 @@ function AppActivityDashboard({ profiles, rows, now }: { profiles: Profile[]; ro
         return <article className="portal-user-card portal-activity-card" key={member.id}>
           <div><strong>{bandMemberFirstName(member)}</strong>{isOnline && <span className="is-online">Nu online</span>}</div>
           <small>{lastActive ? `Laatst actief: ${lastActiveDetailLabel(lastActive, now)}` : "Nog nooit actief"}</small>
+          {activity?.last_login_at && <small>Laatste inlog: {new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(activity.last_login_at))}</small>}
         </article>;
       })}
     </div>
@@ -784,7 +786,6 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
   recentActivities: DashboardActivity[];
   setTab: (tab: PortalTab) => void;
 }) {
-  const [showAllUpdates, setShowAllUpdates] = useState(false);
   const today = toIsoDate(new Date());
   const nextEvent = events.filter((item) => item.event_type === "performance" && item.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
   const firstName = bandMemberFirstName(profile);
@@ -798,9 +799,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     performance: { icon: "□", title: activity.isNew ? "Optreden toegevoegd" : "Optreden gewijzigd", tab: "agenda" as PortalTab, className: "is-performance" },
   }[activity.kind]);
   const openActivity = (activity: DashboardActivity) => setTab(activityPresentation(activity).tab);
-  const updateLabel = recentActivities.length === 1
-    ? activityPresentation(recentActivities[0]).title
-    : `${recentActivities.length} nieuwe updates`;
+  const latestActivity = recentActivities[0] ?? null;
 
   return <div className="portal-section portal-dashboard">
     <div className="portal-dashboard-welcome">
@@ -818,20 +817,12 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
       </button> : <p>Er staat nog geen optreden gepland.</p>}
     </article>
 
-    {recentActivities.length > 0 && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
-      <button className="portal-update-summary" onClick={() => recentActivities.length === 1 ? openActivity(recentActivities[0]) : setShowAllUpdates((visible) => !visible)} aria-expanded={recentActivities.length > 1 ? showAllUpdates : undefined}>
+    {latestActivity && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
+      <button className="portal-update-summary" onClick={() => openActivity(latestActivity)}>
         <span className="portal-update-summary-icon" aria-hidden="true">✦</span>
-        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{updateLabel}</strong></span>
-        <b aria-hidden="true">{recentActivities.length > 1 ? (showAllUpdates ? "−" : "+") : "→"}</b>
+        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{activityPresentation(latestActivity).title}</strong><small>{[latestActivity.detail, activityAgeLabel(latestActivity.updatedAt), latestActivity.actorId ? `door ${bandMemberFirstName(profiles.find((candidate) => candidate.id === latestActivity.actorId) ?? profile)}` : null].filter(Boolean).join(" · ")}</small></span>
+        <b aria-hidden="true">→</b>
       </button>
-      {showAllUpdates && recentActivities.length > 1 && <div className="portal-update-list portal-update-overview">
-        {recentActivities.map((activity) => {
-          const presentation = activityPresentation(activity);
-          const actor = activity.actorId ? profiles.find((candidate) => candidate.id === activity.actorId) : null;
-          const meta = [activity.detail, activityAgeLabel(activity.updatedAt), actor ? `door ${bandMemberFirstName(actor)}` : null].filter(Boolean).join(" · ");
-          return <button key={activity.id} onClick={() => setTab(presentation.tab)}><span className={`portal-update-icon ${presentation.className}`} aria-hidden="true">{presentation.icon}</span><span><strong>{presentation.title}</strong><small>{meta}</small></span><b aria-hidden="true">→</b></button>;
-        })}
-      </div>}
     </section>}
 
     <section className="portal-dashboard-actions" aria-labelledby="portal-actions-title">
@@ -928,12 +919,13 @@ function EventForm({ onSubmit }: { onSubmit: (event: React.FormEvent<HTMLFormEle
   </form></div>;
 }
 
-function AgendaAdmin({ events, editingEvent, onEdit, onCancel, onSubmit }: {
+function AgendaAdmin({ events, editingEvent, onEdit, onCancel, onSubmit, onDelete }: {
   events: BandEvent[];
   editingEvent: BandEvent | null;
   onEdit: (event: BandEvent) => void;
   onCancel: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onDelete: (id: string) => void;
 }) {
   const sortedEvents = [...events].sort((left, right) => `${left.event_date}T${left.start_time ?? "00:00"}`.localeCompare(`${right.event_date}T${right.start_time ?? "00:00"}`));
   return <div className="portal-section portal-agenda-admin">
@@ -954,7 +946,7 @@ function AgendaAdmin({ events, editingEvent, onEdit, onCancel, onSubmit }: {
         <p>{[item.start_time?.slice(0, 5), item.end_time ? `tot ${item.end_time.slice(0, 5)}` : null, item.location].filter(Boolean).join(" · ") || "Tijd en locatie niet ingevuld"}</p>
         <span className={`portal-visibility-badge ${item.is_public ? "is-public" : "is-private"}`}>{eventVisibilityLabel(item)}</span>
         {item.notes && <p className="portal-card-note">{item.notes}</p>}
-        <div className="portal-card-actions"><button type="button" onClick={() => { onEdit(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Bewerken</button></div>
+        <div className="portal-card-actions"><button type="button" onClick={() => { onEdit(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Bewerken</button><button className="danger" type="button" onClick={() => onDelete(item.id)}>Verwijderen</button></div>
       </article>)}
       {!sortedEvents.length && <div className="portal-empty">Er zijn nog geen agenda-items.</div>}
     </div>

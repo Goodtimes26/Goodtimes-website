@@ -42,6 +42,11 @@
 .portal-file-card b { margin-top: auto; color: var(--portal-cyan); }
 .portal-file-editors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.portal-file-editors .portal-editor{min-width:0}.portal-audio-card{gap:.65rem}.portal-audio-card h2,.portal-audio-card p{margin:0}.portal-audio-song{color:var(--portal-muted);font-size:.78rem}.portal-audio-song strong{color:var(--portal-cyan)}.portal-audio-player{width:100%;min-width:0;max-width:100%;min-height:44px;margin-top:auto}.portal-delete-audio{align-self:flex-end;min-height:40px;padding:.55rem .75rem;color:#ffabb6;border:1px solid rgba(255,93,114,.35);border-radius:6px;background:rgba(255,93,114,.08);font-size:.72rem;font-weight:800}.portal-delete-audio:hover{border-color:var(--portal-red);background:rgba(255,93,114,.15)}
 .portal-message-card.important { border-color: rgba(255, 69, 176, .5); box-shadow: inset 3px 0 0 var(--portal-magenta); }
+.portal-read-receipts { display: grid; gap: .35rem; margin-top: .7rem; }
+.portal-read-receipts small { display: grid; grid-template-columns: .62rem minmax(0, 1fr); align-items: baseline; gap: .55rem; line-height: 1.4; overflow-wrap: anywhere; }
+.portal-read-receipts i { width: .55rem; height: .55rem; border-radius: 50%; box-shadow: 0 0 .45rem currentColor; }
+.portal-read-receipts .is-read i { color: #42d98a; background: #42d98a; }
+.portal-read-receipts .is-unread i { color: #ff5b72; background: #ff5b72; }
 .portal-check-label { display: flex; align-items: center; gap: .7rem; }
 .portal-check-label input { width: 1.1rem; height: 1.1rem; }
 .portal-profile-section { max-width: 48rem; }

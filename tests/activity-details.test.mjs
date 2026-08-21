@@ -33,5 +33,9 @@ test("Volgende optreden gebruikt het specifieke event-id en Wat is er nieuw blij
   assert.match(portal, /#event-\$\{eventId\}/);
   assert.match(portal, /window\.history\.back\(\)/);
   assert.match(portal, /setShowActivityOverview/);
+  assert.match(portal, /Er zijn nieuwe berichten/);
+  assert.match(portal, /Er zijn geen nieuwe berichten/);
+  assert.match(portal, /goodtimes:activity-seen:/);
+  assert.match(portal, /unreadMessageCount > 0 \|\| recentActivities\.some/);
   assert.match(portal, /Er zijn nog geen nieuwe wijzigingen sinds de activiteitenregistratie is gestart/);
 });

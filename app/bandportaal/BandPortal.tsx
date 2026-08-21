@@ -842,6 +842,8 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
   openAgendaEvent: (eventId: string) => void;
 }) {
   const [showActivityOverview, setShowActivityOverview] = useState(false);
+  const activitySeenKey = `goodtimes:activity-seen:${profile.id}`;
+  const [activitySeenAt, setActivitySeenAt] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem(activitySeenKey) ?? "");
   const today = toIsoDate(new Date());
   const nextEvent = events.filter((item) => item.event_type === "performance" && item.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
   const firstName = bandMemberFirstName(profile);
@@ -871,6 +873,15 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     }, 120);
   };
   const latestActivity = recentActivities[0] ?? null;
+  const hasNewActivities = unreadMessageCount > 0 || recentActivities.some((activity) => !activitySeenAt || new Date(activity.updatedAt).getTime() > new Date(activitySeenAt).getTime());
+  const toggleActivityOverview = () => {
+    setShowActivityOverview((visible) => !visible);
+    if (!showActivityOverview) {
+      const seenAt = new Date().toISOString();
+      window.localStorage.setItem(activitySeenKey, seenAt);
+      setActivitySeenAt(seenAt);
+    }
+  };
 
   return <div className="portal-section portal-dashboard">
     <div className="portal-dashboard-welcome">
@@ -889,9 +900,9 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     </article>
 
     <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
-      <button className="portal-update-summary" onClick={() => setShowActivityOverview((visible) => !visible)} aria-expanded={showActivityOverview}>
+      <button className="portal-update-summary" onClick={toggleActivityOverview} aria-expanded={showActivityOverview}>
         <span className="portal-update-summary-icon" aria-hidden="true">✦</span>
-        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{latestActivity ? activityPresentation(latestActivity).title : "Bekijk recente activiteiten"}</strong>{latestActivity && <em>{latestActivity.detail}</em>}{latestActivity && latestActivity.changes?.map((change) => <small key={change}>{change}</small>)}{latestActivity && <small>{activityAgeLabel(latestActivity.updatedAt)}</small>}</span>
+        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{hasNewActivities ? "Er zijn nieuwe berichten" : "Er zijn geen nieuwe berichten"}</strong>{latestActivity && <em>{latestActivity.detail}</em>}{latestActivity && latestActivity.changes?.map((change) => <small key={change}>{change}</small>)}{latestActivity && <small>{activityAgeLabel(latestActivity.updatedAt)}</small>}</span>
         <b aria-hidden="true">{showActivityOverview ? "−" : "+"}</b>
       </button>
       {showActivityOverview && <div className="portal-update-list portal-update-overview">{recentActivities.map((activity) => { const presentation = activityPresentation(activity); const actor = activity.actorId ? profiles.find((candidate) => candidate.id === activity.actorId) : null; return <button key={activity.id} onClick={() => openActivity(activity)}><span className={`portal-update-icon ${presentation.className}`} aria-hidden="true">{presentation.icon}</span><span><strong>{presentation.title}</strong><em>{activity.detail}</em>{activity.changes?.map((change) => <small key={change}>{change}</small>)}<small>{[activityAgeLabel(activity.updatedAt), actor ? `door ${bandMemberFirstName(actor)}` : null].filter(Boolean).join(" · ")}</small></span><b aria-hidden="true">→</b></button>; })}{!recentActivities.length && <p className="portal-dashboard-empty">Er zijn nog geen nieuwe wijzigingen sinds de activiteitenregistratie is gestart.</p>}</div>}

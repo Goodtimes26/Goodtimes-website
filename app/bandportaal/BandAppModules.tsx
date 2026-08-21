@@ -16,7 +16,7 @@ type SetlistItem = { id: string; setlist_id: string; song_id: string; position: 
 type Rehearsal = { id: string; event_id: string | null; name?: string | null; rehearsal_date?: string | null; status: string; general_notes: string | null };
 type RehearsalSong = { id: string; rehearsal_id: string; song_id: string; priority: number; status: string; notes: string | null };
 type BandMessage = { id: string; author_id: string; title: string; body: string; important: boolean; created_at: string };
-type MessageRead = { message_id: string; user_id: string; created_at: string };
+type MessageRead = { message_id: string; user_id: string; read_at: string };
 type BandFile = { id: string; title: string; category: string | null; external_url: string | null; storage_path: string | null; description: string | null; song_id: string | null; mime_type: string | null; size_bytes: number | null; original_name: string | null; created_at: string };
 type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | null; avatar_url?: string | null };
 
@@ -123,11 +123,19 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: false, nullsFirst: false }),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,song_id,priority,status,notes"),
       supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
-      supabase.from("message_reads").select("message_id,user_id,created_at"),
+      supabase.from("message_reads").select("message_id,user_id,read_at"),
       supabase.from("band_files").select("id,title,category,external_url,storage_path,description,song_id,mime_type,size_bytes,original_name,created_at").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,display_name,email,instrument,phone,avatar_url").eq("id", user.id).single(),
     ]);
-    if ([setlistResult.error, setlistItemsResult.error, rehearsalResult.error, rehearsalSongsResult.error, messageResult.error, messageReadsResult.error, fileResult.error].some(Boolean)) {
+    if ([setlistResult.error, setlistItemsResult.error, rehearsalResult.error, rehearsalSongsResult.error, messageResult.error, fileResult.error].some(Boolean)) {
+      console.error("[GoodTimes Band-app] Benodigde modulegegevens konden niet worden geladen", {
+        setlists: setlistResult.error,
+        setlistItems: setlistItemsResult.error,
+        rehearsals: rehearsalResult.error,
+        rehearsalSongs: rehearsalSongsResult.error,
+        messages: messageResult.error,
+        files: fileResult.error,
+      });
       setReady(false);
       return;
     }
@@ -137,7 +145,13 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setRehearsals((rehearsalResult.data ?? []) as Rehearsal[]);
     setRehearsalSongs((rehearsalSongsResult.data ?? []) as RehearsalSong[]);
     setMessages((messageResult.data ?? []) as BandMessage[]);
-    setMessageReads((messageReadsResult.data ?? []) as MessageRead[]);
+    if (messageReadsResult.error) {
+      console.error("[GoodTimes berichten] Leesbevestigingen konden niet worden geladen", messageReadsResult.error);
+      setMessageReads([]);
+      reportError("De berichten zijn beschikbaar, maar de leesbevestigingen konden niet worden geladen.");
+    } else {
+      setMessageReads((messageReadsResult.data ?? []) as MessageRead[]);
+    }
     const loadedFiles = (fileResult.data ?? []) as BandFile[];
     setFiles(loadedFiles);
     const signedAudio = await Promise.all(loadedFiles.filter((file) => file.storage_path).map(async (file) => {
@@ -147,7 +161,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setAudioUrls(Object.fromEntries(signedAudio.filter((entry): entry is readonly [string, string] => Boolean(entry))));
     if (!profileResult.error) setExtendedProfile(profileResult.data as ExtendedProfile);
     setReady(true);
-  }, [loadAndSyncSongs, user.id]);
+  }, [loadAndSyncSongs, reportError, user.id]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
@@ -181,7 +195,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     const refreshMessages = async () => {
       const [messageResult, readResult] = await Promise.all([
         supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
-        supabase.from("message_reads").select("message_id,user_id,created_at"),
+        supabase.from("message_reads").select("message_id,user_id,read_at"),
       ]);
       if (!messageResult.error) setMessages((messageResult.data ?? []) as BandMessage[]);
       if (!readResult.error) setMessageReads((readResult.data ?? []) as MessageRead[]);

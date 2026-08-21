@@ -111,11 +111,28 @@ export function BandPortal() {
   const [checkRows, setCheckRows] = useState<TeamAvailability[] | null>(null);
   const [editingRequest, setEditingRequest] = useState<BookingRequest | null>(null);
   const [editingEvent, setEditingEvent] = useState<BandEvent | null>(null);
+  const [selectedAgendaEventId, setSelectedAgendaEventId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   const isAdmin = role === "admin";
+  const selectedAgendaEvent = events.find((item) => item.id === selectedAgendaEventId) ?? null;
+  const openAgendaEvent = useCallback((eventId: string) => {
+    setSelectedAgendaEventId(eventId);
+    setTab("agenda");
+    window.history.pushState({ goodtimesAgendaEvent: eventId }, "", `${window.location.pathname}${window.location.search}#event-${eventId}`);
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const eventId = window.location.hash.startsWith("#event-") ? window.location.hash.slice(7) : null;
+      setSelectedAgendaEventId(eventId);
+      setTab(eventId ? "agenda" : "home");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
   const calendarDays = useMemo(() => monthDays(month), [month]);
   const monthLabel = useMemo(
     () => new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" }).format(month),
@@ -570,9 +587,9 @@ export function BandPortal() {
         {message && <div className="portal-notice" role="status">{message}<button onClick={() => setMessage("")} aria-label="Melding sluiten">×</button></div>}
         {error && <div className="portal-notice portal-notice-error" role="alert">{error}<button onClick={() => setError("")} aria-label="Foutmelding sluiten">×</button></div>}
 
-        {tab === "home" && <PortalDashboard profile={profile} profiles={profiles} events={events} unreadMessageCount={unreadMessageCount} recentActivities={recentActivities} setTab={setTab} />}
+        {tab === "home" && <PortalDashboard profile={profile} profiles={profiles} events={events} unreadMessageCount={unreadMessageCount} recentActivities={recentActivities} setTab={setTab} openAgendaEvent={openAgendaEvent} />}
 
-        {tab === "agenda" && (
+        {tab === "agenda" && (selectedAgendaEvent ? <AgendaEventDetail event={selectedAgendaEvent} onBack={() => window.history.back()} /> : (
           <div className="portal-section">
             <div className="portal-section-head">
               <div><p className="portal-eyebrow">Bandagenda</p><h1>{monthLabel}</h1></div>
@@ -610,7 +627,7 @@ export function BandPortal() {
               {(["available", "unavailable", "maybe"] as AvailabilityStatus[]).map((status) => <span key={status} className={`status-${status}`}>{availabilityLabels[status]}</span>)}
             </div>
           </div>
-        )}
+        ))}
 
         {tab === "availability" && (
           <div className="portal-section portal-availability-layout">
@@ -798,13 +815,31 @@ function AppActivityDashboard({ profiles, rows, now }: { profiles: Profile[]; ro
   </div>;
 }
 
-function PortalDashboard({ profile, profiles, events, unreadMessageCount, recentActivities, setTab }: {
+function AgendaEventDetail({ event, onBack }: { event: BandEvent; onBack: () => void }) {
+  return <div className="portal-section portal-event-detail" data-portal-entity-id={`performance:${event.id}`}>
+    <button className="portal-back-button" type="button" onClick={onBack}>← Terug naar Home</button>
+    <article className={`portal-event-card event-${event.event_type}`}>
+      <div className="portal-card-head"><span>{eventLabels[event.event_type]}</span><time>{formatDate(event.event_date)}</time></div>
+      <h1>{event.description || "GoodTimes live"}</h1>
+      <dl className="portal-details">
+        {event.start_time && <><dt>Aanvang</dt><dd>{event.start_time.slice(0, 5)} uur</dd></>}
+        {event.end_time && <><dt>Eindtijd</dt><dd>{event.end_time.slice(0, 5)} uur</dd></>}
+        {event.location && <><dt>Locatie</dt><dd>{event.location}</dd></>}
+        <dt>Status</dt><dd>{eventVisibilityLabel(event)}</dd>
+      </dl>
+      {event.notes && <p className="portal-card-note">{event.notes}</p>}
+    </article>
+  </div>;
+}
+
+function PortalDashboard({ profile, profiles, events, unreadMessageCount, recentActivities, setTab, openAgendaEvent }: {
   profile: Profile;
   profiles: Profile[];
   events: BandEvent[];
   unreadMessageCount: number;
   recentActivities: DashboardActivity[];
   setTab: (tab: PortalTab) => void;
+  openAgendaEvent: (eventId: string) => void;
 }) {
   const [showActivityOverview, setShowActivityOverview] = useState(false);
   const today = toIsoDate(new Date());
@@ -822,6 +857,10 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     song: { icon: "80", title: activity.isNew ? "Nieuw repertoirenummer" : "Repertoire gewijzigd", tab: "songs" as PortalTab, className: "is-song" },
   }[activity.kind]);
   const openActivity = (activity: DashboardActivity) => {
+    if (activity.kind === "performance") {
+      openAgendaEvent(activity.id.replace(/^performance:/, ""));
+      return;
+    }
     window.sessionStorage.setItem("goodtimes:activity-target", JSON.stringify({ id: activity.id, title: activity.detail }));
     setTab(activityPresentation(activity).tab);
     window.setTimeout(() => {

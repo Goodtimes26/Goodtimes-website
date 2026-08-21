@@ -28,6 +28,10 @@ test("een melding navigeert naar en markeert het specifieke item", () => {
 test("Volgende optreden gebruikt het specifieke event-id en Wat is er nieuw blijft zichtbaar", () => {
   assert.match(portal, /id: `performance:\$\{nextEvent\.id\}`/);
   assert.doesNotMatch(portal, /portal-next-event-content" onClick=\{\(\) => setTab\("agenda"\)\}/);
+  assert.match(portal, /openAgendaEvent\(activity\.id\.replace/);
+  assert.match(portal, /selectedAgendaEvent \? <AgendaEventDetail/);
+  assert.match(portal, /#event-\$\{eventId\}/);
+  assert.match(portal, /window\.history\.back\(\)/);
   assert.match(portal, /setShowActivityOverview/);
   assert.match(portal, /Er zijn nog geen nieuwe wijzigingen sinds de activiteitenregistratie is gestart/);
 });

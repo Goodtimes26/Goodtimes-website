@@ -51,6 +51,7 @@
 .portal-update-summary span > small { overflow-wrap: anywhere; }
 .portal-update-list em { display:block; margin-top:.08rem; color:#fff; font-size:.68rem; font-style:normal; font-weight:700; overflow-wrap:anywhere; }
 .portal-update-list small { white-space:normal; overflow-wrap:anywhere; }
+.portal-event-detail{max-width:44rem;margin:0 auto}.portal-event-detail>.portal-back-button{margin-bottom:.75rem}.portal-event-detail .portal-event-card{padding:clamp(1rem,4vw,1.5rem)}.portal-event-detail .portal-event-card h1{margin:.8rem 0 1rem;font-size:clamp(1.45rem,6vw,2.2rem)}
 .is-activity-target { animation: portal-activity-focus 1.8s ease-out; }
 @keyframes portal-activity-focus { 0%, 30% { box-shadow: 0 0 0 2px var(--portal-cyan), 0 0 1.4rem rgba(34, 211, 238, .45); } 100% { box-shadow: inherit; } }
 .portal-check-label { display: flex; align-items: center; gap: .7rem; }

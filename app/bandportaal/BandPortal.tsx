@@ -214,10 +214,17 @@ export function BandPortal() {
     setUnreadMessageCount(unreadIds.size);
     void syncAppBadge(unreadIds.size);
     const existingMessageIds = new Set((messageResult.data ?? []).map((row) => row.id));
+    const currentSetlists = new Map((setlistResult.data ?? []).map((row) => [row.id, row]));
     const candidates: DashboardActivity[] = [];
     if (!activityLogResult.error) {
       for (const row of (activityLogResult.data ?? []) as ActivityLogRow[]) {
         if (row.entity_type === "message" && !existingMessageIds.has(row.entity_id)) continue;
+        if (row.entity_type === "setlist") {
+          const setlist = currentSetlists.get(row.entity_id);
+          if (!setlist) continue;
+          candidates.push({ id: `setlist:${setlist.id}`, entityKey: `setlist:${setlist.id}`, kind: "setlist", detail: setlist.name, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created" });
+          continue;
+        }
         candidates.push({ id: `${row.entity_type}:${row.entity_id}`, entityKey: `${row.entity_type}:${row.entity_id}`, kind: row.entity_type, detail: row.title, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created", changes: activityChanges(row) });
       }
       setRecentActivities(deduplicateDashboardActivities(candidates));
@@ -879,6 +886,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     }, 120);
   };
   const latestActivity = recentActivities[0] ?? null;
+  const latestPresentation = latestActivity ? activityPresentation(latestActivity) : null;
   const hasNewActivities = unreadMessageCount > 0 || recentActivities.some((activity) => activity.kind === "message" || !activitySeenAt || new Date(activity.updatedAt).getTime() > new Date(activitySeenAt).getTime());
   const toggleActivityOverview = () => {
     setShowActivityOverview((visible) => !visible);
@@ -908,7 +916,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
       <button className="portal-update-summary" onClick={toggleActivityOverview} aria-expanded={showActivityOverview}>
         <span className="portal-update-summary-icon" aria-hidden="true">✦</span>
-        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{hasNewActivities ? "Er zijn nieuwe berichten" : "Er zijn geen nieuwe berichten"}</strong>{latestActivity && <em>{latestActivity.detail}</em>}{latestActivity && latestActivity.changes?.map((change) => <small key={change}>{change}</small>)}{latestActivity && <small>{activityAgeLabel(latestActivity.updatedAt)}</small>}</span>
+        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{hasNewActivities ? "Er zijn nieuwe berichten" : "Er zijn geen nieuwe berichten"}</strong>{latestPresentation && <em>{latestPresentation.title}</em>}{latestActivity && <small>{latestActivity.detail}</small>}{latestActivity && latestActivity.kind !== "setlist" && latestActivity.changes?.map((change) => <small key={change}>{change}</small>)}{latestActivity && <small>{activityAgeLabel(latestActivity.updatedAt)}</small>}</span>
         <b aria-hidden="true">{showActivityOverview ? "−" : "+"}</b>
       </button>
       {showActivityOverview && <div className="portal-update-list portal-update-overview">{recentActivities.map((activity) => { const presentation = activityPresentation(activity); const actor = activity.actorId ? profiles.find((candidate) => candidate.id === activity.actorId) : null; return <button key={activity.id} onClick={() => openActivity(activity)}><span className={`portal-update-icon ${presentation.className}`} aria-hidden="true">{presentation.icon}</span><span><strong>{presentation.title}</strong><em>{activity.detail}</em>{activity.changes?.map((change) => <small key={change}>{change}</small>)}<small>{[activityAgeLabel(activity.updatedAt), actor ? `door ${bandMemberFirstName(actor)}` : null].filter(Boolean).join(" · ")}</small></span><b aria-hidden="true">→</b></button>; })}{!recentActivities.length && <p className="portal-dashboard-empty">Er zijn nog geen nieuwe wijzigingen sinds de activiteitenregistratie is gestart.</p>}</div>}

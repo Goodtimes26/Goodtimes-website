@@ -46,6 +46,15 @@ test("Wat is er nieuw toont titel, wijzigingsregels en ondersteunt alle gevraagd
   assert.match(portal, /Repertoire gewijzigd/);
 });
 
+test("setlistwijzigingen tonen één compacte melding met de actuele setlistnaam", () => {
+  assert.match(portal, /const currentSetlists = new Map/);
+  assert.match(portal, /if \(row\.entity_type === "setlist"\)/);
+  assert.match(portal, /detail: setlist\.name/);
+  assert.match(portal, /entityKey: `setlist:\$\{setlist\.id\}`/);
+  assert.match(portal, /latestActivity\.kind !== "setlist" && latestActivity\.changes/);
+  assert.match(portal, /latestPresentation\.title/);
+});
+
 test("een melding navigeert naar en markeert het specifieke item", () => {
   assert.match(portal, /CSS\.escape\(activity\.id\)/);
   assert.match(portal, /heading\.textContent\?\.trim\(\) === activity\.detail/);

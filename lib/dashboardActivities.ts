@@ -1,11 +1,12 @@
 export type DashboardActivity = {
   id: string;
   entityKey: string;
-  kind: "message" | "setlist" | "rehearsal" | "performance";
+  kind: "message" | "setlist" | "rehearsal" | "performance" | "file" | "song";
   detail: string;
   updatedAt: string;
   actorId: string | null;
   isNew: boolean;
+  changes?: string[];
 };
 
 type SetlistIdentity = {

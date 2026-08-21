@@ -39,5 +39,11 @@ test("setlists, repetities en repertoire slaan de volgorde via Supabase op", () 
 test("touch-handles gebruiken pointer capture en automatisch scrollen", () => {
   assert.match(modules, /setPointerCapture/);
   assert.match(modules, /window\.scrollBy/);
+  assert.match(modules, /event\.preventDefault\(\)/);
   assert.match(css, /touch-action:none/);
+});
+
+test("desktop-drag ondersteunt Safari en andere HTML5 drag-clients", () => {
+  assert.match(modules, /dataTransfer\.effectAllowed = "move"/);
+  assert.match(modules, /dataTransfer\.setData\("text\/plain"/);
 });

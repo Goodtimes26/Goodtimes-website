@@ -677,10 +677,17 @@ function useSortableControls(selector: string, onMove: (from: number, to: number
     }),
     handleProps: (index: number) => ({
       draggable: true,
-      onDragStart: () => { draggedIndex.current = index; moved.current = false; },
+      onDragStart: (event: React.DragEvent<HTMLButtonElement>) => {
+        draggedIndex.current = index;
+        moved.current = false;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(index));
+      },
       onDragEnd: () => { draggedIndex.current = null; moved.current = false; },
       onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
         if (event.pointerType === "mouse") return;
+        event.preventDefault();
+        event.stopPropagation();
         pointerIndex.current = index;
         moved.current = false;
         event.currentTarget.setPointerCapture(event.pointerId);

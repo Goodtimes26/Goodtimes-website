@@ -485,6 +485,13 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setBusy(false);
     if (deleteResult.error) reportError("De audioregistratie kon niet worden verwijderd.");
     else { notify("Audio verwijderd."); await load(); }
+  }} onDeleteItem={async (file) => {
+    if (!isAdmin || file.storage_path || !window.confirm("Weet je zeker dat je dit item wilt verwijderen?")) return;
+    setBusy(true);
+    const { error } = await getSupabaseClient()!.from("band_files").delete().eq("id", file.id).is("storage_path", null);
+    setBusy(false);
+    if (error) reportError("Het item kon niet worden verwijderd.");
+    else { notify("Item verwijderd."); await load(); }
   }} />;
 
   return <ProfilePanel profile={extendedProfile} busy={busy} onSave={async (form) => {
@@ -672,7 +679,7 @@ function MessagesPanel({ messages, reads, profiles, userId, isAdmin, busy, onCre
     <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); const readIds = new Set(reads.filter((read) => read.message_id === message.id).map((read) => read.user_id)); const readNames = memberProfiles.filter((member) => readIds.has(member.id)).map(bandMemberFirstName); const unreadNames = memberProfiles.filter((member) => !readIds.has(member.id)).map(bandMemberFirstName); const canManage = isAdmin || message.author_id === userId; const isRead = readIds.has(userId); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small><div className="portal-read-receipts"><small><strong>Gelezen:</strong> {readNames.join(", ") || "nog niemand"}</small><small><strong>Nog niet gelezen:</strong> {unreadNames.join(", ") || "niemand"}</small></div><div className="portal-card-actions"><button type="button" onClick={() => onSetRead(message.id, !isRead)}>{isRead ? "Markeer als ongelezen" : "Markeer als gelezen"}</button>{canManage && <button type="button" onClick={() => setEditingId(editingId === message.id ? null : message.id)}>{editingId === message.id ? "Annuleren" : "Bewerken"}</button>}{canManage && <button className="danger" type="button" onClick={() => onDelete(message.id)}>Verwijderen</button>}</div>{canManage && editingId === message.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); void onUpdate(message, String(data.get("title")), String(data.get("body")), data.get("important") === "on").then((ok) => { if (ok) setEditingId(null); }); }}><label>Titel<input name="title" defaultValue={message.title} required maxLength={160} /></label><label>Bericht<textarea name="body" defaultValue={message.body} required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" defaultChecked={message.important} /> Markeer als belangrijk</label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
 }
 
-function FilesPanel({ files, songs, audioUrls, isAdmin, busy, onCreate, onUpload, onDeleteAudio }: { files: BandFile[]; songs: Song[]; audioUrls: Record<string, string>; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpload: (event: React.FormEvent<HTMLFormElement>) => void; onDeleteAudio: (file: BandFile) => void }) {
+function FilesPanel({ files, songs, audioUrls, isAdmin, busy, onCreate, onUpload, onDeleteAudio, onDeleteItem }: { files: BandFile[]; songs: Song[]; audioUrls: Record<string, string>; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpload: (event: React.FormEvent<HTMLFormElement>) => void; onDeleteAudio: (file: BandFile) => void; onDeleteItem: (file: BandFile) => void }) {
   const songFor = (id: string | null) => songs.find((song) => song.id === id);
   return <div className="portal-section">
     <div className="portal-section-head"><div><p className="portal-eyebrow">Documenten, links en oefenopnames</p><h1>Bestanden & audio</h1></div></div>
@@ -692,7 +699,7 @@ function FilesPanel({ files, songs, audioUrls, isAdmin, busy, onCreate, onUpload
       {file.description && <p>{file.description}</p>}
       {audioUrls[file.id] ? <audio className="portal-audio-player" controls preload="none" src={audioUrls[file.id]}>Je browser ondersteunt deze audiospeler niet.</audio> : <p className="portal-help">Audio tijdelijk niet beschikbaar.</p>}
       {isAdmin && <button className="portal-delete-audio" type="button" disabled={busy} onClick={() => onDeleteAudio(file)}>Verwijderen</button>}
-    </article> : <a className="portal-file-card" href={file.external_url ?? "#"} target="_blank" rel="noopener noreferrer" key={file.id}><span>{file.category ?? "Bestand"}</span><h2>{file.title}</h2>{file.description && <p>{file.description}</p>}<b>Openen ↗</b></a>)}{!files.length && <div className="portal-empty">Er zijn nog geen bestanden, links of audiobestanden toegevoegd.</div>}</div>
+    </article> : <article className="portal-file-card portal-link-card" key={file.id}><span>{file.category ?? "Bestand"}</span><h2>{file.title}</h2>{file.description && <p>{file.description}</p>}<div className="portal-card-actions"><a href={file.external_url ?? "#"} target="_blank" rel="noopener noreferrer">Openen ↗</a>{isAdmin && <button className="portal-delete-audio" type="button" disabled={busy} onClick={() => onDeleteItem(file)}>Verwijderen</button>}</div></article>)}{!files.length && <div className="portal-empty">Er zijn nog geen bestanden, links of audiobestanden toegevoegd.</div>}</div>
   </div>;
 }
 

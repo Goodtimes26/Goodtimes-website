@@ -594,6 +594,10 @@ function CompactYoutubeLink({ song }: { song: Song }) {
   return <a className="portal-youtube-icon" href={song.youtube_url} target="_blank" rel="noopener noreferrer" aria-label={`Open YouTube-video voor ${song.title} in een nieuw tabblad`}><span aria-hidden="true">▶</span></a>;
 }
 
+function SortableDragHandle({ label, sortable, index, compact = false }: { label: string; sortable: ReturnType<typeof useSortableControls>; index: number; compact?: boolean }) {
+  return <button className={`portal-drag-handle${compact ? " portal-drag-handle-compact" : ""}`} type="button" aria-label={`${label} verslepen`} title={`${label} verslepen`} {...sortable.handleProps(index)}><span aria-hidden="true">☰</span></button>;
+}
+
 function YoutubeEditor({ song, busy, onSave }: { song: Song; busy: boolean; onSave: (song: Song, url: string) => Promise<boolean> }) {
   const [url, setUrl] = useState(song.youtube_url ?? "");
   return <details className="portal-youtube-edit-details"><summary>YouTube-link bewerken</summary><form className="portal-youtube-editor" onSubmit={(event) => { event.preventDefault(); void onSave(song, url.trim()); }}>
@@ -644,7 +648,7 @@ function SongsPanel({ songs, busy, isAdmin, onReorder, onImport, onCreate, onUpd
       <div className="portal-field-row"><label>Status<select name="status"><option value="active">Actief</option><option value="new">Nieuw</option><option value="attention">Aandacht nodig</option><option value="almost">Bijna goed</option><option value="ready">Klaar</option><option value="inactive">Niet actief</option></select></label><label>Score 1–5<input name="score" type="number" min="1" max="5" /></label></div>
       <label>YouTube-link<input name="youtube_url" type="url" /></label><label>Notities<textarea name="notes" /></label><button className="portal-primary" disabled={busy}>Nummer opslaan</button>
     </form></details>}
-    <div className="portal-data-list portal-song-list">{orderedSongs.map((song, index) => <div key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}><CompactRepertoireSong song={song} busy={busy} isAdmin={isAdmin} dragHandle={isAdmin ? <button className="portal-drag-handle portal-drag-handle-compact" type="button" aria-label={`${song.title} verslepen`} {...sortable.handleProps(index)}>↕</button> : undefined} onUpdateYoutube={onUpdateYoutube} /></div>)}{!songs.length && <div className="portal-empty">De nummersdatabase is nog leeg. Voeg een nummer toe of migreer het bestaande repertoire.</div>}</div>
+    <div className="portal-data-list portal-song-list">{orderedSongs.map((song, index) => <div key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}><CompactRepertoireSong song={song} busy={busy} isAdmin={isAdmin} dragHandle={isAdmin ? <SortableDragHandle compact label={song.title} sortable={sortable} index={index} /> : undefined} onUpdateYoutube={onUpdateYoutube} /></div>)}{!songs.length && <div className="portal-empty">De nummersdatabase is nog leeg. Voeg een nummer toe of migreer het bestaande repertoire.</div>}</div>
   </div>;
 }
 
@@ -652,6 +656,23 @@ function useSortableControls(selector: string, onMove: (from: number, to: number
   const draggedIndex = useRef<number | null>(null);
   const pointerIndex = useRef<number | null>(null);
   const moved = useRef(false);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  useEffect(() => () => document.body.classList.remove("portal-is-sorting"), []);
+
+  const startSorting = (index: number) => {
+    setActiveIndex(index);
+    document.body.classList.add("portal-is-sorting");
+  };
+
+  const finishSorting = (commit: boolean) => {
+    draggedIndex.current = null;
+    pointerIndex.current = null;
+    setActiveIndex(null);
+    document.body.classList.remove("portal-is-sorting");
+    if (commit && moved.current) onCommit();
+    moved.current = false;
+  };
 
   const move = (from: number, to: number) => {
     if (from === to) return;
@@ -667,47 +688,55 @@ function useSortableControls(selector: string, onMove: (from: number, to: number
 
   return {
     itemProps: (index: number) => ({
+      "data-dragging": activeIndex === index ? "true" : undefined,
       onDragOver: (event: React.DragEvent) => event.preventDefault(),
       onDrop: () => {
         if (draggedIndex.current !== null) move(draggedIndex.current, index);
-        draggedIndex.current = null;
-        if (moved.current) onCommit();
-        moved.current = false;
+        finishSorting(true);
       },
     }),
     handleProps: (index: number) => ({
       draggable: true,
+      "aria-grabbed": activeIndex === index,
       onDragStart: (event: React.DragEvent<HTMLButtonElement>) => {
         draggedIndex.current = index;
         moved.current = false;
+        startSorting(index);
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", String(index));
       },
-      onDragEnd: () => { draggedIndex.current = null; moved.current = false; },
+      onDragEnd: () => finishSorting(true),
+      onClick: (event: React.MouseEvent<HTMLButtonElement>) => { event.preventDefault(); event.stopPropagation(); },
+      onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => { event.preventDefault(); event.stopPropagation(); },
       onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
-        if (event.pointerType === "mouse") return;
+        if (event.pointerType === "mouse" || !event.isPrimary) return;
         event.preventDefault();
         event.stopPropagation();
         pointerIndex.current = index;
         moved.current = false;
+        startSorting(index);
         event.currentTarget.setPointerCapture(event.pointerId);
       },
       onPointerMove: (event: React.PointerEvent<HTMLButtonElement>) => {
         if (pointerIndex.current === null || event.pointerType === "mouse") return;
+        event.preventDefault();
+        event.stopPropagation();
         autoScroll(event.clientY);
         const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>(selector);
         const nextIndex = Number(target?.dataset.sortPosition);
         if (Number.isInteger(nextIndex) && nextIndex !== pointerIndex.current) {
           move(pointerIndex.current, nextIndex);
           pointerIndex.current = nextIndex;
+          setActiveIndex(nextIndex);
         }
       },
-      onPointerUp: () => {
-        pointerIndex.current = null;
-        if (moved.current) onCommit();
-        moved.current = false;
+      onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        finishSorting(true);
       },
-      onPointerCancel: () => { pointerIndex.current = null; moved.current = false; },
+      onPointerCancel: () => finishSorting(false),
     }),
   };
 }
@@ -784,7 +813,7 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
         {!draftSongs.length && <div className="portal-empty">Deze setlist is nog leeg.</div>}
         <ol className="portal-setlist-sortable">
           {selectedSongs.map((song, index) => <li key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}>
-            {isAdmin && <button className="portal-drag-handle" type="button" aria-label={`${song.title} verslepen`} {...sortable.handleProps(index)}>↕</button>}
+            {isAdmin && <SortableDragHandle label={song.title} sortable={sortable} index={index} />}
             <span className="portal-setlist-position">{index + 1}</span>
             <div><strong>{song.title}</strong><small>{[song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null, song.duration_seconds ? formatDuration(song.duration_seconds) : null].filter(Boolean).join(" · ")}</small><YoutubeLink song={song} /></div>
             {isAdmin && <button className="portal-remove-song" type="button" onClick={() => { const next = draftSongsRef.current.filter((id) => id !== song.id); draftSongsRef.current = next; setDraftSongs(next); setDirty(true); }} aria-label={`${song.title} uit setlist verwijderen`}>Verwijderen</button>}
@@ -829,7 +858,7 @@ function RehearsalEditor({ rehearsal, event, plannedSongs, songs, busy, onReorde
   return <form className="portal-form portal-card portal-inline-editor portal-rehearsal-editor" onSubmit={(submitEvent) => { submitEvent.preventDefault(); const data = new FormData(submitEvent.currentTarget); void onSave(rehearsal, String(data.get("rehearsal_date")), String(data.get("status")), String(data.get("general_notes") || ""), songIds).then((ok) => { if (ok) onCancel(); }); }}>
     <label>Datum<input name="rehearsal_date" type="date" required defaultValue={event?.event_date ?? rehearsal.rehearsal_date ?? ""} /></label>
     <label>Status<select name="status" defaultValue={rehearsal.status}><option value="planned">Gepland</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label>
-    <fieldset><legend>Nummers in deze repetitie</legend><ol className="portal-rehearsal-edit-songs">{songIds.map((songId, index) => <li key={songId} data-sort-position={index} {...sortable.itemProps(index)}><button className="portal-drag-handle portal-drag-handle-compact" type="button" aria-label={`${songs.find((song) => song.id === songId)?.title ?? "Nummer"} verslepen`} {...sortable.handleProps(index)}>↕</button><span>{index + 1}. {songs.find((song) => song.id === songId)?.title ?? "Onbekend nummer"}</span><button type="button" onClick={() => { const next = songIdsRef.current.filter((id) => id !== songId); songIdsRef.current = next; setSongIds(next); }}>Verwijderen</button></li>)}</ol></fieldset>
+    <fieldset><legend>Nummers in deze repetitie</legend><ol className="portal-rehearsal-edit-songs">{songIds.map((songId, index) => <li key={songId} data-sort-position={index} {...sortable.itemProps(index)}><SortableDragHandle compact label={songs.find((song) => song.id === songId)?.title ?? "Nummer"} sortable={sortable} index={index} /><span>{index + 1}. {songs.find((song) => song.id === songId)?.title ?? "Onbekend nummer"}</span><button type="button" onClick={() => { const next = songIdsRef.current.filter((id) => id !== songId); songIdsRef.current = next; setSongIds(next); }}>Verwijderen</button></li>)}</ol></fieldset>
     <div className="portal-rehearsal-add"><label>Nummer toevoegen<select value={songToAdd} onChange={(changeEvent) => setSongToAdd(changeEvent.target.value)}><option value="">Kies uit repertoire</option>{availableSongs.map((song) => <option key={song.id} value={song.id}>{song.title}{song.artist ? ` – ${song.artist}` : ""}</option>)}</select></label><button type="button" disabled={!songToAdd} onClick={() => { if (!songToAdd) return; const next = [...songIdsRef.current, songToAdd]; songIdsRef.current = next; setSongIds(next); setSongToAdd(""); }}>Toevoegen</button></div>
     <label>Algemene opmerkingen<textarea name="general_notes" defaultValue={rehearsal.general_notes ?? ""} /></label>
     <div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={onCancel}>Annuleren</button></div>

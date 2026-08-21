@@ -41,6 +41,12 @@ test("touch-handles gebruiken pointer capture en automatisch scrollen", () => {
   assert.match(modules, /window\.scrollBy/);
   assert.match(modules, /event\.preventDefault\(\)/);
   assert.match(css, /touch-action:none/);
+  assert.match(css, /-webkit-user-select:none/);
+  assert.match(css, /-webkit-touch-callout:none/);
+  assert.match(modules, /onContextMenu/);
+  assert.match(modules, /releasePointerCapture/);
+  assert.match(modules, /portal-is-sorting/);
+  assert.match(modules, />☰<\/span>/);
 });
 
 test("desktop-drag ondersteunt Safari en andere HTML5 drag-clients", () => {

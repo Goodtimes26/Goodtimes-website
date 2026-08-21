@@ -8,8 +8,10 @@ const migration = readFileSync(new URL("../supabase/migrations/011_band_message_
 test("berichten gebruiken per gebruiker een expliciete leesstatus", () => {
   assert.doesNotMatch(modules, /markVisibleMessagesRead/);
   assert.match(modules, /Markeer als gelezen/);
-  assert.match(modules, /Nog niet gelezen:/);
-  assert.match(modules, /Gelezen:/);
+  assert.doesNotMatch(modules, /Nog niet gelezen:/);
+  assert.doesNotMatch(modules, /<strong>Gelezen:/);
+  assert.match(modules, /className="is-read"/);
+  assert.match(modules, /className="is-unread"/);
 });
 
 test("frontend gebruikt de werkelijke read_at-kolom uit migratie 003", () => {

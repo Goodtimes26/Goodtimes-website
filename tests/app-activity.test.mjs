@@ -16,8 +16,9 @@ test("activiteit wordt beperkt en zonder paginatracking bijgewerkt", () => {
   assert.doesNotMatch(migration, /last_page|page_path|route_name|click_count/i);
 });
 
-test("online-status en Laatst actief gebruiken dezelfde last_active_at registratie", () => {
-  assert.doesNotMatch(portal, /Laatste inlog|last_login_at/);
+test("online-status en Laatst actief gebruiken dezelfde last_active_at registratie en loginlog is apart", () => {
+  assert.match(portal, /select\("user_id,last_active_at,last_login_at"\)/);
+  assert.match(portal, /Laatste inlog:/);
   assert.match(portal, /const lastActive = activity\?\.last_active_at/);
   assert.match(portal, /isOnline = lastActive !== null/);
   assert.match(portal, /Laatst actief: \$\{lastActiveDetailLabel\(lastActive, now\)\}/);

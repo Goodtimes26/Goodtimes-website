@@ -524,7 +524,7 @@ function YoutubeEditor({ song, busy, onSave }: { song: Song; busy: boolean; onSa
 
 function CompactRepertoireSong({ song, busy, isAdmin, onUpdateYoutube }: { song: Song; busy: boolean; isAdmin: boolean; onUpdateYoutube: (song: Song, url: string) => Promise<boolean> }) {
   const metadata = [song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null].filter(Boolean).join(" · ");
-  return <article className="portal-data-card portal-repertoire-song">
+  return <article className="portal-data-card portal-repertoire-song" data-portal-entity-id={`song:${song.id}`}>
     <div className="portal-repertoire-song-head">
       <span>{songStatus[song.status] ?? song.status}</span>
       {song.score && <b>Score {song.score}/5</b>}

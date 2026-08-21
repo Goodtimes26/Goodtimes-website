@@ -41,6 +41,7 @@ type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_nam
 type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
 type AppActivityRow = { user_id: string; last_active_at: string; last_login_at: string | null };
+type ActivityLogRow = { id: string; entity_type: DashboardActivity["kind"]; entity_id: string; action: "created" | "updated"; title: string; old_data: Record<string, unknown> | null; new_data: Record<string, unknown>; actor_id: string | null; created_at: string };
 const ONLINE_WINDOW_MS = 3 * 60 * 1_000;
 function isNewActivity(createdAt: string, updatedAt: string) {
   return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) < 5_000;
@@ -52,6 +53,18 @@ function activityAgeLabel(value: string) {
   if (days === 0) return "vandaag";
   if (days === 1) return "1 dag geleden";
   return `${days} dagen geleden`;
+}
+
+const activityFieldLabels: Record<string, string> = { event_date: "datum", start_time: "aanvangstijd", end_time: "eindtijd", location: "locatie", description: "omschrijving", is_public: "zichtbaarheid", title: "titel", name: "naam", setlist_date: "datum", status: "status", general_notes: "opmerkingen", youtube_url: "YouTube-link", artist: "artiest", vocalist: "zanger/zangeres", musical_key: "toonsoort", bpm: "BPM", external_url: "link" };
+function activityChanges(row: ActivityLogRow) {
+  if (row.action === "created") return [`Toegevoegd: ${row.title}`];
+  const ignored = new Set(["id", "created_at", "updated_at", "created_by", "updated_by", "author_id", "uploaded_by", "version"]);
+  return Object.keys(row.new_data).filter((key) => !ignored.has(key) && JSON.stringify(row.old_data?.[key] ?? null) !== JSON.stringify(row.new_data[key] ?? null)).slice(0, 3).map((key) => {
+    const label = activityFieldLabels[key] ?? key.replaceAll("_", " ");
+    const before = String(row.old_data?.[key] ?? "niet ingevuld").replace(/:00$/, "");
+    const after = String(row.new_data[key] ?? "niet ingevuld").replace(/:00$/, "");
+    return `Gewijzigd: ${label} van ${before} naar ${after}${key.includes("time") ? " uur" : ""}`;
+  });
 }
 function monthDays(month: Date) {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -167,7 +180,8 @@ export function BandPortal() {
     if (!supabase) return;
     const activitySince = new Date();
     activitySince.setDate(activitySince.getDate() - 14);
-    const [messageResult, messageReadsResult, setlistResult, rehearsalResult, rehearsalPlanningResult, performanceResult] = await Promise.all([
+    const [activityLogResult, messageResult, messageReadsResult, setlistResult, rehearsalResult, rehearsalPlanningResult, performanceResult] = await Promise.all([
+      supabase.from("band_activity_log").select("id,entity_type,entity_id,action,title,old_data,new_data,actor_id,created_at").gte("created_at", activitySince.toISOString()).order("created_at", { ascending: false }).limit(20),
       supabase.from("band_messages").select("id,title,author_id,created_at,updated_at").gte("updated_at", activitySince.toISOString()).order("updated_at", { ascending: false }),
       supabase.from("message_reads").select("message_id").eq("user_id", activeUserId),
       supabase.from("setlists").select("id,name,event_id,setlist_date,source_system,source_id,created_at,updated_at,updated_by").eq("archived", false).order("updated_at", { ascending: false }).limit(12),
@@ -181,6 +195,11 @@ export function BandPortal() {
       activeUserId,
     ));
     const candidates: DashboardActivity[] = [];
+    if (!activityLogResult.error) {
+      for (const row of (activityLogResult.data ?? []) as ActivityLogRow[]) candidates.push({ id: `${row.entity_type}:${row.entity_id}`, entityKey: `${row.entity_type}:${row.entity_id}`, kind: row.entity_type, detail: row.title, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created", changes: activityChanges(row) });
+      setRecentActivities(deduplicateDashboardActivities(candidates));
+      return;
+    }
     for (const row of messageResult.data ?? []) {
       if (unreadIds.has(row.id)) candidates.push({ id: `message:${row.id}`, entityKey: `message:${row.id}`, kind: "message", detail: row.title, updatedAt: row.updated_at, actorId: row.author_id, isNew: true });
     }
@@ -317,6 +336,7 @@ export function BandPortal() {
       .on("postgres_changes", { event: "*", schema: "public", table: "rehearsals" }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "rehearsal_songs" }, synchronize)
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, synchronize)
+      .on("postgres_changes", { event: "*", schema: "public", table: "band_activity_log" }, synchronize)
       .subscribe();
     const pollingTimer = window.setInterval(synchronize, 30_000);
     const synchronizeWhenVisible = () => { if (document.visibilityState === "visible") synchronize(); };
@@ -797,8 +817,17 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     setlist: { icon: "≡", title: activity.isNew ? "Nieuwe setlist" : "Setlist gewijzigd", tab: "setlists" as PortalTab, className: "is-setlist" },
     rehearsal: { icon: "●", title: activity.id.startsWith("rehearsal-planning:") ? "Repetitieplanning aangepast" : activity.isNew ? "Repetitie toegevoegd" : "Repetitie gewijzigd", tab: "rehearsals" as PortalTab, className: "is-rehearsal" },
     performance: { icon: "□", title: activity.isNew ? "Optreden toegevoegd" : "Optreden gewijzigd", tab: "agenda" as PortalTab, className: "is-performance" },
+    file: { icon: "□", title: activity.isNew ? "Nieuw bestand/audio" : "Bestand/audio gewijzigd", tab: "files" as PortalTab, className: "is-file" },
+    song: { icon: "80", title: activity.isNew ? "Nieuw repertoirenummer" : "Repertoire gewijzigd", tab: "songs" as PortalTab, className: "is-song" },
   }[activity.kind]);
-  const openActivity = (activity: DashboardActivity) => setTab(activityPresentation(activity).tab);
+  const openActivity = (activity: DashboardActivity) => {
+    setTab(activityPresentation(activity).tab);
+    window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(`[data-portal-entity-id="${CSS.escape(activity.id)}"]`) ?? [...document.querySelectorAll<HTMLElement>("article h2")].find((heading) => heading.textContent?.trim() === activity.detail)?.closest<HTMLElement>("article");
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.classList.add("is-activity-target");
+    }, 120);
+  };
   const latestActivity = recentActivities[0] ?? null;
 
   return <div className="portal-section portal-dashboard">
@@ -820,7 +849,7 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
     {latestActivity && <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">
       <button className="portal-update-summary" onClick={() => openActivity(latestActivity)}>
         <span className="portal-update-summary-icon" aria-hidden="true">✦</span>
-        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{activityPresentation(latestActivity).title}</strong><small>{[latestActivity.detail, activityAgeLabel(latestActivity.updatedAt), latestActivity.actorId ? `door ${bandMemberFirstName(profiles.find((candidate) => candidate.id === latestActivity.actorId) ?? profile)}` : null].filter(Boolean).join(" · ")}</small></span>
+        <span><small id="portal-updates-title">Wat is er nieuw?</small><strong>{activityPresentation(latestActivity).title}</strong><em>{latestActivity.detail}</em>{latestActivity.changes?.map((change) => <small key={change}>{change}</small>)}<small>{[activityAgeLabel(latestActivity.updatedAt), latestActivity.actorId ? `door ${bandMemberFirstName(profiles.find((candidate) => candidate.id === latestActivity.actorId) ?? profile)}` : null].filter(Boolean).join(" · ")}</small></span>
         <b aria-hidden="true">→</b>
       </button>
     </section>}

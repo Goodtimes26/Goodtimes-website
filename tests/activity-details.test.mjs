@@ -24,3 +24,10 @@ test("een melding navigeert naar en markeert het specifieke item", () => {
   assert.match(portal, /heading\.textContent\?\.trim\(\) === activity\.detail/);
   assert.match(portal, /scrollIntoView/);
 });
+
+test("Volgende optreden gebruikt het specifieke event-id en Wat is er nieuw blijft zichtbaar", () => {
+  assert.match(portal, /id: `performance:\$\{nextEvent\.id\}`/);
+  assert.doesNotMatch(portal, /portal-next-event-content" onClick=\{\(\) => setTab\("agenda"\)\}/);
+  assert.match(portal, /setShowActivityOverview/);
+  assert.match(portal, /Er zijn nog geen nieuwe wijzigingen sinds de activiteitenregistratie is gestart/);
+});

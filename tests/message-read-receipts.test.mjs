@@ -29,6 +29,9 @@ test("een fout in leesbevestigingen blokkeert niet de volledige berichtenmodule"
 test("snelle dubbele inzending wordt geblokkeerd en het formulier wordt gewist", () => {
   assert.match(modules, /messageSubmitBusy\.current/);
   assert.match(modules, /formElement\.reset\(\)/);
+  assert.match(modules, /formElement\.closest\("details"\)\?\.removeAttribute\("open"\)/);
+  assert.match(modules, /Het bericht is geplaatst, maar de leesstatus kon niet worden opgeslagen/);
+  assert.match(modules, /await load\(\);\s*formElement\.closest/);
 });
 
 test("RLS deelt leesbevestigingen maar laat alleen eigen status schrijven", () => {

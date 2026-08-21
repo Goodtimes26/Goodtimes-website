@@ -19,6 +19,7 @@ type BandMessage = { id: string; author_id: string; title: string; body: string;
 type MessageRead = { message_id: string; user_id: string; read_at: string };
 type BandFile = { id: string; title: string; category: string | null; external_url: string | null; storage_path: string | null; description: string | null; song_id: string | null; mime_type: string | null; size_bytes: number | null; original_name: string | null; created_at: string };
 type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | null; avatar_url?: string | null };
+type SupabaseWriteError = { code?: string; message?: string; details?: string | null; hint?: string | null };
 
 const songStatus: Record<string, string> = { new: "Nieuw", attention: "Aandacht nodig", almost: "Bijna goed", ready: "Klaar", active: "Actief", inactive: "Niet actief" };
 const audioTypes: Record<string, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav" };
@@ -34,6 +35,10 @@ function audioType(file: File) {
 
 function safeAudioName(name: string) {
   return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "audio";
+}
+
+function writeErrorDetails(error: SupabaseWriteError) {
+  return [error.code, error.message, error.details, error.hint].filter(Boolean).join(" · ") || "Onbekende databasefout";
 }
 
 function MissingMigration() {
@@ -447,7 +452,6 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setBusy(true);
     const supabase = getSupabaseClient()!;
     const { data: createdMessage, error: createError } = await supabase.from("band_messages").insert({
-      author_id: user.id,
       title: String(data.get("title")),
       body: String(data.get("body")),
       important: data.get("important") === "on",
@@ -455,7 +459,9 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (createError || !createdMessage) {
       setBusy(false);
       messageSubmitBusy.current = false;
-      reportError("Opslaan is niet gelukt. Controleer de invoer en probeer opnieuw.");
+      const details = writeErrorDetails(createError ?? { message: "Supabase gaf geen opgeslagen bericht terug" });
+      console.error("[GoodTimes berichten] Bericht plaatsen mislukt", createError);
+      reportError(`Bericht plaatsen is mislukt: ${details}`);
       return;
     }
     const { error: readError } = await supabase.from("message_reads").upsert(

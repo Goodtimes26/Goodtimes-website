@@ -495,7 +495,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   }} onDelete={async (id) => {
     if (!window.confirm("Weet je zeker dat je dit bericht wilt verwijderen?")) return;
     const { error } = await getSupabaseClient()!.from("band_messages").delete().eq("id", id);
-    if (error) reportError("Het bericht kon niet worden verwijderd."); else { notify("Bericht verwijderd."); await load(); }
+    if (error) reportError("Het bericht kon niet worden verwijderd."); else { notify("Bericht verwijderd."); await load(); window.dispatchEvent(new Event("goodtimes:messages-changed")); }
   }} />;
 
   if (tab === "files") return <FilesPanel files={files} songs={songs} audioUrls={audioUrls} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {

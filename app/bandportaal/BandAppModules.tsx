@@ -8,6 +8,7 @@ import { getSupabaseClient } from "../../lib/supabase";
 import { buildSongSyncPlan, fetchSetlistMakerSongs, type CentralSong } from "../../lib/setlistMakerSongs";
 import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
 import { moveListItem } from "../../lib/sortableLists";
+import { sortRehearsalsByDate } from "../../lib/rehearsalSorting";
 
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
@@ -164,7 +165,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     const [setlistResult, setlistItemsResult, rehearsalResult, rehearsalSongsResult, messageResult, messageReadsResult, fileResult, profileResult] = await Promise.all([
       supabase.from("setlists").select("id,name,event_id,setlist_date,version,archived,updated_at,updated_by").order("updated_at", { ascending: false }),
       supabase.from("setlist_items").select("id,setlist_id,song_id,position").order("position"),
-      supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: false, nullsFirst: false }),
+      supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: true, nullsFirst: false }),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,song_id,position,priority,status,notes").order("position"),
       supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
       supabase.from("message_reads").select("message_id,user_id,read_at"),
@@ -395,7 +396,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     return true;
   }} />;
 
-  if (tab === "rehearsals") return <RehearsalsPanel rehearsals={rehearsals} rehearsalSongs={rehearsalSongs} songs={songs} events={events} isAdmin={isAdmin} busy={busy} onReorder={async (rehearsalId, songIds) => {
+  if (tab === "rehearsals") return <RehearsalsPanel rehearsals={sortRehearsalsByDate(rehearsals, events, new Date().toISOString().slice(0, 10))} rehearsalSongs={rehearsalSongs} songs={songs} events={events} isAdmin={isAdmin} busy={busy} onReorder={async (rehearsalId, songIds) => {
     const { error } = await getSupabaseClient()!.rpc("save_rehearsal_song_order", { p_rehearsal_id: rehearsalId, p_song_ids: songIds });
     if (error) { reportError("De repetitievolgorde kon niet worden opgeslagen."); return false; }
     setRehearsalSongs((current) => current.map((item) => item.rehearsal_id === rehearsalId ? { ...item, position: songIds.indexOf(item.song_id) } : item).sort((a, b) => a.position - b.position));

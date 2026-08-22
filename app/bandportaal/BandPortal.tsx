@@ -765,7 +765,7 @@ export function BandPortal() {
               <button className="portal-more-signout" type="button" onClick={signOut}><strong>Uitloggen</strong><span>Veilig afmelden bij de Band-app</span></button>
               <button onClick={() => setTab("availability")}><strong>Beschikbaarheid</strong><span>Controleer de beschikbaarheid van de band</span></button>
               <button onClick={() => setTab("songs")}><strong>Repertoire</strong><span>Nummers, notities en oefenstatus</span></button>
-              <button onClick={() => setTab("files")}><strong>Bestanden & audio</strong><span>Documenten, links en oefenopnames</span></button>
+              <button onClick={() => setTab("files")}><strong>Bestanden, audio &amp; video</strong><span>Documenten, links en media</span></button>
               <button onClick={() => setTab("events")}><strong>Activiteiten</strong><span>Repetities en optredens beheren</span></button>
               {isAdmin && <button onClick={() => { setEditingEvent(null); setTab("agenda-admin"); }}><strong>Agenda bewerken</strong><span>Bestaande afspraken aanpassen</span></button>}
               {isAdmin && <button onClick={() => setTab("users")}><strong>Gebruikers</strong><span>Bandleden en rollen beheren</span></button>}

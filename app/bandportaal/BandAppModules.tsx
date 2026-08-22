@@ -24,19 +24,27 @@ type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | 
 type SupabaseWriteError = { code?: string; message?: string; details?: string | null; hint?: string | null };
 
 const songStatus: Record<string, string> = { new: "Nieuw", attention: "Aandacht nodig", almost: "Bijna goed", ready: "Klaar", active: "Actief", inactive: "Niet actief" };
-const audioTypes: Record<string, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav" };
+const mediaTypes: Record<string, { mimeType: string; kind: "Audio" | "Video" }> = {
+  mp3: { mimeType: "audio/mpeg", kind: "Audio" },
+  m4a: { mimeType: "audio/mp4", kind: "Audio" },
+  wav: { mimeType: "audio/wav", kind: "Audio" },
+  mp4: { mimeType: "video/mp4", kind: "Video" },
+  mov: { mimeType: "video/quicktime", kind: "Video" },
+  m4v: { mimeType: "video/x-m4v", kind: "Video" },
+  webm: { mimeType: "video/webm", kind: "Video" },
+};
 
 function newestMessagesFirst(messages: BandMessage[]) {
   return [...messages].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-function audioType(file: File) {
+function mediaType(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return audioTypes[extension] ?? null;
+  return mediaTypes[extension] ?? null;
 }
 
-function safeAudioName(name: string) {
-  return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "audio";
+function safeMediaName(name: string) {
+  return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "media";
 }
 
 function writeErrorDetails(error: SupabaseWriteError) {
@@ -66,7 +74,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const [messages, setMessages] = useState<BandMessage[]>([]);
   const [messageReads, setMessageReads] = useState<MessageRead[]>([]);
   const [files, setFiles] = useState<BandFile[]>([]);
-  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+  const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile>(profile);
   const [busy, setBusy] = useState(false);
   const messageSubmitBusy = useRef(false);
@@ -203,7 +211,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       const { data } = await supabase.storage.from("band-audio").createSignedUrl(file.storage_path!, 3600);
       return data?.signedUrl ? [file.id, data.signedUrl] as const : null;
     }));
-    setAudioUrls(Object.fromEntries(signedAudio.filter((entry): entry is readonly [string, string] => Boolean(entry))));
+    setMediaUrls(Object.fromEntries(signedAudio.filter((entry): entry is readonly [string, string] => Boolean(entry))));
     if (!profileResult.error) setExtendedProfile(profileResult.data as ExtendedProfile);
     setReady(true);
   }, [loadAndSyncSongs, reportError, user.id]);
@@ -501,7 +509,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (error) reportError("Het bericht kon niet worden verwijderd."); else { notify("Bericht verwijderd."); await load(); window.dispatchEvent(new Event("goodtimes:messages-changed")); }
   }} />;
 
-  if (tab === "files") return <FilesPanel files={files} songs={songs} audioUrls={audioUrls} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
+  if (tab === "files") return <FilesPanel files={files} songs={songs} mediaUrls={mediaUrls} isAdmin={isAdmin} busy={busy} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const ok = await submit("band_files", { title: String(data.get("title")), category: String(data.get("category") || "") || null, external_url: String(data.get("external_url")), description: String(data.get("description") || "") || null, uploaded_by: user.id }, "Link toegevoegd.");
     if (ok) form.currentTarget.reset();
@@ -509,36 +517,36 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (!isAdmin) return;
     const formElement = form.currentTarget;
     const data = new FormData(formElement);
-    const file = data.get("audio_file");
+    const file = data.get("media_file");
     if (!(file instanceof File) || !file.size) {
-      reportError("Kies een audiobestand om te uploaden.");
+      reportError("Kies een audio- of videobestand om te uploaden.");
       return;
     }
-    const mimeType = audioType(file);
-    if (!mimeType) {
-      reportError("Gebruik een MP3-, M4A- of WAV-bestand.");
+    const media = mediaType(file);
+    if (!media) {
+      reportError("Gebruik een MP3-, M4A-, WAV-, MP4-, MOV-, M4V- of WebM-bestand.");
       return;
     }
     if (file.size > 52428800) {
-      reportError("Het audiobestand mag maximaal 50 MB groot zijn.");
+      reportError(media.kind === "Video" ? "Deze video is te groot om te uploaden. Kies een kleinere video of verklein de video eerst. Maximaal 50 MB." : "Het audiobestand mag maximaal 50 MB groot zijn.");
       return;
     }
     setBusy(true);
     const supabase = getSupabaseClient()!;
-    const storagePath = `${user.id}/${crypto.randomUUID()}-${safeAudioName(file.name)}`;
-    const uploadResult = await supabase.storage.from("band-audio").upload(storagePath, file, { contentType: mimeType, upsert: false });
+    const storagePath = `${user.id}/${crypto.randomUUID()}-${safeMediaName(file.name)}`;
+    const uploadResult = await supabase.storage.from("band-audio").upload(storagePath, file, { contentType: media.mimeType, upsert: false });
     if (uploadResult.error) {
       setBusy(false);
-      reportError("Uploaden is niet gelukt. Controleer migratie 007 en probeer opnieuw.");
+      reportError("Uploaden is niet gelukt. Controleer de beveiligde mediaopslag en probeer opnieuw.");
       return;
     }
     const insertResult = await supabase.from("band_files").insert({
       title: String(data.get("title")),
-      category: "Audio",
+      category: media.kind,
       storage_path: storagePath,
       song_id: String(data.get("song_id") || "") || null,
       description: String(data.get("description") || "") || null,
-      mime_type: mimeType,
+      mime_type: media.mimeType,
       size_bytes: file.size,
       original_name: file.name,
       uploaded_by: user.id,
@@ -546,27 +554,27 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (insertResult.error) {
       await supabase.storage.from("band-audio").remove([storagePath]);
       setBusy(false);
-      reportError("De audio kon niet worden opgeslagen. Het geüploade bestand is veilig opgeruimd.");
+      reportError(`De ${media.kind.toLowerCase()} kon niet worden opgeslagen. Het geüploade bestand is veilig opgeruimd.`);
       return;
     }
     setBusy(false);
     formElement.reset();
-    notify("Audio toegevoegd.");
+    notify(`${media.kind} toegevoegd.`);
     await load();
   }} onDeleteAudio={async (file) => {
-    if (!isAdmin || !file.storage_path || !window.confirm(`Audiobestand “${file.title}” verwijderen?`)) return;
+    if (!isAdmin || !file.storage_path || !window.confirm(`${file.category === "Video" ? "Video" : "Audiobestand"} “${file.title}” verwijderen?`)) return;
     setBusy(true);
     const supabase = getSupabaseClient()!;
     const storageResult = await supabase.storage.from("band-audio").remove([file.storage_path]);
     if (storageResult.error) {
       setBusy(false);
-      reportError("Het audiobestand kon niet uit de beveiligde opslag worden verwijderd.");
+      reportError("Het mediabestand kon niet uit de beveiligde opslag worden verwijderd.");
       return;
     }
     const deleteResult = await supabase.from("band_files").delete().eq("id", file.id);
     setBusy(false);
-    if (deleteResult.error) reportError("De audioregistratie kon niet worden verwijderd.");
-    else { notify("Audio verwijderd."); await load(); }
+    if (deleteResult.error) reportError("De mediaregistratie kon niet worden verwijderd.");
+    else { notify(`${file.category === "Video" ? "Video" : "Audio"} verwijderd.`); await load(); }
   }} onDeleteItem={async (file) => {
     if (!isAdmin || file.storage_path || !window.confirm("Weet je zeker dat je dit item wilt verwijderen?")) return;
     setBusy(true);
@@ -873,25 +881,33 @@ function MessagesPanel({ messages, reads, profiles, userId, isAdmin, busy, onCre
     <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); const readIds = new Set(reads.filter((read) => read.message_id === message.id).map((read) => read.user_id)); const readNames = memberProfiles.filter((member) => readIds.has(member.id)).map(bandMemberFirstName); const unreadNames = memberProfiles.filter((member) => !readIds.has(member.id)).map(bandMemberFirstName); const canManage = isAdmin || message.author_id === userId; const isRead = readIds.has(userId); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small><div className="portal-read-receipts"><small className="is-read"><i aria-hidden="true" />{readNames.join(", ") || "Niemand"}</small><small className="is-unread"><i aria-hidden="true" />{unreadNames.join(", ") || "Niemand"}</small></div><div className="portal-card-actions"><button type="button" onClick={() => onSetRead(message.id, !isRead)}>{isRead ? "Markeer als ongelezen" : "Markeer als gelezen"}</button>{canManage && <button type="button" onClick={() => setEditingId(editingId === message.id ? null : message.id)}>{editingId === message.id ? "Annuleren" : "Bewerken"}</button>}{canManage && <button className="danger" type="button" onClick={() => onDelete(message.id)}>Verwijderen</button>}</div>{canManage && editingId === message.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); void onUpdate(message, String(data.get("title")), String(data.get("body")), data.get("important") === "on").then((ok) => { if (ok) setEditingId(null); }); }}><label>Titel<input name="title" defaultValue={message.title} required maxLength={160} /></label><label>Bericht<textarea name="body" defaultValue={message.body} required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" defaultChecked={message.important} /> Markeer als belangrijk</label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
 }
 
-function FilesPanel({ files, songs, audioUrls, isAdmin, busy, onCreate, onUpload, onDeleteAudio, onDeleteItem }: { files: BandFile[]; songs: Song[]; audioUrls: Record<string, string>; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpload: (event: React.FormEvent<HTMLFormElement>) => void; onDeleteAudio: (file: BandFile) => void; onDeleteItem: (file: BandFile) => void }) {
+function MediaPlayer({ file, url }: { file: BandFile; url?: string }) {
+  if (!url) return <p className="portal-help">Media tijdelijk niet beschikbaar.</p>;
+  const isVideo = file.category === "Video" || file.mime_type?.startsWith("video/");
+  return isVideo
+    ? <video className="portal-video-player" controls playsInline preload="metadata" src={url}>Je browser ondersteunt deze videospeler niet.</video>
+    : <audio className="portal-audio-player" controls preload="none" src={url}>Je browser ondersteunt deze audiospeler niet.</audio>;
+}
+
+function FilesPanel({ files, songs, mediaUrls, isAdmin, busy, onCreate, onUpload, onDeleteAudio, onDeleteItem }: { files: BandFile[]; songs: Song[]; mediaUrls: Record<string, string>; isAdmin: boolean; busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpload: (event: React.FormEvent<HTMLFormElement>) => void; onDeleteAudio: (file: BandFile) => void; onDeleteItem: (file: BandFile) => void }) {
   const songFor = (id: string | null) => songs.find((song) => song.id === id);
   return <div className="portal-section">
-    <div className="portal-section-head"><div><p className="portal-eyebrow">Documenten, links en oefenopnames</p><h1>Bestanden & audio</h1></div></div>
+    <div className="portal-section-head"><div><p className="portal-eyebrow">Documenten, links, audio en video</p><h1>Bestanden, audio &amp; video</h1></div></div>
     {isAdmin && <div className="portal-file-editors">
-      <details className="portal-editor"><summary>Audio uploaden</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onUpload(event); }}>
+      <details className="portal-editor"><summary>Audio of video uploaden</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onUpload(event); }}>
         <div className="portal-field-row"><label>Titel<input name="title" required maxLength={180} /></label><label>Koppel aan repertoire<select name="song_id"><option value="">Niet gekoppeld</option>{songs.map((song) => <option value={song.id} key={song.id}>{song.title}</option>)}</select></label></div>
         <label>Omschrijving / notitie<textarea name="description" /></label>
-        <label>Audiobestand<input name="audio_file" type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,audio/x-wav" required /></label>
-        <p className="portal-help">MP3, M4A of WAV, maximaal 50 MB. Alleen ingelogde bandleden kunnen de audio openen.</p>
-        <button className="portal-primary" disabled={busy}>{busy ? "Uploaden…" : "Audio uploaden"}</button>
+        <label>Audio- of videobestand<input name="media_file" type="file" accept=".mp3,.m4a,.wav,.mp4,.mov,.m4v,.webm,audio/mpeg,audio/mp4,audio/wav,audio/x-m4a,audio/x-wav,video/mp4,video/quicktime,video/x-m4v,video/webm" required /></label>
+        <p className="portal-help">MP3, M4A, WAV, MP4, MOV, M4V of WebM, maximaal 50 MB. Alleen ingelogde bandleden kunnen media openen.</p>
+        <button className="portal-primary" disabled={busy}>{busy ? "Uploaden…" : "Audio of video uploaden"}</button>
       </form></details>
       <details className="portal-editor"><summary>Link toevoegen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Titel<input name="title" required /></label><label>Categorie<input name="category" placeholder="Bijvoorbeeld techniek" /></label></div><label>Veilige link<input name="external_url" type="url" required /></label><label>Omschrijving<textarea name="description" /></label><button className="portal-primary" disabled={busy}>Link opslaan</button></form></details>
     </div>}
     <div className="portal-file-grid">{files.map((file) => file.storage_path ? <article className="portal-file-card portal-audio-card" key={file.id}>
-      <span>Audio</span><h2>{file.title}</h2>
+      <span>{file.category === "Video" || file.mime_type?.startsWith("video/") ? "Video" : "Audio"}</span><h2>{file.title}</h2>
       {file.song_id && <p className="portal-audio-song">Repertoire: <strong>{songFor(file.song_id)?.title ?? "Onbekend nummer"}</strong></p>}
       {file.description && <p>{file.description}</p>}
-      {audioUrls[file.id] ? <audio className="portal-audio-player" controls preload="none" src={audioUrls[file.id]}>Je browser ondersteunt deze audiospeler niet.</audio> : <p className="portal-help">Audio tijdelijk niet beschikbaar.</p>}
+      <MediaPlayer file={file} url={mediaUrls[file.id]} />
       {isAdmin && <button className="portal-delete-audio" type="button" disabled={busy} onClick={() => onDeleteAudio(file)}>Verwijderen</button>}
     </article> : <article className="portal-file-card portal-link-card" key={file.id}><span>{file.category ?? "Bestand"}</span><h2>{file.title}</h2>{file.description && <p>{file.description}</p>}<div className="portal-card-actions"><a href={file.external_url ?? "#"} target="_blank" rel="noopener noreferrer">Openen ↗</a>{isAdmin && <button className="portal-delete-audio" type="button" disabled={busy} onClick={() => onDeleteItem(file)}>Verwijderen</button>}</div></article>)}{!files.length && <div className="portal-empty">Er zijn nog geen bestanden, links of audiobestanden toegevoegd.</div>}</div>
   </div>;

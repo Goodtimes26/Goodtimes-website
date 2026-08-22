@@ -18,3 +18,8 @@ test("repetitie-editor verwijdert geen nummers uit het centrale repertoire", () 
   assert.doesNotMatch(modules, /from\("songs"\)\.delete\(\)/);
   assert.match(modules, /Repertoire-items zijn behouden/);
 });
+
+test("repetities gebruiken bij ophalen en tonen een chronologische datumvolgorde", () => {
+  assert.match(modules, /order\("rehearsal_date", \{ ascending: true/);
+  assert.match(modules, /rehearsals=\{sortRehearsalsByDate\(rehearsals, events/);
+});

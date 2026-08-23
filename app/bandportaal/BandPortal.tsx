@@ -25,7 +25,7 @@ import {
   type ResponseStatus,
   type UserRole,
 } from "../../lib/bandportal";
-import { getSupabaseClient } from "../../lib/supabase";
+import { clearStoredSupabaseSession, getSupabaseClient } from "../../lib/supabase";
 import { AuthRequestTimeoutError, safeAuthError, withAuthTimeout } from "../../lib/authRequest";
 import { clearAppBadge, syncAppBadge, unreadMessageIds } from "../../lib/appBadge";
 import { formatActivityChanges } from "../../lib/activityChanges";
@@ -96,6 +96,8 @@ export function BandPortal() {
   const [recentActivities, setRecentActivities] = useState<DashboardActivity[]>([]);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
   const [appActivity, setAppActivity] = useState<AppActivityRow[]>([]);
+  const [appActivityLoaded, setAppActivityLoaded] = useState(false);
+  const [appActivityError, setAppActivityError] = useState("");
   const [activityNow, setActivityNow] = useState(() => Date.now());
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [checkDate, setCheckDate] = useState(toIsoDate(new Date()));
@@ -180,6 +182,8 @@ export function BandPortal() {
     const result = await supabase.from("app_activity").select("user_id,last_active_at,last_login_at").order("last_active_at", { ascending: false });
     if (result.error) throw result.error;
     setAppActivity((result.data ?? []) as AppActivityRow[]);
+    setAppActivityLoaded(true);
+    setAppActivityError("");
     setActivityNow(Date.now());
   }, []);
 
@@ -398,7 +402,8 @@ export function BandPortal() {
       const now = Date.now();
       if (!force && now - lastTouch < 60_000) return;
       lastTouch = now;
-      await supabase.rpc("touch_app_activity");
+      const { error: activityError } = await supabase.rpc("touch_app_activity");
+      if (activityError) console.error("[GoodTimes bandportaal] Activiteit bijwerken mislukt", safeAuthError(activityError));
     };
     const touchWhenVisible = () => { if (document.visibilityState === "visible") void touch(true); };
     const touchFromUse = () => { void touch(false); };
@@ -420,11 +425,14 @@ export function BandPortal() {
   useEffect(() => {
     if (!isAdmin || tab !== "app-activity") return;
     const initialTimer = window.setTimeout(() => {
-      void loadAppActivity().catch(() => setError("De app-activiteit kon niet worden geladen. Controleer database-migratie 009."));
+      void loadAppActivity().catch((activityError) => {
+        console.error("[GoodTimes bandportaal] Activiteitenoverzicht laden mislukt", safeAuthError(activityError));
+        setAppActivityError("De app-activiteit kon niet worden geladen. Probeer het opnieuw.");
+      });
     }, 0);
     const timer = window.setInterval(() => {
       setActivityNow(Date.now());
-      void loadAppActivity().catch(() => undefined);
+      void loadAppActivity().catch((activityError) => console.error("[GoodTimes bandportaal] Activiteitenoverzicht vernieuwen mislukt", safeAuthError(activityError)));
     }, 30_000);
     return () => {
       window.clearTimeout(initialTimer);
@@ -439,8 +447,18 @@ export function BandPortal() {
 
   async function signOut() {
     await clearAppBadge();
-    await getSupabaseClient()?.auth.signOut();
-    router.replace("/bandinlog");
+    const supabase = getSupabaseClient();
+    try {
+      if (supabase) {
+        const { error: signOutError } = await withAuthTimeout(supabase.auth.signOut({ scope: "local" }));
+        if (signOutError) console.warn("[GoodTimes bandportaal] Afmelden gaf een fout", safeAuthError(signOutError));
+      }
+    } catch (signOutError) {
+      console.warn("[GoodTimes bandportaal] Afmelden duurde te lang", safeAuthError(signOutError));
+    } finally {
+      clearStoredSupabaseSession();
+      window.location.replace("/bandinlog/");
+    }
   }
 
   async function checkAvailability(date = checkDate) {
@@ -736,7 +754,11 @@ export function BandPortal() {
 
         {tab === "analytics" && isAdmin && <AnalyticsDashboard pageViews={pageViews} />}
 
-        {tab === "app-activity" && isAdmin && <AppActivityDashboard profiles={profiles} rows={appActivity} now={activityNow} />}
+        {tab === "app-activity" && isAdmin && (appActivityError
+          ? <div className="portal-notice portal-notice-error" role="alert">{appActivityError}</div>
+          : appActivityLoaded
+            ? <AppActivityDashboard profiles={profiles} rows={appActivity} now={activityNow} />
+            : <div className="portal-loading"><div className="portal-loader" />App-activiteit laden…</div>)}
 
         {tab === "agenda-admin" && isAdmin && (
           <AgendaAdmin

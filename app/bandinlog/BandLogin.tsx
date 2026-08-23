@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { getSupabaseClient, hasSupabaseConfig } from "../../lib/supabase";
+import { clearStoredSupabaseSession, getSupabaseClient, hasSupabaseConfig } from "../../lib/supabase";
 import { AuthRequestTimeoutError, isInvalidCredentials, safeAuthError, withAuthTimeout } from "../../lib/authRequest";
+import { validateBandAccount } from "../../lib/bandAccount";
 
 export function BandLogin() {
   const router = useRouter();
@@ -30,8 +31,19 @@ export function BandLogin() {
       // Navigeer niet vanuit SIGNED_IN: signInWithPassword wacht zelf op de
       // auth-callbacks. Een routewissel die direct opnieuw Auth aanspreekt kan
       // daardoor vooral in Safari/iOS dezelfde auth-lock vasthouden.
-      if (event === "INITIAL_SESSION" && session && !isInvite) {
-        window.setTimeout(() => router.replace("/bandportaal"), 0);
+      if (event === "INITIAL_SESSION" && session && !isInvite && !authRequestInFlight.current) {
+        window.setTimeout(() => {
+          void validateBandAccount(supabase, session.user.id).then((result) => {
+            if (result.ok) router.replace("/bandportaal");
+            else {
+              console.warn("[GoodTimes bandinlog] Opgeslagen sessie is niet meer geldig", { reason: result.reason, error: safeAuthError(result.error) });
+              clearStoredSupabaseSession();
+            }
+          }).catch((sessionError) => {
+            console.warn("[GoodTimes bandinlog] Sessiescontrole mislukt", safeAuthError(sessionError));
+            clearStoredSupabaseSession();
+          });
+        }, 0);
       }
     });
     return () => listener.subscription.unsubscribe();
@@ -49,7 +61,7 @@ export function BandLogin() {
     authRequestInFlight.current = true;
     setLoading(true);
     try {
-      const { error: loginError } = await withAuthTimeout(supabase.auth.signInWithPassword({
+      const { data: loginData, error: loginError } = await withAuthTimeout(supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       }));
@@ -58,10 +70,25 @@ export function BandLogin() {
         setError(isInvalidCredentials(loginError) ? "E-mailadres of wachtwoord is onjuist." : "Inloggen is niet gelukt door een verbindingsprobleem. Probeer het opnieuw.");
         return;
       }
+      if (!loginData.user) {
+        setError("De inlogserver gaf geen geldig gebruikersaccount terug. Probeer het opnieuw.");
+        return;
+      }
+      const account = await validateBandAccount(supabase, loginData.user.id);
+      if (!account.ok) {
+        console.error("[GoodTimes bandinlog] Bandaccountcontrole mislukt", { reason: account.reason, error: safeAuthError(account.error) });
+        if (account.reason === "profile") setError("Je account is niet gekoppeld aan een bandprofiel. Neem contact op met de beheerder.");
+        else if (account.reason === "role") setError("Je account heeft geen geldige bandrol. Neem contact op met de beheerder.");
+        else if (account.reason === "session") setError("De nieuwe sessie kon niet worden bevestigd. Probeer opnieuw in te loggen.");
+        else setError("Je bandprofiel kon niet worden gecontroleerd door een verbindingsprobleem. Probeer het opnieuw.");
+        clearStoredSupabaseSession();
+        return;
+      }
       console.info("[GoodTimes bandinlog] Authenticatie afgerond; portaal wordt geopend");
       router.replace("/bandportaal");
     } catch (loginError) {
       console.error("[GoodTimes bandinlog] Inlogaanvraag mislukt", safeAuthError(loginError));
+      if (loginError instanceof AuthRequestTimeoutError) clearStoredSupabaseSession();
       setError(loginError instanceof AuthRequestTimeoutError ? "Inloggen duurde te lang. Controleer je verbinding en probeer het opnieuw." : "Er kon geen verbinding worden gemaakt. Controleer je internetverbinding en probeer het opnieuw.");
     } finally {
       authRequestInFlight.current = false;

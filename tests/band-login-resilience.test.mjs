@@ -4,6 +4,7 @@ import test from "node:test";
 
 const login = readFileSync(new URL("../app/bandinlog/BandLogin.tsx", import.meta.url), "utf8");
 const portal = readFileSync(new URL("../app/bandportaal/BandPortal.tsx", import.meta.url), "utf8");
+const supabaseClient = readFileSync(new URL("../lib/supabase.ts", import.meta.url), "utf8");
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 
 test("loginpagina start geen concurrerende getSession-aanvraag", () => {
@@ -17,6 +18,23 @@ test("portaal begrenst sessie- en profielcontrole voor ieder account", () => {
   assert.match(portal, /withAuthTimeout\(Promise\.all/);
   assert.match(portal, /\.maybeSingle\(\)/);
   assert.match(portal, /Account mist een profiel- of rolkoppeling/);
+});
+
+test("netwerkrequests worden echt afgebroken en achtergebleven sessies kunnen worden verwijderd", () => {
+  assert.match(supabaseClient, /AbortController/);
+  assert.match(supabaseClient, /requestUrl\.includes\("\/auth\/v1\/"\)/);
+  assert.match(supabaseClient, /global: \{ fetch: fetchWithTimeout \}/);
+  assert.match(supabaseClient, /clearStoredSupabaseSession/);
+  assert.match(login, /validateBandAccount/);
+  assert.match(login, /clearStoredSupabaseSession/);
+});
+
+test("uitloggen ruimt lokaal altijd op en activiteitfouten worden niet als nulresultaat getoond", () => {
+  assert.match(portal, /signOut\(\{ scope: "local" \}\)/);
+  assert.match(portal, /finally \{\s+clearStoredSupabaseSession\(\)/s);
+  assert.match(portal, /appActivityLoaded/);
+  assert.match(portal, /appActivityError/);
+  assert.match(portal, /Activiteitenoverzicht laden mislukt/);
 });
 
 test("login, herstel en wachtwoord instellen zijn begrensd en sluiten loading altijd af", () => {

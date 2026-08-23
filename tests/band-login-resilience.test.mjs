@@ -3,11 +3,20 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const login = readFileSync(new URL("../app/bandinlog/BandLogin.tsx", import.meta.url), "utf8");
+const portal = readFileSync(new URL("../app/bandportaal/BandPortal.tsx", import.meta.url), "utf8");
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 
 test("loginpagina start geen concurrerende getSession-aanvraag", () => {
   assert.doesNotMatch(login, /auth\.getSession\(/);
   assert.match(login, /event === "INITIAL_SESSION"/);
+  assert.doesNotMatch(login, /event === "SIGNED_IN"/);
+});
+
+test("portaal begrenst sessie- en profielcontrole voor ieder account", () => {
+  assert.match(portal, /withAuthTimeout\(supabase\.auth\.getSession\(\)\)/);
+  assert.match(portal, /withAuthTimeout\(Promise\.all/);
+  assert.match(portal, /\.maybeSingle\(\)/);
+  assert.match(portal, /Account mist een profiel- of rolkoppeling/);
 });
 
 test("login, herstel en wachtwoord instellen zijn begrensd en sluiten loading altijd af", () => {

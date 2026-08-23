@@ -27,7 +27,12 @@ export function BandLogin() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") setInviteMode(true);
-      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session && !isInvite) router.replace("/bandportaal");
+      // Navigeer niet vanuit SIGNED_IN: signInWithPassword wacht zelf op de
+      // auth-callbacks. Een routewissel die direct opnieuw Auth aanspreekt kan
+      // daardoor vooral in Safari/iOS dezelfde auth-lock vasthouden.
+      if (event === "INITIAL_SESSION" && session && !isInvite) {
+        window.setTimeout(() => router.replace("/bandportaal"), 0);
+      }
     });
     return () => listener.subscription.unsubscribe();
   }, [router]);
@@ -53,6 +58,7 @@ export function BandLogin() {
         setError(isInvalidCredentials(loginError) ? "E-mailadres of wachtwoord is onjuist." : "Inloggen is niet gelukt door een verbindingsprobleem. Probeer het opnieuw.");
         return;
       }
+      console.info("[GoodTimes bandinlog] Authenticatie afgerond; portaal wordt geopend");
       router.replace("/bandportaal");
     } catch (loginError) {
       console.error("[GoodTimes bandinlog] Inlogaanvraag mislukt", safeAuthError(loginError));

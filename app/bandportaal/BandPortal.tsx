@@ -28,6 +28,7 @@ import {
 import { getSupabaseClient } from "../../lib/supabase";
 import { AuthRequestTimeoutError, safeAuthError, withAuthTimeout } from "../../lib/authRequest";
 import { clearAppBadge, syncAppBadge, unreadMessageIds } from "../../lib/appBadge";
+import { formatActivityChanges } from "../../lib/activityChanges";
 import {
   activityAgeInDays,
   deduplicateDashboardActivities,
@@ -56,17 +57,6 @@ function activityAgeLabel(value: string) {
   return `${days} dagen geleden`;
 }
 
-const activityFieldLabels: Record<string, string> = { event_date: "datum", start_time: "aanvangstijd", end_time: "eindtijd", location: "locatie", description: "omschrijving", is_public: "zichtbaarheid", title: "titel", name: "naam", setlist_date: "datum", status: "status", general_notes: "opmerkingen", youtube_url: "YouTube-link", artist: "artiest", vocalist: "zanger/zangeres", musical_key: "toonsoort", bpm: "BPM", external_url: "link" };
-function activityChanges(row: ActivityLogRow) {
-  if (row.action === "created") return [`Toegevoegd: ${row.title}`];
-  const ignored = new Set(["id", "created_at", "updated_at", "created_by", "updated_by", "author_id", "uploaded_by", "version"]);
-  return Object.keys(row.new_data).filter((key) => !ignored.has(key) && JSON.stringify(row.old_data?.[key] ?? null) !== JSON.stringify(row.new_data[key] ?? null)).slice(0, 3).map((key) => {
-    const label = activityFieldLabels[key] ?? key.replaceAll("_", " ");
-    const before = String(row.old_data?.[key] ?? "niet ingevuld").replace(/:00$/, "");
-    const after = String(row.new_data[key] ?? "niet ingevuld").replace(/:00$/, "");
-    return `Gewijzigd: ${label} van ${before} naar ${after}${key.includes("time") ? " uur" : ""}`;
-  });
-}
 function monthDays(month: Date) {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const start = new Date(first);
@@ -226,7 +216,7 @@ export function BandPortal() {
           candidates.push({ id: `setlist:${setlist.id}`, entityKey: `setlist:${setlist.id}`, kind: "setlist", detail: setlist.name, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created" });
           continue;
         }
-        candidates.push({ id: `${row.entity_type}:${row.entity_id}`, entityKey: `${row.entity_type}:${row.entity_id}`, kind: row.entity_type, detail: row.title, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created", changes: activityChanges(row) });
+        candidates.push({ id: `${row.entity_type}:${row.entity_id}`, entityKey: `${row.entity_type}:${row.entity_id}`, kind: row.entity_type, detail: row.title, updatedAt: row.created_at, actorId: row.actor_id, isNew: row.action === "created", changes: formatActivityChanges(row) });
       }
       setRecentActivities(deduplicateDashboardActivities(candidates));
       return;

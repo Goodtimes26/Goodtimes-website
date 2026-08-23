@@ -1,4 +1,4 @@
-const CACHE = "goodtimes-band-v2";
+const CACHE = "goodtimes-band-v3";
 const APP_SHELL = ["/bandinlog/", "/favicon-192x192.png", "/favicon-512x512.png"];
 
 self.addEventListener("install", (event) => {

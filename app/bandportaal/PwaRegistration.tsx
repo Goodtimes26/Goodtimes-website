@@ -14,7 +14,7 @@ export function PwaRegistration() {
     standaloneQuery.addEventListener("change", updateStandaloneMode);
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/band-sw.js").catch(() => {
+      navigator.serviceWorker.register("/band-sw.js").then((registration) => registration.update()).catch(() => {
         // De portaalfuncties blijven bruikbaar als installatie niet wordt ondersteund.
       });
     }

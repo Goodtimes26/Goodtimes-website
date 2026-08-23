@@ -26,6 +26,7 @@ import {
   type UserRole,
 } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
+import { AuthRequestTimeoutError, safeAuthError, withAuthTimeout } from "../../lib/authRequest";
 import { clearAppBadge, syncAppBadge, unreadMessageIds } from "../../lib/appBadge";
 import {
   activityAgeInDays,
@@ -277,36 +278,49 @@ export function BandPortal() {
       return;
     }
     let active = true;
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      if (!data.session) {
-        void clearAppBadge();
-        router.replace("/bandinlog");
-        return;
-      }
-      const activeUser = data.session.user;
-      const [profileResult, roleResult] = await Promise.all([
-        supabase.from("profiles").select("id,display_name,email").eq("id", activeUser.id).single(),
-        supabase.from("user_roles").select("role").eq("user_id", activeUser.id).single(),
-      ]);
-      if (!active) return;
-      if (profileResult.error || roleResult.error) {
-        setError("Je account heeft nog geen geldig bandprofiel of rol.");
-        setLoading(false);
-        return;
-      }
-      const activeRole = roleResult.data.role as UserRole;
-      setUser(activeUser);
-      setProfile(profileResult.data as Profile);
-      setRole(activeRole);
+    void (async () => {
       try {
+        const { data, error: sessionError } = await withAuthTimeout(supabase.auth.getSession());
+        if (!active) return;
+        if (sessionError) throw sessionError;
+        if (!data.session) {
+          void clearAppBadge();
+          router.replace("/bandinlog");
+          return;
+        }
+        const activeUser = data.session.user;
+        const [profileResult, roleResult] = await withAuthTimeout(Promise.all([
+          supabase.from("profiles").select("id,display_name,email").eq("id", activeUser.id).maybeSingle(),
+          supabase.from("user_roles").select("role").eq("user_id", activeUser.id).maybeSingle(),
+        ]));
+        if (!active) return;
+        if (profileResult.error || roleResult.error) {
+          console.error("[GoodTimes bandportaal] Profiel- of rolcontrole mislukt", {
+            profile: safeAuthError(profileResult.error),
+            role: safeAuthError(roleResult.error),
+          });
+          setError("Je bandprofiel kon niet worden gecontroleerd. Probeer opnieuw in te loggen.");
+          return;
+        }
+        if (!profileResult.data || !roleResult.data) {
+          console.warn("[GoodTimes bandportaal] Account mist een profiel- of rolkoppeling");
+          setError("Je account is nog niet volledig aan een bandprofiel gekoppeld. Neem contact op met de beheerder.");
+          return;
+        }
+        const activeRole = roleResult.data.role as UserRole;
+        setUser(activeUser);
+        setProfile(profileResult.data as Profile);
+        setRole(activeRole);
         await Promise.all([loadPortalData(activeUser, activeRole), loadDashboardActivity(activeUser.id)]);
-      } catch {
-        setError("De bandgegevens konden niet veilig worden geladen.");
+      } catch (portalError) {
+        console.error("[GoodTimes bandportaal] Opstarten mislukt", safeAuthError(portalError));
+        setError(portalError instanceof AuthRequestTimeoutError
+          ? "Het laden duurde te lang. Controleer je verbinding en probeer opnieuw in te loggen."
+          : "De bandgegevens konden niet veilig worden geladen. Probeer opnieuw in te loggen.");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
-    });
+    })();
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         void clearAppBadge();

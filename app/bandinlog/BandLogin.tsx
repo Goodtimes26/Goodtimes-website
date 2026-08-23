@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getSupabaseClient, hasSupabaseConfig } from "../../lib/supabase";
+import { AuthRequestTimeoutError, isInvalidCredentials, safeAuthError, withAuthTimeout } from "../../lib/authRequest";
 
 export function BandLogin() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export function BandLogin() {
   const [inviteMode, setInviteMode] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const authRequestInFlight = useRef(false);
   const configured = hasSupabaseConfig();
 
   useEffect(() => {
@@ -23,39 +25,47 @@ export function BandLogin() {
     const isInvite = window.location.hash.includes("type=invite");
     if (isInvite) queueMicrotask(() => setInviteMode(true));
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session && !isInvite) router.replace("/bandportaal");
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") setInviteMode(true);
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session && !isInvite) router.replace("/bandportaal");
     });
     return () => listener.subscription.unsubscribe();
   }, [router]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (authRequestInFlight.current) return;
     setError("");
     const supabase = getSupabaseClient();
     if (!supabase) {
       setError("De beveiligde bandomgeving is nog niet geconfigureerd.");
       return;
     }
+    authRequestInFlight.current = true;
     setLoading(true);
-    const { error: loginError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setLoading(false);
-    if (loginError) {
-      setError("E-mailadres of wachtwoord is onjuist.");
-      return;
+    try {
+      const { error: loginError } = await withAuthTimeout(supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      }));
+      if (loginError) {
+        console.warn("[GoodTimes bandinlog] Inloggen geweigerd", safeAuthError(loginError));
+        setError(isInvalidCredentials(loginError) ? "E-mailadres of wachtwoord is onjuist." : "Inloggen is niet gelukt door een verbindingsprobleem. Probeer het opnieuw.");
+        return;
+      }
+      router.replace("/bandportaal");
+    } catch (loginError) {
+      console.error("[GoodTimes bandinlog] Inlogaanvraag mislukt", safeAuthError(loginError));
+      setError(loginError instanceof AuthRequestTimeoutError ? "Inloggen duurde te lang. Controleer je verbinding en probeer het opnieuw." : "Er kon geen verbinding worden gemaakt. Controleer je internetverbinding en probeer het opnieuw.");
+    } finally {
+      authRequestInFlight.current = false;
+      setLoading(false);
     }
-    router.replace("/bandportaal");
   }
 
   async function handlePasswordReset(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (authRequestInFlight.current) return;
     setError("");
     setMessage("");
     const trimmedEmail = email.trim();
@@ -68,20 +78,30 @@ export function BandLogin() {
       setError("De beveiligde bandomgeving is nog niet geconfigureerd.");
       return;
     }
+    authRequestInFlight.current = true;
     setLoading(true);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-      redirectTo: "https://goodtimescoverband.nl/bandinlog/nieuw-wachtwoord",
-    });
-    setLoading(false);
-    if (resetError) {
-      setError("De herstellink kon niet worden verstuurd. Probeer het later opnieuw.");
-      return;
+    try {
+      const { error: resetError } = await withAuthTimeout(supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: "https://goodtimescoverband.nl/bandinlog/nieuw-wachtwoord",
+      }));
+      if (resetError) {
+        console.warn("[GoodTimes bandinlog] Wachtwoordherstel geweigerd", safeAuthError(resetError));
+        setError("De herstellink kon door een verbindingsprobleem niet worden verstuurd. Probeer het opnieuw.");
+        return;
+      }
+      setMessage("Als dit e-mailadres bij ons bekend is, ontvang je een e-mail met verdere instructies.");
+    } catch (resetError) {
+      console.error("[GoodTimes bandinlog] Wachtwoordherstel mislukt", safeAuthError(resetError));
+      setError(resetError instanceof AuthRequestTimeoutError ? "Het versturen duurde te lang. Controleer je verbinding en probeer het opnieuw." : "Er kon geen verbinding worden gemaakt. Controleer je internetverbinding en probeer het opnieuw.");
+    } finally {
+      authRequestInFlight.current = false;
+      setLoading(false);
     }
-    setMessage("Als dit e-mailadres bij ons bekend is, ontvang je een e-mail met verdere instructies.");
   }
 
   async function handleSetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (authRequestInFlight.current) return;
     setError("");
     if (password.length < 12) {
       setError("Gebruik minimaal 12 tekens voor je wachtwoord.");
@@ -96,21 +116,29 @@ export function BandLogin() {
       setError("De beveiligde bandomgeving is nog niet geconfigureerd.");
       return;
     }
+    authRequestInFlight.current = true;
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-    if (updateError) {
-      setError("De uitnodiging is verlopen of ongeldig. Vraag een nieuwe uitnodiging aan.");
-      return;
+    try {
+      const { error: updateError } = await withAuthTimeout(supabase.auth.updateUser({ password }));
+      if (updateError) {
+        console.warn("[GoodTimes bandinlog] Wachtwoord instellen geweigerd", safeAuthError(updateError));
+        setError("De uitnodiging is verlopen of ongeldig. Vraag een nieuwe uitnodiging aan.");
+        return;
+      }
+      router.replace("/bandportaal");
+    } catch (updateError) {
+      console.error("[GoodTimes bandinlog] Wachtwoord instellen mislukt", safeAuthError(updateError));
+      setError(updateError instanceof AuthRequestTimeoutError ? "De aanvraag duurde te lang. Controleer je verbinding en probeer het opnieuw." : "Er kon geen verbinding worden gemaakt. Controleer je internetverbinding en probeer het opnieuw.");
+    } finally {
+      authRequestInFlight.current = false;
+      setLoading(false);
     }
-    router.replace("/bandportaal");
   }
 
   return (
     <main className="portal-shell portal-login-shell">
       <header className="portal-public-header">
         <Link className="portal-brand" href="/">GOOD<span>TIMES</span><small>BANDPORTAAL</small></Link>
-        <Link className="portal-back-link" href="/">Terug naar website</Link>
       </header>
       <section className="portal-login-card" aria-labelledby="login-title">
         <p className="portal-eyebrow">Alleen voor bandleden</p>

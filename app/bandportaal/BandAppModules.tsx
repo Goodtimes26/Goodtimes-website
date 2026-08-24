@@ -9,6 +9,7 @@ import { buildSongSyncPlan, fetchSetlistMakerSongs, type CentralSong } from "../
 import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
 import { moveListItem } from "../../lib/sortableLists";
 import { sortRehearsalsByDate } from "../../lib/rehearsalSorting";
+import { lyricsDestination, validSongtekstenUrl, youtubeMetadataTitle } from "../../lib/songLyrics";
 
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
@@ -120,7 +121,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const loadAndSyncSongs = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return null;
-    const selection = "id,title,artist,vocalist,musical_key,bpm,duration_seconds,youtube_url,status,score,notes,active,source_order,portal_order,category,source_system,source_id";
+    const selection = "id,title,artist,vocalist,musical_key,bpm,duration_seconds,youtube_url,lyrics_url,status,score,notes,active,source_order,portal_order,category,source_system,source_id";
     const currentResult = await supabase.from("songs").select(selection).order("portal_order", { nullsFirst: false }).order("source_order", { nullsFirst: false }).order("title");
     if (currentResult.error) return null;
     let currentSongs = (currentResult.data ?? []) as Song[];
@@ -350,13 +351,27 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     notify(youtubeUrl ? "YouTube-link opgeslagen." : "YouTube-link verwijderd.");
     await load();
     return true;
+  }} onUpdateLyrics={async (song, lyricsUrl) => {
+    if (lyricsUrl && !validSongtekstenUrl(lyricsUrl)) {
+      reportError("Gebruik een geldige https-link van Songteksten.nl.");
+      return false;
+    }
+    setBusy(true);
+    const { error } = await getSupabaseClient()!.from("songs").update({ lyrics_url: lyricsUrl || null }).eq("id", song.id);
+    setBusy(false);
+    if (error) { reportError("De songtekstlink kon niet worden opgeslagen."); return false; }
+    notify(lyricsUrl ? "Songtekstlink opgeslagen." : "Songtekstlink verwijderd.");
+    await load();
+    return true;
   }} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
+    const lyricsUrl = String(data.get("lyrics_url") || "").trim();
+    if (lyricsUrl && !validSongtekstenUrl(lyricsUrl)) { reportError("Gebruik een geldige https-link van Songteksten.nl."); return; }
     const ok = await submit("songs", {
       title: String(data.get("title")), artist: String(data.get("artist") || "") || null,
       vocalist: String(data.get("vocalist") || "") || null, musical_key: String(data.get("musical_key") || "") || null,
       bpm: data.get("bpm") ? Number(data.get("bpm")) : null, duration_seconds: data.get("duration_seconds") ? Number(data.get("duration_seconds")) : null,
-      youtube_url: String(data.get("youtube_url") || "") || null, status: String(data.get("status")),
+      youtube_url: String(data.get("youtube_url") || "") || null, lyrics_url: lyricsUrl || null, status: String(data.get("status")),
       score: data.get("score") ? Number(data.get("score")) : null, notes: String(data.get("notes") || "") || null,
       created_by: user.id,
     }, "Nummer toegevoegd.");
@@ -603,6 +618,29 @@ function CompactYoutubeLink({ song }: { song: Song }) {
   return <a className="portal-youtube-icon" href={song.youtube_url} target="_blank" rel="noopener noreferrer" aria-label={`Open YouTube-video voor ${song.title} in een nieuw tabblad`}><span aria-hidden="true">▶</span></a>;
 }
 
+function LyricsLink({ song, compact = false }: { song: Song; compact?: boolean }) {
+  const fallback = lyricsDestination(song);
+  const needsYoutubeMetadata = !validSongtekstenUrl(song.lyrics_url) && (!song.artist?.trim() || !song.title?.trim()) && Boolean(song.youtube_url);
+  const open = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!needsYoutubeMetadata || !song.youtube_url) return;
+    event.preventDefault();
+    const externalWindow = window.open("", "_blank");
+    if (externalWindow) externalWindow.opener = null;
+    const metadataTitle = await youtubeMetadataTitle(song.youtube_url);
+    const destination = lyricsDestination(song, metadataTitle);
+    if (externalWindow) externalWindow.location.href = destination;
+    else window.open(destination, "_blank", "noopener,noreferrer");
+  };
+  return <a className={`portal-lyrics-link${compact ? " portal-lyrics-link-compact" : ""}`} href={fallback} target="_blank" rel="noopener noreferrer" aria-label={`Songtekst voor ${song.title || "dit nummer"} zoeken op Songteksten.nl in een nieuw tabblad`} title="Songtekst bekijken" onClick={(event) => { void open(event); }}><span aria-hidden="true">▤</span><span className={compact ? "portal-visually-hidden" : undefined}>Songtekst bekijken</span></a>;
+}
+
+function SongResourceLinks({ song, compact = false }: { song: Song; compact?: boolean }) {
+  return <span className={`portal-song-resource-links${compact ? " is-compact" : ""}`}>
+    {compact ? <CompactYoutubeLink song={song} /> : <YoutubeLink song={song} />}
+    <LyricsLink song={song} compact={compact} />
+  </span>;
+}
+
 function SortableDragHandle({ label, sortable, index, compact = false }: { label: string; sortable: ReturnType<typeof useSortableControls>; index: number; compact?: boolean }) {
   return <button className={`portal-drag-handle${compact ? " portal-drag-handle-compact" : ""}`} type="button" aria-label={`${label} verslepen`} title={`${label} verslepen`} {...sortable.handleProps(index)}><span aria-hidden="true">☰</span></button>;
 }
@@ -616,7 +654,16 @@ function YoutubeEditor({ song, busy, onSave }: { song: Song; busy: boolean; onSa
     </form></details>;
 }
 
-function CompactRepertoireSong({ song, busy, isAdmin, dragHandle, onUpdateYoutube }: { song: Song; busy: boolean; isAdmin: boolean; dragHandle?: React.ReactNode; onUpdateYoutube: (song: Song, url: string) => Promise<boolean> }) {
+function LyricsEditor({ song, busy, onSave }: { song: Song; busy: boolean; onSave: (song: Song, url: string) => Promise<boolean> }) {
+  const [url, setUrl] = useState(song.lyrics_url ?? "");
+  return <details className="portal-youtube-edit-details"><summary>Songtekstlink bewerken</summary><form className="portal-youtube-editor" onSubmit={(event) => { event.preventDefault(); void onSave(song, url.trim()); }}>
+      <label htmlFor={`lyrics-${song.id}`}>Songtekstlink (optioneel)</label>
+      <div><input id={`lyrics-${song.id}`} type="url" inputMode="url" placeholder="https://www.songteksten.nl/…" value={url} onChange={(event) => setUrl(event.target.value)} /><button disabled={busy || url.trim() === (song.lyrics_url ?? "")}>Opslaan</button></div>
+      {song.lyrics_url && <button className="portal-remove-youtube" type="button" disabled={busy} onClick={() => { setUrl(""); void onSave(song, ""); }}>Link verwijderen</button>}
+    </form></details>;
+}
+
+function CompactRepertoireSong({ song, busy, isAdmin, dragHandle, onUpdateYoutube, onUpdateLyrics }: { song: Song; busy: boolean; isAdmin: boolean; dragHandle?: React.ReactNode; onUpdateYoutube: (song: Song, url: string) => Promise<boolean>; onUpdateLyrics: (song: Song, url: string) => Promise<boolean> }) {
   const metadata = [song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null].filter(Boolean).join(" · ");
   return <article className="portal-data-card portal-repertoire-song" data-portal-entity-id={`song:${song.id}`}>
     <div className="portal-repertoire-song-head">
@@ -626,14 +673,15 @@ function CompactRepertoireSong({ song, busy, isAdmin, dragHandle, onUpdateYoutub
       <div className="portal-repertoire-song-tools">
         {song.notes && <details className="portal-song-notes"><summary>Notitie</summary><small>{song.notes}</small></details>}
         {isAdmin && <YoutubeEditor key={`${song.id}-${song.youtube_url ?? "empty"}`} song={song} busy={busy} onSave={onUpdateYoutube} />}
+        {isAdmin && <LyricsEditor key={`${song.id}-${song.lyrics_url ?? "empty"}`} song={song} busy={busy} onSave={onUpdateLyrics} />}
       </div>
     </div>
     <div className="portal-repertoire-song-copy"><h2>{song.title}</h2>{metadata && <p>{metadata}</p>}</div>
-    <CompactYoutubeLink song={song} />
+    <SongResourceLinks song={song} compact />
   </article>;
 }
 
-function SongsPanel({ songs, busy, isAdmin, onReorder, onImport, onCreate, onUpdateYoutube }: { songs: Song[]; busy: boolean; isAdmin: boolean; onReorder: (songIds: string[]) => Promise<boolean>; onImport: (file: File) => Promise<void>; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpdateYoutube: (song: Song, url: string) => Promise<boolean> }) {
+function SongsPanel({ songs, busy, isAdmin, onReorder, onImport, onCreate, onUpdateYoutube, onUpdateLyrics }: { songs: Song[]; busy: boolean; isAdmin: boolean; onReorder: (songIds: string[]) => Promise<boolean>; onImport: (file: File) => Promise<void>; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpdateYoutube: (song: Song, url: string) => Promise<boolean>; onUpdateLyrics: (song: Song, url: string) => Promise<boolean> }) {
   const [orderIds, setOrderIds] = useState(() => songs.map((song) => song.id));
   const orderIdsRef = useRef(orderIds);
   useEffect(() => {
@@ -655,9 +703,9 @@ function SongsPanel({ songs, busy, isAdmin, onReorder, onImport, onCreate, onUpd
       <div className="portal-field-row"><label>Zanger/zangeres<input name="vocalist" /></label><label>Toonsoort<input name="musical_key" /></label></div>
       <div className="portal-field-row"><label>BPM<input name="bpm" type="number" min="30" max="300" /></label><label>Duur in seconden<input name="duration_seconds" type="number" min="1" max="3600" /></label></div>
       <div className="portal-field-row"><label>Status<select name="status"><option value="active">Actief</option><option value="new">Nieuw</option><option value="attention">Aandacht nodig</option><option value="almost">Bijna goed</option><option value="ready">Klaar</option><option value="inactive">Niet actief</option></select></label><label>Score 1–5<input name="score" type="number" min="1" max="5" /></label></div>
-      <label>YouTube-link<input name="youtube_url" type="url" /></label><label>Notities<textarea name="notes" /></label><button className="portal-primary" disabled={busy}>Nummer opslaan</button>
+      <label>YouTube-link<input name="youtube_url" type="url" /></label><label>Songtekstlink (optioneel)<input name="lyrics_url" type="url" placeholder="https://www.songteksten.nl/…" /></label><label>Notities<textarea name="notes" /></label><button className="portal-primary" disabled={busy}>Nummer opslaan</button>
     </form></details>}
-    <div className="portal-data-list portal-song-list">{orderedSongs.map((song, index) => <div key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}><CompactRepertoireSong song={song} busy={busy} isAdmin={isAdmin} dragHandle={isAdmin ? <SortableDragHandle compact label={song.title} sortable={sortable} index={index} /> : undefined} onUpdateYoutube={onUpdateYoutube} /></div>)}{!songs.length && <div className="portal-empty">De nummersdatabase is nog leeg. Voeg een nummer toe of migreer het bestaande repertoire.</div>}</div>
+    <div className="portal-data-list portal-song-list">{orderedSongs.map((song, index) => <div key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}><CompactRepertoireSong song={song} busy={busy} isAdmin={isAdmin} dragHandle={isAdmin ? <SortableDragHandle compact label={song.title} sortable={sortable} index={index} /> : undefined} onUpdateYoutube={onUpdateYoutube} onUpdateLyrics={onUpdateLyrics} /></div>)}{!songs.length && <div className="portal-empty">De nummersdatabase is nog leeg. Voeg een nummer toe of migreer het bestaande repertoire.</div>}</div>
   </div>;
 }
 
@@ -824,7 +872,7 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
           {selectedSongs.map((song, index) => <li key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}>
             {isAdmin && <SortableDragHandle label={song.title} sortable={sortable} index={index} />}
             <span className="portal-setlist-position">{index + 1}</span>
-            <div><strong>{song.title}</strong><small>{[song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null, song.duration_seconds ? formatDuration(song.duration_seconds) : null].filter(Boolean).join(" · ")}</small><YoutubeLink song={song} /></div>
+            <div><strong>{song.title}</strong><small>{[song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null, song.duration_seconds ? formatDuration(song.duration_seconds) : null].filter(Boolean).join(" · ")}</small><SongResourceLinks song={song} /></div>
             {isAdmin && <button className="portal-remove-song" type="button" onClick={() => { const next = draftSongsRef.current.filter((id) => id !== song.id); draftSongsRef.current = next; setDraftSongs(next); setDirty(true); }} aria-label={`${song.title} uit setlist verwijderen`}>Verwijderen</button>}
           </li>)}
         </ol>
@@ -844,7 +892,7 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
 
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Gedeelde setlists</p><h1>Setlists</h1></div><a className="portal-primary" href="https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site" target="_blank" rel="noopener noreferrer">Open Setlist Maker ↗</a></div>
     {isAdmin && <details className="portal-editor"><summary>Nieuwe setlist</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Naam<input name="name" required /></label><label>Datum<input name="setlist_date" type="date" /></label></div><label>Koppel aan optreden<select name="event_id"><option value="">Niet gekoppeld</option>{events.filter((item) => item.event_type === "performance").map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><button className="portal-primary" disabled={busy}>Setlist aanmaken</button></form></details>}
-    <div className="portal-data-list portal-setlist-list">{setlists.map((setlist) => { const items = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position); const cardTotal = items.reduce((sum, item) => sum + (songFor(item.song_id)?.duration_seconds ?? 0), 0); return <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} data-print-density={items.length <= 10 ? "roomy" : items.length <= 15 ? "normal" : "compact"} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>{items.length} nummers · {formatDuration(cardTotal)} totale speelduur</p>{items.length > 0 && <ol className="portal-song-order">{items.map((item, index) => { const song = songFor(item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}<small>Laatst gewijzigd door {profileName(setlist.updated_by)}</small><div className="portal-card-actions"><button className="portal-edit-setlist" onClick={() => openSetlist(setlist)}>{isAdmin ? "Bewerken" : "Bekijken"}</button>{isAdmin && <button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button>}<button onClick={() => window.print()}>Printen</button>{isAdmin && setlist.archived && <button className="danger" onClick={() => setPendingDelete(setlist)}>Verwijderen</button>}</div></article>; })}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
+    <div className="portal-data-list portal-setlist-list">{setlists.map((setlist) => { const items = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position); const cardTotal = items.reduce((sum, item) => sum + (songFor(item.song_id)?.duration_seconds ?? 0), 0); return <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} data-print-density={items.length <= 10 ? "roomy" : items.length <= 15 ? "normal" : "compact"} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>{items.length} nummers · {formatDuration(cardTotal)} totale speelduur</p>{items.length > 0 && <ol className="portal-song-order">{items.map((item, index) => { const song = songFor(item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <SongResourceLinks song={song} compact />}</li>; })}</ol>}<small>Laatst gewijzigd door {profileName(setlist.updated_by)}</small><div className="portal-card-actions"><button className="portal-edit-setlist" onClick={() => openSetlist(setlist)}>{isAdmin ? "Bewerken" : "Bekijken"}</button>{isAdmin && <button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button>}<button onClick={() => window.print()}>Printen</button>{isAdmin && setlist.archived && <button className="danger" onClick={() => setPendingDelete(setlist)}>Verwijderen</button>}</div></article>; })}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
     {pendingDelete && <div className="portal-confirm-backdrop" role="presentation" onKeyDown={(event) => { if (event.key === "Escape" && !busy) setPendingDelete(null); }} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setPendingDelete(null); }}><section className="portal-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-setlist-title" aria-describedby="delete-setlist-description"><h2 id="delete-setlist-title">Setlist definitief verwijderen</h2><p id="delete-setlist-description">Weet je zeker dat je deze setlist definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</p><div className="portal-confirm-actions"><button type="button" autoFocus disabled={busy} onClick={() => setPendingDelete(null)}>Annuleren</button><button className="danger" type="button" disabled={busy} onClick={() => { void onDelete(pendingDelete).then((deleted) => { if (deleted) setPendingDelete(null); }); }}>{busy ? "Verwijderen…" : "Definitief verwijderen"}</button></div></section></div>}
   </div>;
 }
@@ -854,7 +902,7 @@ function RehearsalsPanel({ rehearsals, rehearsalSongs, songs, events, isAdmin, b
   const [editingId, setEditingId] = useState<string | null>(null);
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Samen voorbereiden</p><h1>Repetities</h1></div></div>
     {isAdmin && <details className="portal-editor"><summary>Bestaande activiteit als repetitie inrichten</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><label>Repetitie<select name="event_id" required><option value="">Kies een activiteit</option>{events.filter((item) => item.event_type === "rehearsal" && !rehearsals.some((row) => row.event_id === item.id)).map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><label>Algemene opmerkingen<textarea name="general_notes" /></label><button className="portal-primary" disabled={busy}>Repetitie koppelen</button></form></details>}
-    <div className="portal-data-list portal-rehearsal-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); const plannedSongs = rehearsalSongs.filter((item) => item.rehearsal_id === rehearsal.id).sort((a, b) => a.position - b.position); const rehearsalTotal = plannedSongs.reduce((sum, item) => sum + (songs.find((song) => song.id === item.song_id)?.duration_seconds ?? 0), 0); return <article className="portal-data-card" data-print-density={plannedSongs.length <= 10 ? "roomy" : plannedSongs.length <= 15 ? "normal" : "compact"} key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : rehearsal.rehearsal_date ? formatDate(rehearsal.rehearsal_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? rehearsal.name ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location, plannedSongs.length ? `${plannedSongs.length} nummers` : null].filter(Boolean).join(" · ")}</p><p className="portal-print-summary">{plannedSongs.length} nummers · {formatDuration(rehearsalTotal)} totale speelduur</p>{plannedSongs.length > 0 && <ol className="portal-song-order">{plannedSongs.map((item, index) => { const song = songs.find((candidate) => candidate.id === item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, item.notes ?? song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}{isAdmin && <div className="portal-card-actions"><button type="button" onClick={() => setEditingId(editingId === rehearsal.id ? null : rehearsal.id)}>{editingId === rehearsal.id ? "Annuleren" : "Bewerken"}</button><button className="danger" type="button" onClick={() => { if (window.confirm("Weet je zeker dat je deze repetitie wilt verwijderen? De nummers blijven in het repertoire.")) void onDelete(rehearsal); }}>Verwijderen</button></div>}{isAdmin && editingId === rehearsal.id && <RehearsalEditor rehearsal={rehearsal} event={event} plannedSongs={plannedSongs} songs={songs} busy={busy} onReorder={onReorder} onCancel={() => setEditingId(null)} onSave={onUpdate} />}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
+    <div className="portal-data-list portal-rehearsal-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); const plannedSongs = rehearsalSongs.filter((item) => item.rehearsal_id === rehearsal.id).sort((a, b) => a.position - b.position); const rehearsalTotal = plannedSongs.reduce((sum, item) => sum + (songs.find((song) => song.id === item.song_id)?.duration_seconds ?? 0), 0); return <article className="portal-data-card" data-print-density={plannedSongs.length <= 10 ? "roomy" : plannedSongs.length <= 15 ? "normal" : "compact"} key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : rehearsal.rehearsal_date ? formatDate(rehearsal.rehearsal_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? rehearsal.name ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location, plannedSongs.length ? `${plannedSongs.length} nummers` : null].filter(Boolean).join(" · ")}</p><p className="portal-print-summary">{plannedSongs.length} nummers · {formatDuration(rehearsalTotal)} totale speelduur</p>{plannedSongs.length > 0 && <ol className="portal-song-order">{plannedSongs.map((item, index) => { const song = songs.find((candidate) => candidate.id === item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, item.notes ?? song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <SongResourceLinks song={song} compact />}</li>; })}</ol>}{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}{isAdmin && <div className="portal-card-actions"><button type="button" onClick={() => setEditingId(editingId === rehearsal.id ? null : rehearsal.id)}>{editingId === rehearsal.id ? "Annuleren" : "Bewerken"}</button><button className="danger" type="button" onClick={() => { if (window.confirm("Weet je zeker dat je deze repetitie wilt verwijderen? De nummers blijven in het repertoire.")) void onDelete(rehearsal); }}>Verwijderen</button></div>}{isAdmin && editingId === rehearsal.id && <RehearsalEditor rehearsal={rehearsal} event={event} plannedSongs={plannedSongs} songs={songs} busy={busy} onReorder={onReorder} onCancel={() => setEditingId(null)} onSave={onUpdate} />}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
   </div>;
 }
 

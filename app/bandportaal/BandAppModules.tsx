@@ -9,7 +9,7 @@ import { buildSongSyncPlan, fetchSetlistMakerSongs, type CentralSong } from "../
 import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
 import { moveListItem } from "../../lib/sortableLists";
 import { sortRehearsalsByDate } from "../../lib/rehearsalSorting";
-import { lyricsDestination, validSongtekstenUrl, youtubeMetadataTitle } from "../../lib/songLyrics";
+import { cleanLyricsArtist, lyricsDestination, validSongtekstenUrl, youtubeMetadataTitle } from "../../lib/songLyrics";
 
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
@@ -620,7 +620,7 @@ function CompactYoutubeLink({ song }: { song: Song }) {
 
 function LyricsLink({ song, compact = false }: { song: Song; compact?: boolean }) {
   const fallback = lyricsDestination(song);
-  const needsYoutubeMetadata = !validSongtekstenUrl(song.lyrics_url) && (!song.artist?.trim() || !song.title?.trim()) && Boolean(song.youtube_url);
+  const needsYoutubeMetadata = !validSongtekstenUrl(song.lyrics_url) && !cleanLyricsArtist(song.artist) && Boolean(song.youtube_url);
   const open = async (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!needsYoutubeMetadata || !song.youtube_url) return;
     event.preventDefault();

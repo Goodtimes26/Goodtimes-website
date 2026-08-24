@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { cleanLyricsTitle, cleanYoutubeTitle, lyricsDestination, songtekstenSearchUrl, splitYoutubeTitle, validSongtekstenUrl } from "../lib/songLyrics.ts";
+import { cleanLyricsArtist, cleanLyricsTitle, cleanYoutubeTitle, lyricsDestination, songtekstenSearchUrl, splitYoutubeTitle, validSongtekstenUrl, youtubeMetadataTitle } from "../lib/songLyrics.ts";
 
 test("handmatige Songteksten-link heeft voorrang", () => {
   const manual = "https://www.songteksten.nl/songteksten/123/test";
@@ -51,11 +51,36 @@ test("gebruikelijke YouTube-toevoegingen worden verwijderd en titel wordt gespli
   assert.equal(cleanYoutubeTitle("Patrice Rushen - Forget Me Nots (Official Video)"), "Patrice Rushen - Forget Me Nots");
   assert.deepEqual(splitYoutubeTitle("Queen – Radio Ga Ga (Official Audio 1984)"), { artist: "Queen", title: "Radio Ga Ga" });
   assert.deepEqual(splitYoutubeTitle("Give It Up (Live HD)"), { artist: null, title: "Give It Up" });
+  assert.deepEqual(splitYoutubeTitle("Katrina and the Waves - Walking on Sunshine [Official Music Video HQ]"), { artist: "Katrina and the Waves", title: "Walking on Sunshine" });
 });
 
 test("YouTube-metadata vult ontbrekende artiest of titel alleen als fallback aan", () => {
   const url = new URL(lyricsDestination({ title: null, artist: null, youtube_url: "https://youtu.be/test" }, "KC & The Sunshine Band - Give It Up (Official Video)"));
   assert.equal(url.searchParams.get("query"), "KC & The Sunshine Band Give It Up");
+});
+
+test("Walking on Sunshine combineert YouTube-artiest met de opgeschoonde Band-app-titel", () => {
+  const url = new URL(lyricsDestination({ title: "Cindy | Walking on Sunshine", artist: null }, "Katrina and the Waves - Walking on Sunshine (Official Music Video)"));
+  assert.equal(url.searchParams.get("query"), "Katrina and the Waves Walking on Sunshine");
+  assert.equal(cleanLyricsArtist("Cindy"), "");
+});
+
+test("oEmbed gebruikt browserfallback en cachet metadata per YouTube-link", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    if (String(url).includes("youtube.com/oembed")) throw new TypeError("CORS blocked");
+    return new Response(JSON.stringify({ title: "Katrina and the Waves - Walking on Sunshine (Official Music Video)" }), { status: 200 });
+  };
+  try {
+    const youtubeUrl = "https://youtu.be/walking-on-sunshine-test";
+    assert.equal(await youtubeMetadataTitle(youtubeUrl), "Katrina and the Waves - Walking on Sunshine (Official Music Video)");
+    assert.equal(await youtubeMetadataTitle(youtubeUrl), "Katrina and the Waves - Walking on Sunshine (Official Music Video)");
+    assert.equal(calls.length, 2);
+    assert.match(calls[0], /youtube\.com\/oembed/);
+    assert.match(calls[1], /noembed\.com\/embed/);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test("één gedeeld component bedient repertoire, setlists, repetities en editor", async () => {

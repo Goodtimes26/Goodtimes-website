@@ -5,9 +5,10 @@ export type LyricsSong = {
   lyrics_url?: string | null;
 };
 
-const VIDEO_SUFFIX = /\s*[\[(](?:official\s+)?(?:music\s+)?(?:video|audio|lyrics?|lyric\s+video|live|hd|4k|remaster(?:ed)?(?:\s+\d{4})?|\d{4})[^\])]*[\])]/gi;
+const VIDEO_SUFFIX = /\s*[\[(](?:official\s+)?(?:music\s+)?(?:video|audio|lyrics?|lyric\s+video|live|hd|hq|4k|remaster(?:ed)?(?:\s+\d{4})?|\d{4})[^\])]*[\])]/gi;
 const BAND_MEMBER_NAME = /^(?:eddie|esther|cindy|joost|luuk|eric)$/i;
 const BAND_MEMBER_TITLE_PREFIX = /^\s*(eddie|esther|cindy|joost|luuk|eric)\s*(?:\||:|[-–—])\s*(.+)$/i;
+const youtubeMetadataCache = new Map<string, Promise<string | null>>();
 
 export function cleanLyricsTitle(value: string | null | undefined) {
   const title = value?.trim() ?? "";
@@ -15,13 +16,13 @@ export function cleanLyricsTitle(value: string | null | undefined) {
   return match?.[2]?.trim() || title;
 }
 
-function cleanLyricsArtist(value: string | null | undefined) {
+export function cleanLyricsArtist(value: string | null | undefined) {
   const artist = value?.trim() ?? "";
   return BAND_MEMBER_NAME.test(artist) ? "" : artist;
 }
 
 export function cleanYoutubeTitle(value: string) {
-  return value.replace(VIDEO_SUFFIX, "").replace(/\s+(?:official\s+)?(?:music\s+)?(?:video|audio|lyrics?|lyric\s+video|live|hd|4k|remaster(?:ed)?)(?:\s+\d{4})?\s*$/i, "").replace(/\s{2,}/g, " ").trim();
+  return value.replace(VIDEO_SUFFIX, "").replace(/\s+(?:official\s+)?(?:music\s+)?(?:video|audio|lyrics?|lyric\s+video|live|hd|hq|4k|remaster(?:ed)?)(?:\s+\d{4})?\s*$/i, "").replace(/\s{2,}/g, " ").trim();
 }
 
 export function splitYoutubeTitle(value: string) {
@@ -57,17 +58,28 @@ export function lyricsDestination(song: LyricsSong, youtubeTitle?: string | null
   return songtekstenSearchUrl(song.artist, song.title);
 }
 
-export async function youtubeMetadataTitle(youtubeUrl: string) {
+async function fetchOembedTitle(endpoint: string, youtubeUrl: string) {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 5_000);
+  const timeout = globalThis.setTimeout(() => controller.abort(), 4_000);
   try {
-    const endpoint = new URL("https://www.youtube.com/oembed");
-    endpoint.searchParams.set("url", youtubeUrl);
-    endpoint.searchParams.set("format", "json");
-    const response = await fetch(endpoint, { signal: controller.signal, cache: "no-store" });
+    const url = new URL(endpoint);
+    url.searchParams.set("url", youtubeUrl);
+    if (url.hostname === "www.youtube.com") url.searchParams.set("format", "json");
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
     if (!response.ok) return null;
     const data = await response.json() as { title?: unknown };
     return typeof data.title === "string" ? data.title : null;
   } catch { return null; }
-  finally { window.clearTimeout(timeout); }
+  finally { globalThis.clearTimeout(timeout); }
+}
+
+export function youtubeMetadataTitle(youtubeUrl: string) {
+  const cached = youtubeMetadataCache.get(youtubeUrl);
+  if (cached) return cached;
+  const request = (async () =>
+    await fetchOembedTitle("https://www.youtube.com/oembed", youtubeUrl)
+      ?? await fetchOembedTitle("https://noembed.com/embed", youtubeUrl)
+  )();
+  youtubeMetadataCache.set(youtubeUrl, request);
+  return request;
 }

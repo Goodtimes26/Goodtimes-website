@@ -6,6 +6,19 @@ export type LyricsSong = {
 };
 
 const VIDEO_SUFFIX = /\s*[\[(](?:official\s+)?(?:music\s+)?(?:video|audio|lyrics?|lyric\s+video|live|hd|4k|remaster(?:ed)?(?:\s+\d{4})?|\d{4})[^\])]*[\])]/gi;
+const BAND_MEMBER_NAME = /^(?:eddie|esther|cindy|joost|luuk|eric)$/i;
+const BAND_MEMBER_TITLE_PREFIX = /^\s*(eddie|esther|cindy|joost|luuk|eric)\s*(?:\||:|[-–—])\s*(.+)$/i;
+
+export function cleanLyricsTitle(value: string | null | undefined) {
+  const title = value?.trim() ?? "";
+  const match = title.match(BAND_MEMBER_TITLE_PREFIX);
+  return match?.[2]?.trim() || title;
+}
+
+function cleanLyricsArtist(value: string | null | undefined) {
+  const artist = value?.trim() ?? "";
+  return BAND_MEMBER_NAME.test(artist) ? "" : artist;
+}
 
 export function cleanYoutubeTitle(value: string) {
   return value.replace(VIDEO_SUFFIX, "").replace(/\s+(?:official\s+)?(?:music\s+)?(?:video|audio|lyrics?|lyric\s+video|live|hd|4k|remaster(?:ed)?)(?:\s+\d{4})?\s*$/i, "").replace(/\s{2,}/g, " ").trim();
@@ -27,7 +40,7 @@ export function validSongtekstenUrl(value: string | null | undefined) {
 }
 
 export function songtekstenSearchUrl(artist: string | null | undefined, title: string | null | undefined) {
-  const query = [artist?.trim(), title?.trim()].filter(Boolean).join(" ");
+  const query = [cleanLyricsArtist(artist), cleanLyricsTitle(title)].filter(Boolean).join(" ");
   const url = new URL("https://www.songteksten.nl/search");
   url.searchParams.set("query", query || "songtekst");
   url.searchParams.set("type", "title");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { cleanYoutubeTitle, lyricsDestination, songtekstenSearchUrl, splitYoutubeTitle, validSongtekstenUrl } from "../lib/songLyrics.ts";
+import { cleanLyricsTitle, cleanYoutubeTitle, lyricsDestination, songtekstenSearchUrl, splitYoutubeTitle, validSongtekstenUrl } from "../lib/songLyrics.ts";
 
 test("handmatige Songteksten-link heeft voorrang", () => {
   const manual = "https://www.songteksten.nl/songteksten/123/test";
@@ -26,6 +26,25 @@ test("opgeslagen artiest en titel werken zonder YouTube-link", () => {
 test("alleen een titel levert een veilige gerichte fallback op", () => {
   const url = new URL(lyricsDestination({ title: "Give It Up" }));
   assert.equal(url.searchParams.get("query"), "Give It Up");
+});
+
+test("namen van GoodTimes-bandleden worden uit de zoekterm verwijderd", () => {
+  for (const [input, expected] of [
+    ["Cindy | I Wish", "I Wish"],
+    ["Cindy - I Wish", "I Wish"],
+    ["Cindy: I Wish", "I Wish"],
+    ["Cindy – I Wish", "I Wish"],
+    ["Esther | Walking on Sunshine", "Walking on Sunshine"],
+  ]) assert.equal(cleanLyricsTitle(input), expected);
+
+  assert.equal(new URL(lyricsDestination({ title: "Cindy | I Wish" })).searchParams.get("query"), "I Wish");
+  assert.equal(new URL(lyricsDestination({ title: "Cindy | I Wish", artist: "Stevie Wonder" })).searchParams.get("query"), "Stevie Wonder I Wish");
+  assert.equal(new URL(lyricsDestination({ title: "I Wish", artist: "Cindy" })).searchParams.get("query"), "I Wish");
+});
+
+test("een niet-bandlid voor een scheidingsteken blijft onderdeel van de titel", () => {
+  assert.equal(cleanLyricsTitle("Earth, Wind & Fire - September"), "Earth, Wind & Fire - September");
+  assert.equal(cleanLyricsTitle("KC & The Sunshine Band: Give It Up"), "KC & The Sunshine Band: Give It Up");
 });
 
 test("gebruikelijke YouTube-toevoegingen worden verwijderd en titel wordt gesplitst", () => {

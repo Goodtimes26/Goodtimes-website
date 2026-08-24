@@ -26,6 +26,7 @@ export type CentralSong = {
   bpm: number | null;
   duration_seconds: number | null;
   youtube_url: string | null;
+  lyrics_url?: string | null;
   status: string;
   score: number | null;
   notes: string | null;

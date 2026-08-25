@@ -37,6 +37,7 @@ import {
 } from "../../lib/dashboardActivities";
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
 import { PwaBadgePermission } from "./PwaBadgePermission";
+import { amsterdamIsoDate, nextFutureRehearsal } from "../../lib/rehearsalSorting";
 
 type PortalTab = "home" | "agenda" | "agenda-admin" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | "app-activity" | BandAppTab;
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
@@ -44,6 +45,7 @@ type DatedTeamAvailability = TeamAvailability & { date: string };
 type RoleRow = { user_id: string; role: UserRole };
 type AppActivityRow = { user_id: string; last_active_at: string; last_login_at: string | null };
 type ActivityLogRow = { id: string; entity_type: DashboardActivity["kind"]; entity_id: string; action: "created" | "updated"; title: string; old_data: Record<string, unknown> | null; new_data: Record<string, unknown>; actor_id: string | null; created_at: string };
+type DashboardRehearsalRow = { id: string; event_id: string | null; name: string | null; rehearsal_date: string | null };
 const ONLINE_WINDOW_MS = 3 * 60 * 1_000;
 function isNewActivity(createdAt: string, updatedAt: string) {
   return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) < 5_000;
@@ -92,6 +94,7 @@ export function BandPortal() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [responses, setResponses] = useState<RequestResponse[]>([]);
   const [events, setEvents] = useState<BandEvent[]>([]);
+  const [dashboardRehearsals, setDashboardRehearsals] = useState<DashboardRehearsalRow[]>([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [recentActivities, setRecentActivities] = useState<DashboardActivity[]>([]);
   const [pageViews, setPageViews] = useState<PageView[]>([]);
@@ -142,11 +145,12 @@ export function BandPortal() {
       const result = await supabase.rpc("team_availability", { target_date: date });
       return { date, ...result };
     }));
-    const [profilesResult, requestsResult, responsesResult, eventsResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
+    const [profilesResult, requestsResult, responsesResult, eventsResult, rehearsalsResult, rolesResult, pageViewsResult, teamAvailabilityResults] = await Promise.all([
       supabase.from("profiles").select("id,display_name,email").order("display_name"),
       supabase.from("requests").select("*").order("event_date"),
       supabase.from("request_responses").select("id,request_id,user_id,status,note"),
       supabase.from("events").select("id,event_date,start_time,end_time,location,description,notes,event_type,is_public").order("event_date"),
+      supabase.from("rehearsals").select("id,event_id,name,rehearsal_date").order("rehearsal_date"),
       activeRole === "admin"
         ? supabase.from("user_roles").select("user_id,role")
         : Promise.resolve({ data: [{ user_id: activeUser.id, role: activeRole }], error: null }),
@@ -160,6 +164,7 @@ export function BandPortal() {
       requestsResult.error,
       responsesResult.error,
       eventsResult.error,
+      rehearsalsResult.error,
       rolesResult.error,
       pageViewsResult.error,
       teamAvailabilityResults.find((result) => result.error)?.error,
@@ -169,6 +174,7 @@ export function BandPortal() {
     setRequests((requestsResult.data ?? []) as BookingRequest[]);
     setResponses((responsesResult.data ?? []) as RequestResponse[]);
     setEvents((eventsResult.data ?? []) as BandEvent[]);
+    setDashboardRehearsals((rehearsalsResult.data ?? []) as DashboardRehearsalRow[]);
     setRoles((rolesResult.data ?? []) as RoleRow[]);
     setPageViews((pageViewsResult.data ?? []) as PageView[]);
     setTeamCalendarAvailability(teamAvailabilityResults.flatMap((result) =>
@@ -622,7 +628,7 @@ export function BandPortal() {
         {message && <div className="portal-notice" role="status">{message}<button onClick={() => setMessage("")} aria-label="Melding sluiten">×</button></div>}
         {error && <div className="portal-notice portal-notice-error" role="alert">{error}<button onClick={() => setError("")} aria-label="Foutmelding sluiten">×</button></div>}
 
-        {tab === "home" && <PortalDashboard profile={profile} profiles={profiles} events={events} unreadMessageCount={unreadMessageCount} recentActivities={recentActivities} setTab={setTab} openAgendaEvent={openAgendaEvent} />}
+        {tab === "home" && <PortalDashboard profile={profile} profiles={profiles} events={events} rehearsals={dashboardRehearsals} unreadMessageCount={unreadMessageCount} recentActivities={recentActivities} setTab={setTab} openAgendaEvent={openAgendaEvent} />}
 
         {tab === "agenda" && (selectedAgendaEvent ? <AgendaEventDetail event={selectedAgendaEvent} onBack={() => window.history.back()} /> : (
           <div className="portal-section">
@@ -871,10 +877,11 @@ function AgendaEventDetail({ event, onBack }: { event: BandEvent; onBack: () => 
   </div>;
 }
 
-function PortalDashboard({ profile, profiles, events, unreadMessageCount, recentActivities, setTab, openAgendaEvent }: {
+function PortalDashboard({ profile, profiles, events, rehearsals, unreadMessageCount, recentActivities, setTab, openAgendaEvent }: {
   profile: Profile;
   profiles: Profile[];
   events: BandEvent[];
+  rehearsals: DashboardRehearsalRow[];
   unreadMessageCount: number;
   recentActivities: DashboardActivity[];
   setTab: (tab: PortalTab) => void;
@@ -883,8 +890,13 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
   const [showActivityOverview, setShowActivityOverview] = useState(false);
   const activitySeenKey = `goodtimes:activity-seen:${profile.id}`;
   const [activitySeenAt, setActivitySeenAt] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem(activitySeenKey) ?? "");
-  const today = toIsoDate(new Date());
+  const [today, setToday] = useState(() => amsterdamIsoDate());
+  useEffect(() => {
+    const timer = window.setInterval(() => setToday(amsterdamIsoDate()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const nextEvent = events.filter((item) => item.event_type === "performance" && item.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
+  const nextRehearsal = nextFutureRehearsal(rehearsals, events, today);
   const firstName = bandMemberFirstName(profile);
   const daysUntilEvent = nextEvent
     ? Math.round((new Date(`${nextEvent.event_date}T12:00:00`).getTime() - new Date(`${today}T12:00:00`).getTime()) / 86_400_000)
@@ -937,6 +949,15 @@ function PortalDashboard({ profile, profiles, events, unreadMessageCount, recent
         <strong>{nextEvent.description || "GoodTimes live"}<em>{eventVisibilityLabel(nextEvent)}</em></strong>
         <span>{nextEvent.location || "Locatie volgt"}{nextEvent.start_time ? ` · ${nextEvent.start_time.slice(0, 5)} uur` : ""}</span>
       </button> : <p>Er staat nog geen optreden gepland.</p>}
+    </article>
+
+    <article className="portal-card portal-next-event portal-next-rehearsal">
+      <div className="portal-next-event-label"><span>Volgende repetitie</span></div>
+      {nextRehearsal ? <button className="portal-next-event-content" onClick={() => setTab("rehearsals")}>
+        <time>{formatDate(nextRehearsal.date)}</time>
+        <strong>{nextRehearsal.name}</strong>
+        <span>{nextRehearsal.location || "Locatie volgt"}{nextRehearsal.startTime ? ` · ${nextRehearsal.startTime.slice(0, 5)} uur` : ""}</span>
+      </button> : <p>Nog geen volgende repetitie gepland.</p>}
     </article>
 
     <section className="portal-dashboard-updates" aria-labelledby="portal-updates-title">

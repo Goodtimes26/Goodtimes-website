@@ -549,6 +549,32 @@ function SeoLandingPage({ page }: { page: keyof typeof landingPages }) {
         <Link className="primary" href="/contact">{content.cta} <Arrow /></Link>
       </aside>
     </section>
+    {locale === "nl" && page === "80s-coverband-boeken" && <section className="seo-booking-faq" aria-labelledby="booking-faq-title">
+      <p className="eyebrow">Praktische informatie</p>
+      <h2 id="booking-faq-title">Veelgestelde vragen over een jaren 80 coverband boeken</h2>
+      <div>
+        <details>
+          <summary>Speelt GoodTimes alle muziek volledig live?</summary>
+          <p>Ja. GoodTimes speelt zonder backingtracks. Twee zangeressen en muzikanten op toetsen, gitaar, basgitaar en drums zorgen samen voor de volledige live sound.</p>
+        </details>
+        <details>
+          <summary>Voor welke feesten en evenementen is GoodTimes te boeken?</summary>
+          <p>GoodTimes is te boeken voor onder meer bedrijfsfeesten, festivals, evenementen, tentfeesten, dorpsfeesten en jaren 80-themafeesten.</p>
+        </details>
+        <details>
+          <summary>Welke muziek speelt de band?</summary>
+          <p>Het repertoire bestaat uit herkenbare jaren 80-muziek binnen disco, funk, pop, Nederpop en dance classics. Bekijk de <Link href="/repertoire">actuele repertoirelijst</Link> en beluister de <Link href="/media">live opnames</Link> voor een indruk.</p>
+        </details>
+        <details>
+          <summary>In welke regio is GoodTimes beschikbaar?</summary>
+          <p>GoodTimes komt uit Noord-Brabant en is te boeken in Brabant en de rest van Nederland. Voor een specifieke plaats of datum kun je rechtstreeks informeren naar de mogelijkheden.</p>
+        </details>
+        <details>
+          <summary>Hoe vraag ik GoodTimes aan voor mijn evenement?</summary>
+          <p>Stuur via de <Link href="/contact">contactpagina</Link> de datum, locatie en het soort evenement. Dan kan GoodTimes gericht reageren over beschikbaarheid en mogelijkheden.</p>
+        </details>
+      </div>
+    </section>}
     <section className="seo-landing-discover">
       <p className="eyebrow">Ontdek GoodTimes</p>
       <h2>Bekijk en beluister de band</h2>

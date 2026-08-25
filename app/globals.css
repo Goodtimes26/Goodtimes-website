@@ -489,6 +489,7 @@ footer{padding-top:68px}
 .seo-landing-discover{text-align:center;background:radial-gradient(circle at 50% 100%,rgba(86,73,255,.19),transparent 55%)}
 .seo-landing-discover h2{margin-left:auto;margin-right:auto}
 .seo-landing-discover nav{display:flex;justify-content:center;gap:24px 36px;flex-wrap:wrap;margin-top:38px}
+.seo-booking-faq{background:#070a13}.seo-booking-faq>h2{max-width:920px;margin:0 0 42px;font:800 clamp(32px,4vw,54px)/1.08 var(--font-display);letter-spacing:-1px;text-transform:uppercase}.seo-booking-faq>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:1040px}.seo-booking-faq details{border:1px solid var(--line);border-radius:14px;background:var(--gradient-panel)}.seo-booking-faq summary{padding:22px 24px;color:#f3f5fb;font:700 15px/1.45 var(--font-display);cursor:pointer}.seo-booking-faq details p{margin:0;padding:0 24px 24px;color:#cbd0df;line-height:1.75}.seo-booking-faq details a{color:var(--cyan);text-decoration:underline;text-underline-offset:3px}
 
 @media(max-width:900px){
   :root{--section-space:clamp(68px,9vw,88px)}
@@ -531,6 +532,7 @@ footer{padding-top:68px}
   .seo-landing-main p{font-size:15px}
   .seo-landing-aside{position:static;padding:28px 22px}
   .seo-landing-discover nav{align-items:center;flex-direction:column;gap:22px}
+  .seo-booking-faq>div{grid-template-columns:1fr}.seo-booking-faq>h2{margin-bottom:28px}.seo-booking-faq summary{padding:19px 20px}.seo-booking-faq details p{padding:0 20px 20px}
 }
 @media(max-width:390px){
   .member-grid{grid-template-columns:1fr}

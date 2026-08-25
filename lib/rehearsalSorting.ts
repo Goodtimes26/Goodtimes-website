@@ -11,6 +11,10 @@ export function amsterdamIsoDate(date = new Date()) {
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
+export function homepageRehearsalName(name: string) {
+  return /^repetitie\s+\d{1,2}[-./\s](?:\d{1,2}|[a-zÀ-ÿ]{3,})[-./\s]\d{2,4}$/i.test(name.trim()) ? "Repetitie" : name;
+}
+
 export function nextFutureRehearsal(rehearsals: DashboardRehearsal[], events: DashboardEvent[], today = amsterdamIsoDate()): NextRehearsal | null {
   const eventById = new Map(events.map((event) => [event.id, event]));
   const linkedEventIds = new Set(rehearsals.map((rehearsal) => rehearsal.event_id).filter(Boolean));

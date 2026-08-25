@@ -37,7 +37,7 @@ import {
 } from "../../lib/dashboardActivities";
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
 import { PwaBadgePermission } from "./PwaBadgePermission";
-import { amsterdamIsoDate, nextFutureRehearsal } from "../../lib/rehearsalSorting";
+import { amsterdamIsoDate, homepageRehearsalName, nextFutureRehearsal } from "../../lib/rehearsalSorting";
 
 type PortalTab = "home" | "agenda" | "agenda-admin" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | "app-activity" | BandAppTab;
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
@@ -955,8 +955,8 @@ function PortalDashboard({ profile, profiles, events, rehearsals, unreadMessageC
       <div className="portal-next-event-label"><span>Volgende repetitie</span></div>
       {nextRehearsal ? <button className="portal-next-event-content" onClick={() => setTab("rehearsals")}>
         <time>{formatDate(nextRehearsal.date)}</time>
-        <strong>{nextRehearsal.name}</strong>
-        <span>{nextRehearsal.location || "Locatie volgt"}{nextRehearsal.startTime ? ` · ${nextRehearsal.startTime.slice(0, 5)} uur` : ""}</span>
+        <strong>{homepageRehearsalName(nextRehearsal.name)}</strong>
+        <span>{nextRehearsal.location || "Berlicum"}{nextRehearsal.startTime ? ` · ${nextRehearsal.startTime.slice(0, 5)} uur` : ""}</span>
       </button> : <p>Nog geen volgende repetitie gepland.</p>}
     </article>
 

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const { amsterdamIsoDate, nextFutureRehearsal } = await import("../lib/rehearsalSorting.ts");
+const { amsterdamIsoDate, homepageRehearsalName, nextFutureRehearsal } = await import("../lib/rehearsalSorting.ts");
 
 test("homepage chooses only the first rehearsal from today onward", () => {
   const rehearsals = [
@@ -31,9 +31,16 @@ test("today follows the Europe/Amsterdam calendar day", () => {
   assert.equal(amsterdamIsoDate(new Date("2026-08-26T22:30:00Z")), "2026-08-27");
 });
 
+test("homepage hides a redundant rehearsal date but keeps descriptive names", () => {
+  assert.equal(homepageRehearsalName("Repetitie 27-Aug-2026"), "Repetitie");
+  assert.equal(homepageRehearsalName("Repetitie 27 augustus 2026"), "Repetitie");
+  assert.equal(homepageRehearsalName("Repetitie blazers"), "Repetitie blazers");
+});
+
 test("dashboard keeps next performance and renders the rehearsal empty state", () => {
   const dashboard = fs.readFileSync("app/bandportaal/BandPortal.tsx", "utf8");
   assert.match(dashboard, /Volgende optreden/);
   assert.match(dashboard, /Volgende repetitie/);
   assert.match(dashboard, /Nog geen volgende repetitie gepland\./);
+  assert.match(dashboard, /nextRehearsal\.location \|\| "Berlicum"/);
 });

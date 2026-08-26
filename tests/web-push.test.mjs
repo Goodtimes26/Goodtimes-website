@@ -68,4 +68,6 @@ test("een opgeslagen bericht triggert push server-side en slechts eenmaal", () =
   assert.match(messagePushTrigger, /unique index if not exists push_notification_events_entity_unique/);
   assert.match(edgeFunction, /trustedDatabaseTrigger/);
   assert.match(edgeFunction, /Date\.now\(\) - new Date\(authoredMessage\.created_at\)\.getTime\(\) < 120_000/);
+  assert.match(edgeFunction, /findMessage\(service, body\.entityId, body\.databaseTrigger === true \? 6 : 1\)/);
+  assert.match(edgeFunction, /setTimeout\(resolve, 500\)/);
 });

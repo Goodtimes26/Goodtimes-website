@@ -24,7 +24,7 @@ Deno.serve(async (request) => {
     let actorId = user?.id ?? null;
 
     if (body.type === "message_created") {
-      const { data: authoredMessage } = await service.from("band_messages").select("id,author_id,created_at").eq("id", body.entityId).maybeSingle();
+      const authoredMessage = await findMessage(service, body.entityId, body.databaseTrigger === true ? 6 : 1);
       if (!authoredMessage) return json({ error: "Bericht niet gevonden" }, 404);
       const trustedDatabaseTrigger = body.databaseTrigger === true
         && body.eventKey === body.entityId
@@ -71,6 +71,16 @@ Deno.serve(async (request) => {
     return json({ error: "Pushmelding kon niet worden verwerkt" }, 500);
   }
 });
+
+async function findMessage(service: ReturnType<typeof createClient>, messageId: string, attempts: number) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const { data, error } = await service.from("band_messages").select("id,author_id,created_at").eq("id", messageId).maybeSingle();
+    if (error) throw error;
+    if (data) return data;
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return null;
+}
 
 async function notificationDetails(service: ReturnType<typeof createClient>, type: string, entityId: string, actorName: string): Promise<NotificationDetails | null> {
   const firstName = actorName.trim().split(/\s+/)[0] || "Een bandlid";

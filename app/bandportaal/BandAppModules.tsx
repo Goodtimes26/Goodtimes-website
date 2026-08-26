@@ -20,6 +20,7 @@ type Rehearsal = { id: string; event_id: string | null; name?: string | null; re
 type RehearsalSong = { id: string; rehearsal_id: string; song_id: string; position: number; priority: number; status: string; notes: string | null };
 type BandMessage = { id: string; author_id: string; title: string; body: string; important: boolean; created_at: string };
 type MessageRead = { message_id: string; user_id: string; read_at: string };
+type MessageComment = { id: string; message_id: string; author_id: string; body: string; created_at: string; updated_at: string };
 type BandFile = { id: string; title: string; category: string | null; external_url: string | null; storage_path: string | null; description: string | null; song_id: string | null; mime_type: string | null; size_bytes: number | null; original_name: string | null; created_at: string };
 type ExtendedProfile = Profile & { instrument?: string | null; phone?: string | null; avatar_url?: string | null };
 type SupabaseWriteError = { code?: string; message?: string; details?: string | null; hint?: string | null };
@@ -74,6 +75,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
   const [rehearsalSongs, setRehearsalSongs] = useState<RehearsalSong[]>([]);
   const [messages, setMessages] = useState<BandMessage[]>([]);
   const [messageReads, setMessageReads] = useState<MessageRead[]>([]);
+  const [messageComments, setMessageComments] = useState<MessageComment[]>([]);
   const [files, setFiles] = useState<BandFile[]>([]);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile>(profile);
@@ -171,13 +173,14 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       setReady(false);
       return;
     }
-    const [setlistResult, setlistItemsResult, rehearsalResult, rehearsalSongsResult, messageResult, messageReadsResult, fileResult, profileResult] = await Promise.all([
+    const [setlistResult, setlistItemsResult, rehearsalResult, rehearsalSongsResult, messageResult, messageReadsResult, messageCommentsResult, fileResult, profileResult] = await Promise.all([
       supabase.from("setlists").select("id,name,event_id,setlist_date,version,archived,updated_at,updated_by").order("updated_at", { ascending: false }),
       supabase.from("setlist_items").select("id,setlist_id,song_id,position").order("position"),
       supabase.from("rehearsals").select("id,event_id,name,rehearsal_date,status,general_notes").order("rehearsal_date", { ascending: true, nullsFirst: false }),
       supabase.from("rehearsal_songs").select("id,rehearsal_id,song_id,position,priority,status,notes").order("position"),
       supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
       supabase.from("message_reads").select("message_id,user_id,read_at"),
+      supabase.from("message_comments").select("id,message_id,author_id,body,created_at,updated_at").order("created_at"),
       supabase.from("band_files").select("id,title,category,external_url,storage_path,description,song_id,mime_type,size_bytes,original_name,created_at").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,display_name,email,instrument,phone,avatar_url").eq("id", user.id).single(),
     ]);
@@ -199,6 +202,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     setRehearsals((rehearsalResult.data ?? []) as Rehearsal[]);
     setRehearsalSongs((rehearsalSongsResult.data ?? []) as RehearsalSong[]);
     setMessages((messageResult.data ?? []) as BandMessage[]);
+    if (!messageCommentsResult.error) setMessageComments((messageCommentsResult.data ?? []) as MessageComment[]);
     if (messageReadsResult.error) {
       console.error("[GoodTimes berichten] Leesbevestigingen konden niet worden geladen", messageReadsResult.error);
       setMessageReads([]);
@@ -247,12 +251,14 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
 
     const announceChange = () => window.dispatchEvent(new Event("goodtimes:messages-changed"));
     const refreshMessages = async () => {
-      const [messageResult, readResult] = await Promise.all([
+      const [messageResult, readResult, commentResult] = await Promise.all([
         supabase.from("band_messages").select("id,author_id,title,body,important,created_at").order("created_at", { ascending: false }),
         supabase.from("message_reads").select("message_id,user_id,read_at"),
+        supabase.from("message_comments").select("id,message_id,author_id,body,created_at,updated_at").order("created_at"),
       ]);
       if (!messageResult.error) setMessages((messageResult.data ?? []) as BandMessage[]);
       if (!readResult.error) setMessageReads((readResult.data ?? []) as MessageRead[]);
+      if (!commentResult.error) setMessageComments((commentResult.data ?? []) as MessageComment[]);
     };
 
     const connectRealtime = async () => {
@@ -291,6 +297,9 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "message_reads" }, () => {
           void refreshMessages();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "message_comments" }, () => {
+          void refreshMessages(); announceChange();
         })
         .subscribe((status, error) => {
           console.info("[GoodTimes berichten] Realtime status", { status });
@@ -457,7 +466,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     notify("Repetitie verwijderd. Nummers in het repertoire zijn behouden."); await load(); return true;
   }} />;
 
-  if (tab === "messages") return <MessagesPanel messages={messages} reads={messageReads} profiles={profiles} userId={user.id} isAdmin={isAdmin} busy={busy} onCreate={async (formElement) => {
+  if (tab === "messages") return <MessagesPanel messages={messages} reads={messageReads} comments={messageComments} profiles={profiles} userId={user.id} isAdmin={isAdmin} busy={busy} onCreate={async (formElement) => {
     if (messageSubmitBusy.current) return;
     messageSubmitBusy.current = true;
     const data = new FormData(formElement);
@@ -506,6 +515,18 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (error) { console.error("[GoodTimes berichten] Leesstatus opslaan mislukt", { messageId, error }); reportError("De leesstatus kon niet worden bijgewerkt."); return false; }
     await load(); window.dispatchEvent(new Event("goodtimes:messages-read"));
     return true;
+  }} onCreateComment={async (messageId, body) => {
+    const { error } = await getSupabaseClient()!.from("message_comments").insert({ message_id: messageId, author_id: user.id, body });
+    if (error) { console.error("[GoodTimes reacties] Plaatsen mislukt", error); reportError("De reactie kon niet worden geplaatst."); return false; }
+    notify("Reactie geplaatst."); await load(); window.dispatchEvent(new Event("goodtimes:messages-changed")); return true;
+  }} onUpdateComment={async (id, body) => {
+    const { error } = await getSupabaseClient()!.from("message_comments").update({ body }).eq("id", id);
+    if (error) { reportError("De reactie kon niet worden gewijzigd."); return false; }
+    notify("Reactie bijgewerkt."); await load(); return true;
+  }} onDeleteComment={async (id) => {
+    if (!window.confirm("Weet je zeker dat je deze reactie wilt verwijderen?")) return;
+    const { error } = await getSupabaseClient()!.from("message_comments").delete().eq("id", id);
+    if (error) reportError("De reactie kon niet worden verwijderd."); else { notify("Reactie verwijderd."); await load(); }
   }} onDelete={async (id) => {
     if (!window.confirm("Weet je zeker dat je dit bericht wilt verwijderen?")) return;
     const { error } = await getSupabaseClient()!.from("band_messages").delete().eq("id", id);
@@ -877,8 +898,10 @@ function RehearsalEditor({ rehearsal, event, plannedSongs, songs, busy, onReorde
   </form>;
 }
 
-function MessagesPanel({ messages, reads, profiles, userId, isAdmin, busy, onCreate, onUpdate, onSetRead, onDelete }: { messages: BandMessage[]; reads: MessageRead[]; profiles: Profile[]; userId: string; isAdmin: boolean; busy: boolean; onCreate: (form: HTMLFormElement) => void; onUpdate: (message: BandMessage, title: string, body: string, important: boolean) => Promise<boolean>; onSetRead: (messageId: string, read: boolean) => Promise<boolean>; onDelete: (id: string) => void }) {
+function MessagesPanel({ messages, reads, comments, profiles, userId, isAdmin, busy, onCreate, onUpdate, onSetRead, onCreateComment, onUpdateComment, onDeleteComment, onDelete }: { messages: BandMessage[]; reads: MessageRead[]; comments: MessageComment[]; profiles: Profile[]; userId: string; isAdmin: boolean; busy: boolean; onCreate: (form: HTMLFormElement) => void; onUpdate: (message: BandMessage, title: string, body: string, important: boolean) => Promise<boolean>; onSetRead: (messageId: string, read: boolean) => Promise<boolean>; onCreateComment: (messageId: string, body: string) => Promise<boolean>; onUpdateComment: (id: string, body: string) => Promise<boolean>; onDeleteComment: (id: string) => void; onDelete: (id: string) => void }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const pendingAutomaticReads = useRef(new Set<string>());
   const memberProfiles = profiles;
   useEffect(() => {
@@ -911,8 +934,16 @@ function MessagesPanel({ messages, reads, profiles, userId, isAdmin, busy, onCre
       timers.forEach((timer) => window.clearTimeout(timer));
     };
   }, [messages, onSetRead, reads, userId]);
+  const selected = messages.find((message) => message.id === selectedId);
+  const dateTime = (value: string) => new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  const openMessage = (message: BandMessage) => { setSelectedId(message.id); if (!reads.some((read) => read.message_id === message.id && read.user_id === userId)) void onSetRead(message.id, true); };
+  if (selected) {
+    const selectedComments = comments.filter((comment) => comment.message_id === selected.id).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const author = profiles.find((item) => item.id === selected.author_id);
+    return <div className="portal-section portal-message-detail"><button className="portal-back-button" type="button" onClick={() => setSelectedId(null)}>← Terug naar berichten</button><article className={`portal-card portal-message-original ${selected.important ? "important" : ""}`}><span>{selected.important ? "Belangrijk" : "Bandbericht"}</span><h1>{selected.title}</h1><p>{selected.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"} · {dateTime(selected.created_at)}</small></article><section className="portal-comments"><h2>{selectedComments.length} {selectedComments.length === 1 ? "reactie" : "reacties"}</h2>{selectedComments.map((comment) => { const commentAuthor = profiles.find((item) => item.id === comment.author_id); const canManage = comment.author_id === userId || isAdmin; const canEdit = comment.author_id === userId; return <article className="portal-comment" key={comment.id}><header><strong>{commentAuthor ? bandMemberFirstName(commentAuthor) : "Bandlid"}</strong><time>{dateTime(comment.created_at)}</time></header>{editingCommentId === comment.id ? <form className="portal-comment-edit" onSubmit={(event) => { event.preventDefault(); const body = String(new FormData(event.currentTarget).get("body")); void onUpdateComment(comment.id, body).then((ok) => { if (ok) setEditingCommentId(null); }); }}><textarea name="body" required maxLength={2000} defaultValue={comment.body} /><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Opslaan</button><button type="button" onClick={() => setEditingCommentId(null)}>Annuleren</button></div></form> : <p>{comment.body}</p>}<div className="portal-comment-actions">{canEdit && editingCommentId !== comment.id && <button type="button" onClick={() => setEditingCommentId(comment.id)}>Wijzigen</button>}{canManage && <button className="danger" type="button" onClick={() => onDeleteComment(comment.id)}>Verwijderen</button>}</div></article>; })}{!selectedComments.length && <p className="portal-help">Er zijn nog geen reacties.</p>}<form className="portal-form portal-comment-form" onSubmit={(event) => { event.preventDefault(); const form = event.currentTarget; const body = String(new FormData(form).get("body")); void onCreateComment(selected.id, body).then((ok) => { if (ok) form.reset(); }); }}><label>Schrijf een reactie…<textarea name="body" required maxLength={2000} placeholder="Schrijf een reactie…" /></label><button className="portal-primary" disabled={busy}>{busy ? "Plaatsen…" : "Plaatsen"}</button></form></section></div>;
+  }
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Voor de hele band</p><h1>Bandberichten</h1></div></div><details className="portal-editor"><summary>Bericht plaatsen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); onCreate(event.currentTarget); }}><label>Titel<input name="title" required maxLength={160} /></label><label>Bericht<textarea name="body" required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" /> Markeer als belangrijk</label><button className="portal-primary" disabled={busy}>{busy ? "Plaatsen…" : "Bericht plaatsen"}</button></form></details>
-    <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); const readIds = new Set(reads.filter((read) => read.message_id === message.id).map((read) => read.user_id)); const readNames = memberProfiles.filter((member) => readIds.has(member.id)).map(bandMemberFirstName); const unreadNames = memberProfiles.filter((member) => !readIds.has(member.id)).map(bandMemberFirstName); const canManage = isAdmin || message.author_id === userId; const isRead = readIds.has(userId); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} data-message-id={message.id} data-portal-entity-id={`message:${message.id}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small><div className="portal-read-receipts"><small className="is-read"><i aria-hidden="true" />{readNames.join(", ") || "Niemand"}</small><small className="is-unread"><i aria-hidden="true" />{unreadNames.join(", ") || "Niemand"}</small></div><div className="portal-card-actions"><button type="button" onClick={() => { void onSetRead(message.id, !isRead); }}>{isRead ? "Markeer als ongelezen" : "Markeer als gelezen"}</button>{canManage && <button type="button" onClick={() => setEditingId(editingId === message.id ? null : message.id)}>{editingId === message.id ? "Annuleren" : "Bewerken"}</button>}{canManage && <button className="danger" type="button" onClick={() => onDelete(message.id)}>Verwijderen</button>}</div>{canManage && editingId === message.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); void onUpdate(message, String(data.get("title")), String(data.get("body")), data.get("important") === "on").then((ok) => { if (ok) setEditingId(null); }); }}><label>Titel<input name="title" defaultValue={message.title} required maxLength={160} /></label><label>Bericht<textarea name="body" defaultValue={message.body} required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" defaultChecked={message.important} /> Markeer als belangrijk</label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
+    <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); const readIds = new Set(reads.filter((read) => read.message_id === message.id).map((read) => read.user_id)); const readNames = memberProfiles.filter((member) => readIds.has(member.id)).map(bandMemberFirstName); const unreadNames = memberProfiles.filter((member) => !readIds.has(member.id)).map(bandMemberFirstName); const canManage = isAdmin || message.author_id === userId; const isRead = readIds.has(userId); const count = comments.filter((comment) => comment.message_id === message.id).length; return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} data-message-id={message.id} data-portal-entity-id={`message:${message.id}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{dateTime(message.created_at)}</b></div><button className="portal-message-open" type="button" onClick={() => openMessage(message)}><h2>{message.title}</h2><p>{message.body}</p></button><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small><button className="portal-comment-count" type="button" onClick={() => openMessage(message)}><span aria-hidden="true">●</span> {count} {count === 1 ? "reactie" : "reacties"}</button><div className="portal-read-receipts"><small className="is-read"><i aria-hidden="true" />{readNames.join(", ") || "Niemand"}</small><small className="is-unread"><i aria-hidden="true" />{unreadNames.join(", ") || "Niemand"}</small></div><div className="portal-card-actions"><button type="button" onClick={() => { void onSetRead(message.id, !isRead); }}>{isRead ? "Markeer als ongelezen" : "Markeer als gelezen"}</button>{canManage && <button type="button" onClick={() => setEditingId(editingId === message.id ? null : message.id)}>{editingId === message.id ? "Annuleren" : "Bewerken"}</button>}{canManage && <button className="danger" type="button" onClick={() => onDelete(message.id)}>Verwijderen</button>}</div>{canManage && editingId === message.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); void onUpdate(message, String(data.get("title")), String(data.get("body")), data.get("important") === "on").then((ok) => { if (ok) setEditingId(null); }); }}><label>Titel<input name="title" defaultValue={message.title} required maxLength={160} /></label><label>Bericht<textarea name="body" defaultValue={message.body} required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" defaultChecked={message.important} /> Markeer als belangrijk</label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
 }
 
 function MediaPlayer({ file, url }: { file: BandFile; url?: string }) {

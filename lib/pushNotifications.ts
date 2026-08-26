@@ -1,7 +1,7 @@
 import { getSupabaseClient } from "./supabase";
 
 export type PushStatus = "checking" | "unsupported" | "not-installed" | "not-configured" | "denied" | "off" | "on" | "error";
-export type BandPushType = "message_created" | "rehearsal_created" | "rehearsal_updated" | "performance_created" | "performance_updated";
+export type BandPushType = "message_created" | "message_comment_created" | "rehearsal_created" | "rehearsal_updated" | "performance_created" | "performance_updated";
 
 const publicVapidKey = process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY ?? "";
 

@@ -2,7 +2,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
-const allowedTypes = new Set(["message_created", "rehearsal_created", "rehearsal_updated", "performance_created", "performance_updated"]);
+const allowedTypes = new Set(["message_created", "message_comment_created", "rehearsal_created", "rehearsal_updated", "performance_created", "performance_updated"]);
 
 type RequestBody = { type?: string; entityId?: string; eventKey?: string; databaseTrigger?: boolean };
 type NotificationDetails = { body: string; url: string; tag: string };
@@ -26,19 +26,21 @@ Deno.serve(async (request) => {
     let actorName = "Bandlid";
     let messageSubscriptions: PushSubscriptionRow[] | null = null;
 
-    if (body.type === "message_created") {
+    if (body.type === "message_created" || body.type === "message_comment_created") {
       if (!body.databaseTrigger && !user) return json({ error: "Niet ingelogd" }, 401);
       const rpcClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });
-      const { data: context, error: contextError } = await rpcClient.rpc("claim_message_push_context", {
-        p_message_id: body.entityId,
+      const rpcName = body.type === "message_created" ? "claim_message_push_context" : "claim_message_comment_push_context";
+      const idParameter = body.type === "message_created" ? { p_message_id: body.entityId } : { p_comment_id: body.entityId };
+      const { data: context, error: contextError } = await rpcClient.rpc(rpcName, {
+        ...idParameter,
         p_event_key: body.eventKey,
         p_internal_secret: Deno.env.get("PUSH_INTERNAL_SECRET") ?? "",
       });
       if (contextError) throw contextError;
-      if (!context) return json({ error: "Bericht niet gevonden" }, 404);
+      if (!context) return json({ error: body.type === "message_created" ? "Bericht niet gevonden" : "Reactie niet gevonden" }, 404);
       if (context.duplicate) return json({ duplicate: true, sent: 0 });
       actorId = String(context.actor_id);
-      if (user && actorId !== user.id) return json({ error: "Alleen de auteur kan deze berichtmelding versturen" }, 403);
+      if (user && actorId !== user.id) return json({ error: "Alleen de auteur kan deze melding versturen" }, 403);
       actorName = String(context.display_name ?? "Bandlid");
       messageSubscriptions = (context.subscriptions ?? []) as PushSubscriptionRow[];
     } else {
@@ -48,7 +50,7 @@ Deno.serve(async (request) => {
     }
 
     if (!actorId) return json({ error: "Geen geldige afzender" }, 403);
-    if (body.type !== "message_created") {
+    if (body.type !== "message_created" && body.type !== "message_comment_created") {
       const { data: member } = await service.from("profiles").select("id,display_name").eq("id", actorId).maybeSingle();
       if (!member) return json({ error: "Geen actief bandlid" }, 403);
       actorName = String(member.display_name ?? "Bandlid");
@@ -93,6 +95,13 @@ async function notificationDetails(service: ReturnType<typeof createClient>, typ
   const firstName = actorName.trim().split(/\s+/)[0] || "Een bandlid";
   if (type === "message_created") {
     return { body: `Nieuw bericht van ${firstName}`, url: `/bandportaal/?tab=messages&target=message:${entityId}`, tag: `message:${entityId}` };
+  }
+  if (type === "message_comment_created") {
+    const { data: comment } = await service.from("message_comments").select("id,message_id").eq("id", entityId).maybeSingle();
+    if (!comment) return null;
+    const { data: message } = await service.from("band_messages").select("title").eq("id", comment.message_id).maybeSingle();
+    if (!message) return null;
+    return { body: `Nieuwe reactie van ${firstName} op: ${message.title}`, url: `/bandportaal/?tab=messages&target=message:${comment.message_id}`, tag: `comment:${entityId}` };
   }
   if (type.startsWith("performance_")) {
     const { data } = await service.from("events").select("id,description").eq("id", entityId).eq("event_type", "performance").maybeSingle();

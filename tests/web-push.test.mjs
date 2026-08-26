@@ -48,6 +48,13 @@ test("one push hook follows each supported successful mutation", () => {
   assert.match(edgeFunction, /statusCode === 404 \|\| statusCode === 410/);
 });
 
+test("een opgeslagen reactie pusht naar andere bandleden en opent het oorspronkelijke bericht", () => {
+  assert.match(edgeFunction, /message_comment_created/);
+  assert.match(edgeFunction, /Nieuwe reactie van/);
+  assert.match(edgeFunction, /target=message:\$\{comment\.message_id\}/);
+  assert.match(fs.readFileSync("supabase/migrations/027_band_message_comment_push.sql", "utf8"), /after insert on public\.message_comments/);
+});
+
 test("berichtpush gebruikt de actuele sessie en rapporteert ontvangers en afleverfouten", () => {
   assert.match(pushClient, /supabase\.auth\.getSession\(\)/);
   assert.match(pushClient, /Authorization: `Bearer \$\{sessionData\.session\.access_token\}`/);

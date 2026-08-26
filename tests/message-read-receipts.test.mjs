@@ -6,8 +6,11 @@ const modules = readFileSync(new URL("../app/bandportaal/BandAppModules.tsx", im
 const insertPolicy = readFileSync(new URL("../supabase/migrations/013_band_messages_insert_policy.sql", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/011_band_message_read_receipts.sql", import.meta.url), "utf8");
 
-test("berichten gebruiken per gebruiker een expliciete leesstatus", () => {
-  assert.doesNotMatch(modules, /markVisibleMessagesRead/);
+test("zichtbaar geopende berichten registreren automatisch de persoonlijke leesstatus", () => {
+  assert.match(modules, /IntersectionObserver/);
+  assert.match(modules, /data-message-id=\{message\.id\}/);
+  assert.match(modules, /intersectionRatio < 0\.65/);
+  assert.match(modules, /onSetRead\(messageId, true\)/);
   assert.match(modules, /Markeer als gelezen/);
   assert.doesNotMatch(modules, /Nog niet gelezen:/);
   assert.doesNotMatch(modules, /<strong>Gelezen:/);

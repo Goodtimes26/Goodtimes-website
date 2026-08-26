@@ -503,8 +503,9 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     const { error } = read
       ? await supabase.from("message_reads").upsert({ message_id: messageId, user_id: user.id }, { onConflict: "message_id,user_id" })
       : await supabase.from("message_reads").delete().eq("message_id", messageId).eq("user_id", user.id);
-    if (error) { reportError("De leesstatus kon niet worden bijgewerkt."); return; }
+    if (error) { console.error("[GoodTimes berichten] Leesstatus opslaan mislukt", { messageId, error }); reportError("De leesstatus kon niet worden bijgewerkt."); return false; }
     await load(); window.dispatchEvent(new Event("goodtimes:messages-read"));
+    return true;
   }} onDelete={async (id) => {
     if (!window.confirm("Weet je zeker dat je dit bericht wilt verwijderen?")) return;
     const { error } = await getSupabaseClient()!.from("band_messages").delete().eq("id", id);
@@ -876,11 +877,42 @@ function RehearsalEditor({ rehearsal, event, plannedSongs, songs, busy, onReorde
   </form>;
 }
 
-function MessagesPanel({ messages, reads, profiles, userId, isAdmin, busy, onCreate, onUpdate, onSetRead, onDelete }: { messages: BandMessage[]; reads: MessageRead[]; profiles: Profile[]; userId: string; isAdmin: boolean; busy: boolean; onCreate: (form: HTMLFormElement) => void; onUpdate: (message: BandMessage, title: string, body: string, important: boolean) => Promise<boolean>; onSetRead: (messageId: string, read: boolean) => void; onDelete: (id: string) => void }) {
+function MessagesPanel({ messages, reads, profiles, userId, isAdmin, busy, onCreate, onUpdate, onSetRead, onDelete }: { messages: BandMessage[]; reads: MessageRead[]; profiles: Profile[]; userId: string; isAdmin: boolean; busy: boolean; onCreate: (form: HTMLFormElement) => void; onUpdate: (message: BandMessage, title: string, body: string, important: boolean) => Promise<boolean>; onSetRead: (messageId: string, read: boolean) => Promise<boolean>; onDelete: (id: string) => void }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const pendingAutomaticReads = useRef(new Set<string>());
   const memberProfiles = profiles;
+  useEffect(() => {
+    const unreadIds = new Set(messages.filter((message) => !reads.some((read) => read.message_id === message.id && read.user_id === userId)).map((message) => message.id));
+    if (!unreadIds.size) return;
+    const timers = new Map<string, number>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const messageId = (entry.target as HTMLElement).dataset.messageId;
+        if (!messageId || !unreadIds.has(messageId) || pendingAutomaticReads.current.has(messageId)) continue;
+        const existingTimer = timers.get(messageId);
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.65) {
+          if (existingTimer) window.clearTimeout(existingTimer);
+          timers.delete(messageId);
+          continue;
+        }
+        if (existingTimer) continue;
+        timers.set(messageId, window.setTimeout(() => {
+          timers.delete(messageId);
+          pendingAutomaticReads.current.add(messageId);
+          void onSetRead(messageId, true).then((saved) => {
+            if (!saved) pendingAutomaticReads.current.delete(messageId);
+          });
+        }, 600));
+      }
+    }, { threshold: [0.65] });
+    document.querySelectorAll<HTMLElement>(".portal-message-card[data-message-id]").forEach((card) => observer.observe(card));
+    return () => {
+      observer.disconnect();
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [messages, onSetRead, reads, userId]);
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Voor de hele band</p><h1>Bandberichten</h1></div></div><details className="portal-editor"><summary>Bericht plaatsen</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); onCreate(event.currentTarget); }}><label>Titel<input name="title" required maxLength={160} /></label><label>Bericht<textarea name="body" required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" /> Markeer als belangrijk</label><button className="portal-primary" disabled={busy}>{busy ? "Plaatsen…" : "Bericht plaatsen"}</button></form></details>
-    <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); const readIds = new Set(reads.filter((read) => read.message_id === message.id).map((read) => read.user_id)); const readNames = memberProfiles.filter((member) => readIds.has(member.id)).map(bandMemberFirstName); const unreadNames = memberProfiles.filter((member) => !readIds.has(member.id)).map(bandMemberFirstName); const canManage = isAdmin || message.author_id === userId; const isRead = readIds.has(userId); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small><div className="portal-read-receipts"><small className="is-read"><i aria-hidden="true" />{readNames.join(", ") || "Niemand"}</small><small className="is-unread"><i aria-hidden="true" />{unreadNames.join(", ") || "Niemand"}</small></div><div className="portal-card-actions"><button type="button" onClick={() => onSetRead(message.id, !isRead)}>{isRead ? "Markeer als ongelezen" : "Markeer als gelezen"}</button>{canManage && <button type="button" onClick={() => setEditingId(editingId === message.id ? null : message.id)}>{editingId === message.id ? "Annuleren" : "Bewerken"}</button>}{canManage && <button className="danger" type="button" onClick={() => onDelete(message.id)}>Verwijderen</button>}</div>{canManage && editingId === message.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); void onUpdate(message, String(data.get("title")), String(data.get("body")), data.get("important") === "on").then((ok) => { if (ok) setEditingId(null); }); }}><label>Titel<input name="title" defaultValue={message.title} required maxLength={160} /></label><label>Bericht<textarea name="body" defaultValue={message.body} required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" defaultChecked={message.important} /> Markeer als belangrijk</label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
+    <div className="portal-data-list">{messages.map((message) => { const author = profiles.find((profile) => profile.id === message.author_id); const readIds = new Set(reads.filter((read) => read.message_id === message.id).map((read) => read.user_id)); const readNames = memberProfiles.filter((member) => readIds.has(member.id)).map(bandMemberFirstName); const unreadNames = memberProfiles.filter((member) => !readIds.has(member.id)).map(bandMemberFirstName); const canManage = isAdmin || message.author_id === userId; const isRead = readIds.has(userId); return <article className={`portal-data-card portal-message-card ${message.important ? "important" : ""}`} data-message-id={message.id} data-portal-entity-id={`message:${message.id}`} key={message.id}><div><span>{message.important ? "Belangrijk" : "Bericht"}</span><b>{new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(message.created_at))}</b></div><h2>{message.title}</h2><p>{message.body}</p><small>Door {author ? bandMemberFirstName(author) : "Bandlid"}</small><div className="portal-read-receipts"><small className="is-read"><i aria-hidden="true" />{readNames.join(", ") || "Niemand"}</small><small className="is-unread"><i aria-hidden="true" />{unreadNames.join(", ") || "Niemand"}</small></div><div className="portal-card-actions"><button type="button" onClick={() => { void onSetRead(message.id, !isRead); }}>{isRead ? "Markeer als ongelezen" : "Markeer als gelezen"}</button>{canManage && <button type="button" onClick={() => setEditingId(editingId === message.id ? null : message.id)}>{editingId === message.id ? "Annuleren" : "Bewerken"}</button>}{canManage && <button className="danger" type="button" onClick={() => onDelete(message.id)}>Verwijderen</button>}</div>{canManage && editingId === message.id && <form className="portal-form portal-card portal-inline-editor" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); void onUpdate(message, String(data.get("title")), String(data.get("body")), data.get("important") === "on").then((ok) => { if (ok) setEditingId(null); }); }}><label>Titel<input name="title" defaultValue={message.title} required maxLength={160} /></label><label>Bericht<textarea name="body" defaultValue={message.body} required maxLength={3000} /></label><label className="portal-check-label"><input name="important" type="checkbox" defaultChecked={message.important} /> Markeer als belangrijk</label><div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={() => setEditingId(null)}>Annuleren</button></div></form>}</article>; })}{!messages.length && <div className="portal-empty">Er zijn nog geen berichten.</div>}</div></div>;
 }
 
 function MediaPlayer({ file, url }: { file: BandFile; url?: string }) {

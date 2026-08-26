@@ -36,8 +36,9 @@ import {
   type DashboardActivity,
 } from "../../lib/dashboardActivities";
 import { BandAppModules, type BandAppTab } from "./BandAppModules";
-import { PwaBadgePermission } from "./PwaBadgePermission";
+import { PushNotificationSettings } from "./PushNotificationSettings";
 import { amsterdamIsoDate, homepageRehearsalName, nextFutureRehearsal } from "../../lib/rehearsalSorting";
+import { disablePushNotifications, sendBandPush } from "../../lib/pushNotifications";
 
 type PortalTab = "home" | "agenda" | "agenda-admin" | "requests" | "availability" | "events" | "more" | "users" | "analytics" | "app-activity" | BandAppTab;
 type TeamAvailability = Pick<Availability, "user_id" | "status"> & { display_name: string };
@@ -87,7 +88,12 @@ export function BandPortal() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<UserRole>("member");
-  const [tab, setTab] = useState<PortalTab>("home");
+  const [tab, setTab] = useState<PortalTab>(() => {
+    if (typeof window === "undefined") return "home";
+    if (window.location.hash.startsWith("#event-")) return "agenda";
+    const requested = new URLSearchParams(window.location.search).get("tab") as PortalTab | null;
+    return requested && (["home", "agenda", "setlists", "songs", "rehearsals", "messages", "files", "more"] as PortalTab[]).includes(requested) ? requested : "home";
+  });
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [teamCalendarAvailability, setTeamCalendarAvailability] = useState<DatedTeamAvailability[]>([]);
@@ -107,7 +113,7 @@ export function BandPortal() {
   const [checkRows, setCheckRows] = useState<TeamAvailability[] | null>(null);
   const [editingRequest, setEditingRequest] = useState<BookingRequest | null>(null);
   const [editingEvent, setEditingEvent] = useState<BandEvent | null>(null);
-  const [selectedAgendaEventId, setSelectedAgendaEventId] = useState<string | null>(null);
+  const [selectedAgendaEventId, setSelectedAgendaEventId] = useState<string | null>(() => typeof window !== "undefined" && window.location.hash.startsWith("#event-") ? window.location.hash.slice(7) : null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -118,6 +124,12 @@ export function BandPortal() {
     setSelectedAgendaEventId(eventId);
     setTab("agenda");
     window.history.pushState({ goodtimesAgendaEvent: eventId }, "", `${window.location.pathname}${window.location.search}#event-${eventId}`);
+  }, []);
+
+  useEffect(() => {
+    const parameters = new URLSearchParams(window.location.search);
+    const target = parameters.get("target");
+    if (target) window.sessionStorage.setItem("goodtimes:activity-target", JSON.stringify({ id: target }));
   }, []);
 
   useEffect(() => {
@@ -453,6 +465,7 @@ export function BandPortal() {
 
   async function signOut() {
     await clearAppBadge();
+    try { await disablePushNotifications(); } catch (pushError) { console.warn("[GoodTimes push] Subscription bij uitloggen opruimen mislukt", pushError); }
     const supabase = getSupabaseClient();
     try {
       if (supabase) {
@@ -535,22 +548,24 @@ export function BandPortal() {
     event.preventDefault();
     if (!user || !isAdmin) return;
     const form = new FormData(event.currentTarget);
-    const { error: eventError } = await getSupabaseClient()!.from("events").insert({
+    const eventType = String(form.get("event_type")) as EventType;
+    const { data: createdEvent, error: eventError } = await getSupabaseClient()!.from("events").insert({
       event_date: String(form.get("event_date")),
       start_time: String(form.get("start_time") || "") || null,
       end_time: String(form.get("end_time") || "") || null,
       location: String(form.get("location") || "") || null,
       description: String(form.get("description")),
       notes: String(form.get("notes") || "") || null,
-      event_type: String(form.get("event_type")) as EventType,
+      event_type: eventType,
       is_public: form.get("is_public") === "true",
       created_by: user.id,
-    });
+    }).select("id").single();
     if (eventError) setError("De activiteit kon niet worden opgeslagen.");
     else {
       event.currentTarget.reset();
       setMessage("De activiteit is toegevoegd.");
       await refresh();
+      if (createdEvent && (eventType === "performance" || eventType === "rehearsal")) void sendBandPush(eventType === "performance" ? "performance_created" : "rehearsal_created", createdEvent.id);
     }
   }
 
@@ -576,6 +591,7 @@ export function BandPortal() {
     setEditingEvent(null);
     setMessage("De agenda-afspraak is bijgewerkt.");
     await Promise.all([refresh(), user ? loadDashboardActivity(user.id) : Promise.resolve()]);
+    if (payload.event_type === "performance" || payload.event_type === "rehearsal") void sendBandPush(payload.event_type === "performance" ? "performance_updated" : "rehearsal_updated", editingEvent.id);
   }
 
   async function deleteEvent(id: string) {
@@ -624,7 +640,7 @@ export function BandPortal() {
       </nav>
 
       <section className={`portal-content ${tab === "home" ? "portal-content-home" : ""}`}>
-        <PwaBadgePermission />
+        <PushNotificationSettings prompt />
         {message && <div className="portal-notice" role="status">{message}<button onClick={() => setMessage("")} aria-label="Melding sluiten">×</button></div>}
         {error && <div className="portal-notice portal-notice-error" role="alert">{error}<button onClick={() => setError("")} aria-label="Foutmelding sluiten">×</button></div>}
 
@@ -804,6 +820,7 @@ export function BandPortal() {
               {isAdmin && <button onClick={() => setTab("analytics")}><strong>Bezoekers</strong><span>Websitebezoek bekijken</span></button>}
               {isAdmin && <button onClick={() => setTab("app-activity")}><strong>App-activiteit</strong><span>Bekijk wanneer bandleden actief zijn</span></button>}
             </div>
+            <PushNotificationSettings />
           </div>
         )}
       </section>

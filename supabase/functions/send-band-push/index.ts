@@ -4,7 +4,7 @@ import webpush from "npm:web-push@3.6.7";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const allowedTypes = new Set(["message_created", "rehearsal_created", "rehearsal_updated", "performance_created", "performance_updated"]);
 
-type RequestBody = { type?: string; entityId?: string; eventKey?: string };
+type RequestBody = { type?: string; entityId?: string; eventKey?: string; databaseTrigger?: boolean };
 type NotificationDetails = { body: string; url: string; tag: string };
 
 Deno.serve(async (request) => {
@@ -14,32 +14,40 @@ Deno.serve(async (request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const authorization = request.headers.get("Authorization") ?? "";
     const service = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) return json({ error: "Niet ingelogd" }, 401);
-    const { data: member } = await service.from("profiles").select("id,display_name").eq("id", user.id).maybeSingle();
-    if (!member) return json({ error: "Geen actief bandlid" }, 403);
-
     const body = await request.json() as RequestBody;
     if (!body.type || !allowedTypes.has(body.type) || !body.entityId || !body.eventKey) return json({ error: "Ongeldige pushopdracht" }, 400);
     const eventKey = body.eventKey;
     if (!/^[0-9a-f-]{36}$/i.test(eventKey) || !/^[0-9a-f-]{36}$/i.test(body.entityId)) return json({ error: "Ongeldig ID" }, 400);
 
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
+    const { data: { user } } = authorization ? await userClient.auth.getUser() : { data: { user: null } };
+    let actorId = user?.id ?? null;
+
     if (body.type === "message_created") {
-      const { data: authoredMessage } = await service.from("band_messages").select("id").eq("id", body.entityId).eq("author_id", user.id).maybeSingle();
-      if (!authoredMessage) return json({ error: "Alleen de auteur kan deze berichtmelding versturen" }, 403);
+      const { data: authoredMessage } = await service.from("band_messages").select("id,author_id,created_at").eq("id", body.entityId).maybeSingle();
+      if (!authoredMessage) return json({ error: "Bericht niet gevonden" }, 404);
+      const trustedDatabaseTrigger = body.databaseTrigger === true
+        && body.eventKey === body.entityId
+        && Date.now() - new Date(authoredMessage.created_at).getTime() < 120_000;
+      if (!trustedDatabaseTrigger && (!user || authoredMessage.author_id !== user.id)) return json({ error: "Alleen de auteur kan deze berichtmelding versturen" }, 403);
+      actorId = authoredMessage.author_id;
     } else {
+      if (!user) return json({ error: "Niet ingelogd" }, 401);
       const { data: actorRole } = await service.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
       if (actorRole?.role !== "admin") return json({ error: "Alleen beheerders kunnen agenda- en repetitiemeldingen versturen" }, 403);
     }
 
-    const { error: eventError } = await service.from("push_notification_events").insert({ event_key: eventKey, actor_id: user.id, event_type: body.type, entity_id: body.entityId });
+    if (!actorId) return json({ error: "Geen geldige afzender" }, 403);
+    const { data: member } = await service.from("profiles").select("id,display_name").eq("id", actorId).maybeSingle();
+    if (!member) return json({ error: "Geen actief bandlid" }, 403);
+
+    const { error: eventError } = await service.from("push_notification_events").insert({ event_key: eventKey, actor_id: actorId, event_type: body.type, entity_id: body.entityId });
     if (eventError?.code === "23505") return json({ duplicate: true, sent: 0 });
     if (eventError) throw eventError;
 
     const details = await notificationDetails(service, body.type, body.entityId, String(member.display_name ?? "Bandlid"));
     if (!details) return json({ error: "Bronitem niet gevonden" }, 404);
-    const { data: subscriptions, error: subscriptionsError } = await service.from("push_subscriptions").select("id,endpoint,p256dh,auth_key").neq("user_id", user.id);
+    const { data: subscriptions, error: subscriptionsError } = await service.from("push_subscriptions").select("id,endpoint,p256dh,auth_key").neq("user_id", actorId);
     if (subscriptionsError) throw subscriptionsError;
 
     webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT")!, Deno.env.get("VAPID_PUBLIC_KEY")!, Deno.env.get("VAPID_PRIVATE_KEY")!);

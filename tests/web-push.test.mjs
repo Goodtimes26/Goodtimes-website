@@ -9,6 +9,7 @@ const portal = fs.readFileSync("app/bandportaal/BandPortal.tsx", "utf8");
 const modules = fs.readFileSync("app/bandportaal/BandAppModules.tsx", "utf8");
 const edgeFunction = fs.readFileSync("supabase/functions/send-band-push/index.ts", "utf8");
 const supabaseConfig = fs.readFileSync("supabase/config.toml", "utf8");
+const messagePushTrigger = fs.readFileSync("supabase/migrations/021_band_message_push_trigger.sql", "utf8");
 
 test("service worker handles background push and notification deeplinks", () => {
   assert.match(worker, /addEventListener\("push"/);
@@ -37,8 +38,8 @@ test("one push hook follows each supported successful mutation", () => {
   assert.match(modules, /sendBandPush\("rehearsal_updated"/);
   assert.match(portal, /"performance_created" : "rehearsal_created"/);
   assert.match(portal, /"performance_updated" : "rehearsal_updated"/);
-  assert.match(edgeFunction, /neq\("user_id", user\.id\)/);
-  assert.match(edgeFunction, /eq\("author_id", user\.id\)/);
+  assert.match(edgeFunction, /neq\("user_id", actorId\)/);
+  assert.match(edgeFunction, /authoredMessage\.author_id !== user\.id/);
   assert.match(edgeFunction, /actorRole\?\.role !== "admin"/);
   assert.match(edgeFunction, /statusCode === 404 \|\| statusCode === 410/);
 });
@@ -58,4 +59,13 @@ test("push settings and per-device unsubscribe are present", () => {
   assert.match(portal, /<PushNotificationSettings \/>/);
   assert.match(pushClient, /unregister_push_subscription/);
   assert.match(pushClient, /Notification\.requestPermission\(\)/);
+});
+
+test("een opgeslagen bericht triggert push server-side en slechts eenmaal", () => {
+  assert.match(messagePushTrigger, /after insert on public\.band_messages/);
+  assert.match(messagePushTrigger, /net\.http_post/);
+  assert.match(messagePushTrigger, /'eventKey', new\.id/);
+  assert.match(messagePushTrigger, /unique index if not exists push_notification_events_entity_unique/);
+  assert.match(edgeFunction, /trustedDatabaseTrigger/);
+  assert.match(edgeFunction, /Date\.now\(\) - new Date\(authoredMessage\.created_at\)\.getTime\(\) < 120_000/);
 });

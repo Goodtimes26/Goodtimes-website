@@ -70,12 +70,22 @@ export async function disablePushNotifications() {
 
 export async function sendBandPush(type: BandPushType, entityId: string) {
   try {
-    const { error } = await getSupabaseClient()!.functions.invoke("send-band-push", {
+    const supabase = getSupabaseClient()!;
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) throw sessionError ?? new Error("Geen geldige sessie voor pushmelding");
+    const { data, error } = await supabase.functions.invoke("send-band-push", {
       body: { type, entityId, eventKey: crypto.randomUUID() },
+      headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
     });
     if (error) throw error;
+    const result = data as { sent?: number; failed?: number; recipients?: number } | null;
+    console.info("[GoodTimes push] Verzendresultaat", { type, entityId, ...result });
+    if (!result?.recipients) console.warn("[GoodTimes push] Geen andere bandleden met actieve pushinschrijving gevonden", { type, entityId });
+    if (result?.failed) console.error("[GoodTimes push] Niet alle pushmeldingen zijn afgeleverd", { type, entityId, failed: result.failed });
+    return result;
   } catch (error) {
     // Een pushfout mag de reeds geslaagde kernactie nooit terugdraaien.
     console.error("[GoodTimes push] Achtergrondmelding versturen mislukt", error);
+    return null;
   }
 }

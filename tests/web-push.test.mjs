@@ -32,6 +32,7 @@ test("private VAPID material stays server-side", () => {
 
 test("one push hook follows each supported successful mutation", () => {
   assert.match(modules, /sendBandPush\("message_created", createdMessage\.id\)/);
+  assert.match(modules, /await sendBandPush\("message_created", createdMessage\.id\)/);
   assert.match(modules, /sendBandPush\("rehearsal_updated"/);
   assert.match(portal, /"performance_created" : "rehearsal_created"/);
   assert.match(portal, /"performance_updated" : "rehearsal_updated"/);
@@ -39,6 +40,13 @@ test("one push hook follows each supported successful mutation", () => {
   assert.match(edgeFunction, /eq\("author_id", user\.id\)/);
   assert.match(edgeFunction, /actorRole\?\.role !== "admin"/);
   assert.match(edgeFunction, /statusCode === 404 \|\| statusCode === 410/);
+});
+
+test("berichtpush gebruikt de actuele sessie en rapporteert ontvangers en afleverfouten", () => {
+  assert.match(pushClient, /supabase\.auth\.getSession\(\)/);
+  assert.match(pushClient, /Authorization: `Bearer \$\{sessionData\.session\.access_token\}`/);
+  assert.match(edgeFunction, /recipients: subscriptions\?\.length \?\? 0, sent, failed/);
+  assert.match(edgeFunction, /subscriptionId: subscription\.id/);
 });
 
 test("push settings and per-device unsubscribe are present", () => {

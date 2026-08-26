@@ -491,7 +491,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     await load();
     formElement.closest("details")?.removeAttribute("open");
     window.dispatchEvent(new Event("goodtimes:messages-changed"));
-    void sendBandPush("message_created", createdMessage.id);
+    await sendBandPush("message_created", createdMessage.id);
   }} onUpdate={async (message, title, body, important) => {
     setBusy(true);
     const { error } = await getSupabaseClient()!.from("band_messages").update({ title, body, important }).eq("id", message.id);

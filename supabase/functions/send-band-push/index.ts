@@ -44,6 +44,7 @@ Deno.serve(async (request) => {
 
     webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT")!, Deno.env.get("VAPID_PUBLIC_KEY")!, Deno.env.get("VAPID_PRIVATE_KEY")!);
     let sent = 0;
+    let failed = 0;
     for (const subscription of subscriptions ?? []) {
       try {
         await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth_key } }, JSON.stringify({ title: "GoodTimes Band", ...details }), { TTL: 86_400, urgency: "normal" });
@@ -51,10 +52,12 @@ Deno.serve(async (request) => {
       } catch (error) {
         const statusCode = (error as { statusCode?: number }).statusCode;
         if (statusCode === 404 || statusCode === 410) await service.from("push_subscriptions").delete().eq("id", subscription.id);
-        else console.error("[GoodTimes push] Verzending mislukt", { statusCode });
+        failed += 1;
+        console.error("[GoodTimes push] Verzending mislukt", { subscriptionId: subscription.id, statusCode, message: error instanceof Error ? error.message : "Onbekende fout" });
       }
     }
-    return json({ sent });
+    console.info("[GoodTimes push] Verzendronde afgerond", { type: body.type, entityId: body.entityId, recipients: subscriptions?.length ?? 0, sent, failed });
+    return json({ recipients: subscriptions?.length ?? 0, sent, failed });
   } catch (error) {
     console.error("[GoodTimes push] Functiefout", error instanceof Error ? error.message : "Onbekende fout");
     return json({ error: "Pushmelding kon niet worden verwerkt" }, 500);

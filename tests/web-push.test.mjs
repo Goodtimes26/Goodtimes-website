@@ -53,6 +53,10 @@ test("een opgeslagen reactie pusht naar andere bandleden en opent het oorspronke
   assert.match(edgeFunction, /Nieuwe reactie van/);
   assert.match(edgeFunction, /target=message:\$\{comment\.message_id\}/);
   assert.match(fs.readFileSync("supabase/migrations/027_band_message_comment_push.sql", "utf8"), /after insert on public\.message_comments/);
+  const contextFix = fs.readFileSync("supabase/migrations/028_fix_message_comment_push_context.sql", "utf8");
+  assert.match(contextFix, /'message_id', comment_row\.message_id/);
+  assert.match(contextFix, /'message_title', message_title/);
+  assert.match(edgeFunction, /commentMessageId && commentMessageTitle/);
 });
 
 test("berichtpush gebruikt de actuele sessie en rapporteert ontvangers en afleverfouten", () => {

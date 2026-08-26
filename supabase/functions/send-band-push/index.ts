@@ -25,6 +25,8 @@ Deno.serve(async (request) => {
     let actorId = user?.id ?? null;
     let actorName = "Bandlid";
     let messageSubscriptions: PushSubscriptionRow[] | null = null;
+    let commentMessageId: string | null = null;
+    let commentMessageTitle: string | null = null;
 
     if (body.type === "message_created" || body.type === "message_comment_created") {
       if (!body.databaseTrigger && !user) return json({ error: "Niet ingelogd" }, 401);
@@ -43,6 +45,10 @@ Deno.serve(async (request) => {
       if (user && actorId !== user.id) return json({ error: "Alleen de auteur kan deze melding versturen" }, 403);
       actorName = String(context.display_name ?? "Bandlid");
       messageSubscriptions = (context.subscriptions ?? []) as PushSubscriptionRow[];
+      if (body.type === "message_comment_created") {
+        commentMessageId = String(context.message_id ?? "") || null;
+        commentMessageTitle = String(context.message_title ?? "") || null;
+      }
     } else {
       if (!user) return json({ error: "Niet ingelogd" }, 401);
       const { data: actorRole } = await service.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
@@ -59,7 +65,7 @@ Deno.serve(async (request) => {
       if (eventError) throw eventError;
     }
 
-    const details = await notificationDetails(service, body.type, body.entityId, actorName);
+    const details = await notificationDetails(service, body.type, body.entityId, actorName, commentMessageId, commentMessageTitle);
     if (!details) return json({ error: "Bronitem niet gevonden" }, 404);
     let subscriptions = messageSubscriptions;
     if (!subscriptions) {
@@ -91,12 +97,13 @@ Deno.serve(async (request) => {
   }
 });
 
-async function notificationDetails(service: ReturnType<typeof createClient>, type: string, entityId: string, actorName: string): Promise<NotificationDetails | null> {
+async function notificationDetails(service: ReturnType<typeof createClient>, type: string, entityId: string, actorName: string, commentMessageId: string | null = null, commentMessageTitle: string | null = null): Promise<NotificationDetails | null> {
   const firstName = actorName.trim().split(/\s+/)[0] || "Een bandlid";
   if (type === "message_created") {
     return { body: `Nieuw bericht van ${firstName}`, url: `/bandportaal/?tab=messages&target=message:${entityId}`, tag: `message:${entityId}` };
   }
   if (type === "message_comment_created") {
+    if (commentMessageId && commentMessageTitle) return { body: `Nieuwe reactie van ${firstName} op: ${commentMessageTitle}`, url: `/bandportaal/?tab=messages&target=message:${commentMessageId}`, tag: `comment:${entityId}` };
     const { data: comment } = await service.from("message_comments").select("id,message_id").eq("id", entityId).maybeSingle();
     if (!comment) return null;
     const { data: message } = await service.from("band_messages").select("title").eq("id", comment.message_id).maybeSingle();

@@ -1,7 +1,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
-const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type" };
+const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const allowedTypes = new Set(["message_created", "rehearsal_created", "rehearsal_updated", "performance_created", "performance_updated"]);
 
 type RequestBody = { type?: string; entityId?: string; eventKey?: string };

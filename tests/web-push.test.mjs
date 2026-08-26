@@ -47,6 +47,7 @@ test("berichtpush gebruikt de actuele sessie en rapporteert ontvangers en afleve
   assert.match(pushClient, /Authorization: `Bearer \$\{sessionData\.session\.access_token\}`/);
   assert.match(edgeFunction, /recipients: subscriptions\?\.length \?\? 0, sent, failed/);
   assert.match(edgeFunction, /subscriptionId: subscription\.id/);
+  assert.match(edgeFunction, /Access-Control-Allow-Headers[^\n]*x-client-info/);
 });
 
 test("push settings and per-device unsubscribe are present", () => {

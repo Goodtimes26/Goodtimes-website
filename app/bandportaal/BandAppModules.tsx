@@ -9,6 +9,7 @@ import { buildSongSyncPlan, fetchSetlistMakerSongs, type CentralSong } from "../
 import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
 import { moveListItem } from "../../lib/sortableLists";
 import { sortRehearsalsByDate } from "../../lib/rehearsalSorting";
+import { sendBandPush } from "../../lib/pushNotifications";
 
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
@@ -443,7 +444,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       await load();
       return false;
     }
-    notify("Repetitie bijgewerkt."); await load(); return true;
+    notify("Repetitie bijgewerkt."); await load(); void sendBandPush("rehearsal_updated", rehearsal.event_id ?? rehearsal.id); return true;
   }} onDelete={async (rehearsal) => {
     if (!isAdmin) return false;
     setBusy(true);
@@ -490,6 +491,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     await load();
     formElement.closest("details")?.removeAttribute("open");
     window.dispatchEvent(new Event("goodtimes:messages-changed"));
+    void sendBandPush("message_created", createdMessage.id);
   }} onUpdate={async (message, title, body, important) => {
     setBusy(true);
     const { error } = await getSupabaseClient()!.from("band_messages").update({ title, body, important }).eq("id", message.id);

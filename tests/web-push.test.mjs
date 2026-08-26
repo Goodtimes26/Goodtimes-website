@@ -10,6 +10,9 @@ const modules = fs.readFileSync("app/bandportaal/BandAppModules.tsx", "utf8");
 const edgeFunction = fs.readFileSync("supabase/functions/send-band-push/index.ts", "utf8");
 const supabaseConfig = fs.readFileSync("supabase/config.toml", "utf8");
 const messagePushTrigger = fs.readFileSync("supabase/migrations/021_band_message_push_trigger.sql", "utf8");
+const pushServicePermissions = fs.readFileSync("supabase/migrations/022_band_push_service_permissions.sql", "utf8");
+const pushServiceRls = fs.readFileSync("supabase/migrations/023_band_push_service_rls.sql", "utf8");
+const securePushContext = fs.readFileSync("supabase/migrations/024_secure_message_push_context.sql", "utf8");
 
 test("service worker handles background push and notification deeplinks", () => {
   assert.match(worker, /addEventListener\("push"/);
@@ -30,6 +33,7 @@ test("private VAPID material stays server-side", () => {
   assert.match(edgeFunction, /VAPID_PRIVATE_KEY/);
   assert.doesNotMatch(pushClient, /VAPID_PRIVATE_KEY|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(pushClient, /NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY/);
+  assert.match(edgeFunction, /SUPABASE_SECRET_KEY/);
 });
 
 test("one push hook follows each supported successful mutation", () => {
@@ -39,7 +43,7 @@ test("one push hook follows each supported successful mutation", () => {
   assert.match(portal, /"performance_created" : "rehearsal_created"/);
   assert.match(portal, /"performance_updated" : "rehearsal_updated"/);
   assert.match(edgeFunction, /neq\("user_id", actorId\)/);
-  assert.match(edgeFunction, /authoredMessage\.author_id !== user\.id/);
+  assert.match(edgeFunction, /actorId !== user\.id/);
   assert.match(edgeFunction, /actorRole\?\.role !== "admin"/);
   assert.match(edgeFunction, /statusCode === 404 \|\| statusCode === 410/);
 });
@@ -66,8 +70,26 @@ test("een opgeslagen bericht triggert push server-side en slechts eenmaal", () =
   assert.match(messagePushTrigger, /net\.http_post/);
   assert.match(messagePushTrigger, /'eventKey', new\.id/);
   assert.match(messagePushTrigger, /unique index if not exists push_notification_events_entity_unique/);
-  assert.match(edgeFunction, /trustedDatabaseTrigger/);
-  assert.match(edgeFunction, /Date\.now\(\) - new Date\(authoredMessage\.created_at\)\.getTime\(\) < 120_000/);
-  assert.match(edgeFunction, /findMessage\(service, body\.entityId, body\.databaseTrigger === true \? 6 : 1\)/);
-  assert.match(edgeFunction, /setTimeout\(resolve, 500\)/);
+  assert.match(edgeFunction, /claim_message_push_context/);
+});
+
+test("pushcontext is alleen met het interne Supabase-geheim opvraagbaar", () => {
+  assert.match(securePushContext, /vault\.decrypted_secrets/);
+  assert.match(securePushContext, /decrypted_secret = p_internal_secret/);
+  assert.match(securePushContext, /security definer/);
+  assert.match(edgeFunction, /PUSH_INTERNAL_SECRET/);
+});
+
+test("de pushfunctie heeft alleen de noodzakelijke service_role-rechten", () => {
+  assert.match(pushServicePermissions, /grant select on public\.band_messages to service_role/);
+  assert.match(pushServicePermissions, /grant select, delete on public\.push_subscriptions to service_role/);
+  assert.match(pushServicePermissions, /grant select, insert on public\.push_notification_events to service_role/);
+  assert.doesNotMatch(pushServicePermissions, /to anon|to authenticated/);
+});
+
+test("RLS laat alleen de serverrol pushbronnen en abonnementen verwerken", () => {
+  assert.match(pushServiceRls, /on public\.band_messages for select to service_role using \(true\)/);
+  assert.match(pushServiceRls, /on public\.push_subscriptions for select to service_role using \(true\)/);
+  assert.match(pushServiceRls, /on public\.push_notification_events for insert to service_role with check \(true\)/);
+  assert.doesNotMatch(pushServiceRls, /to anon|to authenticated/);
 });

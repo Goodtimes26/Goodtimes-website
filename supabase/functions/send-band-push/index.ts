@@ -6,12 +6,13 @@ const allowedTypes = new Set(["message_created", "rehearsal_created", "rehearsal
 
 type RequestBody = { type?: string; entityId?: string; eventKey?: string; databaseTrigger?: boolean };
 type NotificationDetails = { body: string; url: string; tag: string };
+type PushSubscriptionRow = { id: string; endpoint: string; p256dh: string; auth_key: string };
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const authorization = request.headers.get("Authorization") ?? "";
     const service = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
     const body = await request.json() as RequestBody;
@@ -22,15 +23,24 @@ Deno.serve(async (request) => {
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } });
     const { data: { user } } = authorization ? await userClient.auth.getUser() : { data: { user: null } };
     let actorId = user?.id ?? null;
+    let actorName = "Bandlid";
+    let messageSubscriptions: PushSubscriptionRow[] | null = null;
 
     if (body.type === "message_created") {
-      const authoredMessage = await findMessage(service, body.entityId, body.databaseTrigger === true ? 6 : 1);
-      if (!authoredMessage) return json({ error: "Bericht niet gevonden" }, 404);
-      const trustedDatabaseTrigger = body.databaseTrigger === true
-        && body.eventKey === body.entityId
-        && Date.now() - new Date(authoredMessage.created_at).getTime() < 120_000;
-      if (!trustedDatabaseTrigger && (!user || authoredMessage.author_id !== user.id)) return json({ error: "Alleen de auteur kan deze berichtmelding versturen" }, 403);
-      actorId = authoredMessage.author_id;
+      if (!body.databaseTrigger && !user) return json({ error: "Niet ingelogd" }, 401);
+      const rpcClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });
+      const { data: context, error: contextError } = await rpcClient.rpc("claim_message_push_context", {
+        p_message_id: body.entityId,
+        p_event_key: body.eventKey,
+        p_internal_secret: Deno.env.get("PUSH_INTERNAL_SECRET") ?? "",
+      });
+      if (contextError) throw contextError;
+      if (!context) return json({ error: "Bericht niet gevonden" }, 404);
+      if (context.duplicate) return json({ duplicate: true, sent: 0 });
+      actorId = String(context.actor_id);
+      if (user && actorId !== user.id) return json({ error: "Alleen de auteur kan deze berichtmelding versturen" }, 403);
+      actorName = String(context.display_name ?? "Bandlid");
+      messageSubscriptions = (context.subscriptions ?? []) as PushSubscriptionRow[];
     } else {
       if (!user) return json({ error: "Niet ingelogd" }, 401);
       const { data: actorRole } = await service.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
@@ -38,17 +48,23 @@ Deno.serve(async (request) => {
     }
 
     if (!actorId) return json({ error: "Geen geldige afzender" }, 403);
-    const { data: member } = await service.from("profiles").select("id,display_name").eq("id", actorId).maybeSingle();
-    if (!member) return json({ error: "Geen actief bandlid" }, 403);
+    if (body.type !== "message_created") {
+      const { data: member } = await service.from("profiles").select("id,display_name").eq("id", actorId).maybeSingle();
+      if (!member) return json({ error: "Geen actief bandlid" }, 403);
+      actorName = String(member.display_name ?? "Bandlid");
+      const { error: eventError } = await service.from("push_notification_events").insert({ event_key: eventKey, actor_id: actorId, event_type: body.type, entity_id: body.entityId });
+      if (eventError?.code === "23505") return json({ duplicate: true, sent: 0 });
+      if (eventError) throw eventError;
+    }
 
-    const { error: eventError } = await service.from("push_notification_events").insert({ event_key: eventKey, actor_id: actorId, event_type: body.type, entity_id: body.entityId });
-    if (eventError?.code === "23505") return json({ duplicate: true, sent: 0 });
-    if (eventError) throw eventError;
-
-    const details = await notificationDetails(service, body.type, body.entityId, String(member.display_name ?? "Bandlid"));
+    const details = await notificationDetails(service, body.type, body.entityId, actorName);
     if (!details) return json({ error: "Bronitem niet gevonden" }, 404);
-    const { data: subscriptions, error: subscriptionsError } = await service.from("push_subscriptions").select("id,endpoint,p256dh,auth_key").neq("user_id", actorId);
-    if (subscriptionsError) throw subscriptionsError;
+    let subscriptions = messageSubscriptions;
+    if (!subscriptions) {
+      const { data, error: subscriptionsError } = await service.from("push_subscriptions").select("id,endpoint,p256dh,auth_key").neq("user_id", actorId);
+      if (subscriptionsError) throw subscriptionsError;
+      subscriptions = data as PushSubscriptionRow[];
+    }
 
     webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT")!, Deno.env.get("VAPID_PUBLIC_KEY")!, Deno.env.get("VAPID_PRIVATE_KEY")!);
     let sent = 0;
@@ -67,26 +83,16 @@ Deno.serve(async (request) => {
     console.info("[GoodTimes push] Verzendronde afgerond", { type: body.type, entityId: body.entityId, recipients: subscriptions?.length ?? 0, sent, failed });
     return json({ recipients: subscriptions?.length ?? 0, sent, failed });
   } catch (error) {
-    console.error("[GoodTimes push] Functiefout", error instanceof Error ? error.message : "Onbekende fout");
-    return json({ error: "Pushmelding kon niet worden verwerkt" }, 500);
+    const details = error as { code?: string; message?: string; details?: string };
+    console.error("[GoodTimes push] Functiefout", { code: details?.code, message: details?.message, details: details?.details });
+    return json({ error: "Pushmelding kon niet worden verwerkt", code: details?.code ?? null, diagnostic: details?.message ?? null }, 500);
   }
 });
-
-async function findMessage(service: ReturnType<typeof createClient>, messageId: string, attempts: number) {
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const { data, error } = await service.from("band_messages").select("id,author_id,created_at").eq("id", messageId).maybeSingle();
-    if (error) throw error;
-    if (data) return data;
-    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  return null;
-}
 
 async function notificationDetails(service: ReturnType<typeof createClient>, type: string, entityId: string, actorName: string): Promise<NotificationDetails | null> {
   const firstName = actorName.trim().split(/\s+/)[0] || "Een bandlid";
   if (type === "message_created") {
-    const { data } = await service.from("band_messages").select("id").eq("id", entityId).maybeSingle();
-    return data ? { body: `Nieuw bericht van ${firstName}`, url: `/bandportaal/?tab=messages&target=message:${entityId}`, tag: `message:${entityId}` } : null;
+    return { body: `Nieuw bericht van ${firstName}`, url: `/bandportaal/?tab=messages&target=message:${entityId}`, tag: `message:${entityId}` };
   }
   if (type.startsWith("performance_")) {
     const { data } = await service.from("events").select("id,description").eq("id", entityId).eq("event_type", "performance").maybeSingle();

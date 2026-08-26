@@ -1,0 +1,4 @@
+project_id = "tjdrexjmwadnqrakixmo"
+
+[functions.send-band-push]
+verify_jwt = false

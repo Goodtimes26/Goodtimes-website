@@ -8,6 +8,7 @@ const pushClient = fs.readFileSync("lib/pushNotifications.ts", "utf8");
 const portal = fs.readFileSync("app/bandportaal/BandPortal.tsx", "utf8");
 const modules = fs.readFileSync("app/bandportaal/BandAppModules.tsx", "utf8");
 const edgeFunction = fs.readFileSync("supabase/functions/send-band-push/index.ts", "utf8");
+const supabaseConfig = fs.readFileSync("supabase/config.toml", "utf8");
 
 test("service worker handles background push and notification deeplinks", () => {
   assert.match(worker, /addEventListener\("push"/);
@@ -48,6 +49,8 @@ test("berichtpush gebruikt de actuele sessie en rapporteert ontvangers en afleve
   assert.match(edgeFunction, /recipients: subscriptions\?\.length \?\? 0, sent, failed/);
   assert.match(edgeFunction, /subscriptionId: subscription\.id/);
   assert.match(edgeFunction, /Access-Control-Allow-Headers[^\n]*x-client-info/);
+  assert.match(supabaseConfig, /\[functions\.send-band-push\][\s\S]*verify_jwt = false/);
+  assert.match(edgeFunction, /userClient\.auth\.getUser\(\)/);
 });
 
 test("push settings and per-device unsubscribe are present", () => {

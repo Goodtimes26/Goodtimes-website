@@ -28,3 +28,10 @@ test("berichtdetails toont reactieaantal, chronologische reacties en invoer", ()
   assert.match(moduleSource, /onUpdateComment/);
   assert.match(moduleSource, /onDeleteComment/);
 });
+
+test("plaatsen is tegen dubbel tikken beveiligd en wordt pas actief met tekst", () => {
+  assert.match(moduleSource, /commentSubmitBusy\.current/);
+  assert.match(moduleSource, /if \(!body \|\| commentSubmitBusy\.current\) return/);
+  assert.match(moduleSource, /disabled=\{commentSubmitting \|\| !commentBody\.trim\(\)\}/);
+  assert.match(moduleSource, /Reactie geplaatst ✓/);
+});

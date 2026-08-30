@@ -76,13 +76,6 @@ function responseTone(responses: RequestResponse[], memberCount: number) {
   return "pending";
 }
 
-function teamAvailabilityTone(rows: TeamAvailability[]): AvailabilityStatus {
-  if (rows.some((row) => row.status === "unavailable")) return "unavailable";
-  if (rows.some((row) => row.status === "maybe")) return "maybe";
-  if (rows.length === 0 || rows.some((row) => row.status === "unset")) return "unset";
-  return "available";
-}
-
 export function BandPortal() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -193,6 +186,38 @@ export function BandPortal() {
       ((result.data ?? []) as TeamAvailability[]).map((row) => ({ ...row, date: result.date })),
     ));
   }, [month]);
+
+  useEffect(() => {
+    if (!user) return;
+    const refreshAvailability = async (event: Event) => {
+      const dates = (event as CustomEvent<{ dates?: string[] }>).detail?.dates ?? [];
+      if (dates.length === 0) return;
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+      const results = await Promise.all(dates.map(async (date) => ({
+        date,
+        ...(await supabase.rpc("team_availability", { target_date: date })),
+      })));
+      const failed = results.find((result) => result.error)?.error;
+      if (failed) {
+        console.warn("[GoodTimes beschikbaarheid] Vernieuwen mislukt", failed.message);
+        return;
+      }
+      const refreshedRows = results.flatMap((result) =>
+        ((result.data ?? []) as TeamAvailability[]).map((row) => ({ ...row, date: result.date })),
+      );
+      const refreshedDates = new Set(dates);
+      setTeamCalendarAvailability((current) => [
+        ...current.filter((row) => !refreshedDates.has(row.date)),
+        ...refreshedRows,
+      ]);
+      if (refreshedDates.has(checkDate)) {
+        setCheckRows(refreshedRows.filter((row) => row.date === checkDate));
+      }
+    };
+    window.addEventListener("goodtimes:availability-updated", refreshAvailability);
+    return () => window.removeEventListener("goodtimes:availability-updated", refreshAvailability);
+  }, [checkDate, user]);
 
   const loadAppActivity = useCallback(async () => {
     const supabase = getSupabaseClient();
@@ -661,12 +686,12 @@ export function BandPortal() {
               {calendarDays.map((day) => {
                 const iso = toIsoDate(day);
                 const teamRows = teamCalendarAvailability.filter((row) => row.date === iso);
-                const teamStatus = teamAvailabilityTone(teamRows);
+                const personalStatus = teamRows.find((row) => row.user_id === user.id)?.status ?? "unset";
                 const dayEvents = events.filter((item) => item.event_date === iso);
                 return (
                   <button
                     key={iso}
-                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${teamStatus}`}
+                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${personalStatus}`}
                     onClick={() => {
                       setCheckDate(iso);
                       setCheckRows(teamRows);
@@ -674,7 +699,7 @@ export function BandPortal() {
                     }}
                   >
                     <strong>{day.getDate()}</strong>
-                    <span>{availabilityLabels[teamStatus]}</span>
+                    <span>{availabilityLabels[personalStatus]}</span>
                     {dayEvents.slice(0, 2).map((item) => <small key={item.id} className={`event-${item.event_type}`}>{eventLabels[item.event_type]}</small>)}
                   </button>
                 );

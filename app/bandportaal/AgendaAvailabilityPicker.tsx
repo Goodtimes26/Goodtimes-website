@@ -34,6 +34,10 @@ function markSelectedAgendaDays(selectedDates: Set<string>) {
   });
 }
 
+function notifyAvailabilityUpdated(dates: string[]) {
+  window.dispatchEvent(new CustomEvent("goodtimes:availability-updated", { detail: { dates } }));
+}
+
 export function AgendaAvailabilityPicker() {
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -77,9 +81,8 @@ export function AgendaAvailabilityPicker() {
     const rows = selectedDates.map((date) => ({ user_id: userId, date, status, private_note: null }));
     const { error: saveError } = await supabase.from("availability").upsert(rows, { onConflict: "user_id,date" });
     if (saveError) { setSaving(false); setError("Je beschikbaarheid kon niet worden opgeslagen. Probeer het opnieuw."); return; }
-    setSelectedDates([]);
+    notifyAvailabilityUpdated(selectedDates);
     setSaving(false);
-    window.location.reload();
   }
 
   async function removeSelectedDates() {
@@ -93,9 +96,8 @@ export function AgendaAvailabilityPicker() {
     if (!userId) { setSaving(false); setError("Je bent niet meer ingelogd."); return; }
     const { error: deleteError } = await supabase.from("availability").delete().eq("user_id", userId).in("date", selectedDates);
     if (deleteError) { setSaving(false); setError("De gekozen status kon niet worden verwijderd. Probeer het opnieuw."); return; }
-    setSelectedDates([]);
+    notifyAvailabilityUpdated(selectedDates);
     setSaving(false);
-    window.location.reload();
   }
 
   if (selectedDates.length === 0 && !error) return null;

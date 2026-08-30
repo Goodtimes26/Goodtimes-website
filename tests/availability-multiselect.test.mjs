@@ -16,7 +16,8 @@ test("availability picker toggles multiple dates and saves all three statuses in
   assert.match(source, /saveSelectedDates\("unavailable"\)/);
   assert.match(source, /\.from\("availability"\)\.upsert\(rows, \{ onConflict: "user_id,date" \}\)/);
   assert.match(source, /if \(saveError\)[\s\S]*Probeer het opnieuw/);
-  assert.match(source, /setSelectedDates\(\[\]\);[\s\S]*window\.location\.reload\(\)/);
+  assert.match(source, /notifyAvailabilityUpdated\(selectedDates\)/);
+  assert.doesNotMatch(source, /window\.location\.reload\(\)/);
 });
 
 test("stored statuses can be deleted for one or several selected dates", async () => {
@@ -31,6 +32,8 @@ test("selected days have a clear phone-friendly visual state", async () => {
   assert.match(css, /\.portal-day\.portal-day-selected/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /@media\(max-width:600px\)/);
+  assert.match(css, /\.portal-availability-status\.is-available\{color:#03150d;background:#39d98a/);
+  assert.match(css, /\.portal-availability-status\.is-maybe\{color:#1b0e00;background:#ffaf45/);
 });
 
 test("deleting a stored status returns that member and date to neutral", async () => {
@@ -42,4 +45,22 @@ test("deleting a stored status returns that member and date to neutral", async (
   assert.match(portal, /row\?\.status \?\? "unset"/);
   assert.match(portal, /statuses\.includes\("unset"\) \? "unset"/);
   assert.doesNotMatch(portal, /row\?\.status \?\? "available"/);
+});
+
+test("calendar refreshes in place and keeps selection separate from stored status", async () => {
+  const portal = await readFile(portalPath, "utf8");
+  assert.match(portal, /addEventListener\("goodtimes:availability-updated"/);
+  assert.match(portal, /setTeamCalendarAvailability/);
+  assert.match(portal, /teamRows\.find\(\(row\) => row\.user_id === user\.id\)\?\.status \?\? "unset"/);
+  assert.match(portal, /status-\$\{personalStatus\}/);
+});
+
+test("mobile action buttons expose distinct normal, active and disabled states", async () => {
+  const css = await readFile(cssPath, "utf8");
+  assert.match(css, /\.portal-availability-status\.is-unavailable\{color:#fff;background:#e83f58/);
+  assert.match(css, /\.portal-availability-remove\{color:#f7f8ff/);
+  assert.match(css, /\.portal-availability-selection-actions button:active/);
+  assert.match(css, /\.portal-availability-selection-actions button:disabled/);
+  assert.match(css, /\.portal-day\.status-available\{[^}]*rgba\(57,217,138/);
+  assert.match(css, /\.portal-day\.portal-day-selected\{[^}]*var\(--portal-cyan\)/);
 });

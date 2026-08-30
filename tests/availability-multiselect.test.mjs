@@ -5,15 +5,23 @@ import test from "node:test";
 const pickerPath = new URL("../app/bandportaal/AgendaAvailabilityPicker.tsx", import.meta.url);
 const cssPath = new URL("../app/bandportaal/portal.css", import.meta.url);
 
-test("availability picker toggles multiple dates and saves one unavailable batch", async () => {
+test("availability picker toggles multiple dates and saves all three statuses in one batch", async () => {
   const source = await readFile(pickerPath, "utf8");
   assert.match(source, /current\.includes\(chosenDate\) \? current\.filter/);
   assert.match(source, /const rows = selectedDates\.map/);
-  assert.match(source, /status: "unavailable" as const/);
+  assert.match(source, /saveSelectedDates\("available"\)/);
+  assert.match(source, /saveSelectedDates\("maybe"\)/);
+  assert.match(source, /saveSelectedDates\("unavailable"\)/);
   assert.match(source, /\.from\("availability"\)\.upsert\(rows, \{ onConflict: "user_id,date" \}\)/);
-  assert.match(source, /Geselecteerde datums blokkeren/);
   assert.match(source, /if \(saveError\)[\s\S]*Probeer het opnieuw/);
   assert.match(source, /setSelectedDates\(\[\]\);[\s\S]*window\.location\.reload\(\)/);
+});
+
+test("stored statuses can be deleted for one or several selected dates", async () => {
+  const source = await readFile(pickerPath, "utf8");
+  assert.match(source, /\.from\("availability"\)\.delete\(\)\.eq\("user_id", userId\)\.in\("date", selectedDates\)/);
+  assert.match(source, /Status verwijderen/);
+  assert.match(source, /if \(deleteError\)[\s\S]*Probeer het opnieuw/);
 });
 
 test("selected days have a clear phone-friendly visual state", async () => {

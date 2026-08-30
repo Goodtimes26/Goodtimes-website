@@ -141,6 +141,7 @@ function HomePage() {
       <nav className="home-links" aria-label="Ontdek GoodTimes">
         <Link className="text-link" href="/repertoire">Bekijk het jaren 80-repertoire <Arrow /></Link>
         <Link className="text-link" href="/media">Beluister GoodTimes live <Arrow /></Link>
+        {locale === "nl" && <Link className="text-link" href="/coverband-brabant">Live 80s band Brabant <Arrow /></Link>}
         {locale === "de" && <Link className="text-link" href="/80er-jahre-coverband-nrw">80er-Jahre-Coverband für Events in NRW <Arrow /></Link>}
       </nav>
     </section>
@@ -416,28 +417,28 @@ const landingPages: Record<"80s-coverband-boeken" | "coverband-brabant" | "cover
   },
   "coverband-brabant": {
     kicker: "Live vanuit Noord-Brabant",
-    title: "JAREN 80 COVERBAND",
-    accent: "BRABANT.",
-    introduction: "GoodTimes is een professionele jaren 80 coverband uit Noord-Brabant. Met zes muzikanten, sterke live zang en een dansbaar repertoire is de band te boeken voor feesten, festivals en evenementen in de regio en daarbuiten.",
+    title: "LIVE 80S BAND BRABANT –",
+    accent: "GOODTIMES COVERBAND",
+    introduction: "GoodTimes is een live 80s band Brabant voor feesten, festivals, bedrijfsfeesten, bruiloften en evenementen. Met zes muzikanten en sterke live zang spelen we de grootste hits uit de jaren 80 volledig live, in heel Noord-Brabant en daarbuiten.",
     sections: [
       {
-        title: "Een live coverband in Noord-Brabant",
+        title: "Live jaren 80 band voor feesten in Brabant",
         paragraphs: [
-          "Organiseer je een evenement in Waalwijk, Den Bosch, Tilburg, Breda, Eindhoven of elders in Noord-Brabant? GoodTimes brengt een herkenbare jaren 80-show met disco, funk, pop, Nederpop en dance classics.",
-          "Alles wordt volledig live gespeeld. De bezetting met twee zangeressen, toetsen, gitaar, basgitaar en drums geeft de muziek de energie en dynamiek van een echte liveband.",
+          "Organiseer je een feest in Waalwijk, Den Bosch, Tilburg, Breda of Eindhoven? Als coverband uit Brabant brengt GoodTimes een herkenbare jaren 80-show met disco, funk, pop, Nederpop en dance classics.",
+          "Ook voor evenementen in Oosterhout, Roosendaal, Bergen op Zoom, Helmond, Veghel en Uden is GoodTimes te boeken als live band in Noord-Brabant. Alles wordt volledig live gespeeld door twee zangeressen en muzikanten op toetsen, gitaar, basgitaar en drums.",
         ],
       },
       {
-        title: "Voor feesten, festivals en evenementen",
+        title: "80s coverband voor bedrijfsfeest, bruiloft en festival",
         paragraphs: [
-          "De combinatie van bekende eighties-hits, live samenzang en een dansbaar programma past bij feestavonden, festivals, bedrijfsfeesten en andere evenementen. In de agenda zie je waar GoodTimes openbaar live te beleven is.",
-          "GoodTimes is ook buiten Brabant te boeken, waaronder richting Nijmegen en andere plaatsen in Nederland. Voor een specifieke locatie of datum kun je rechtstreeks contact opnemen.",
+          "De combinatie van bekende eighties-hits, live samenzang en een dansbaar programma maakt GoodTimes geschikt als 80s band voor een bedrijfsfeest, 80s band voor een bruiloft, festival of ander evenement. In de agenda zie je waar deze live jaren 80 band openbaar te beleven is.",
+          "GoodTimes is ook buiten Brabant te boeken, waaronder richting Nijmegen en andere plaatsen in Nederland. Zoek je een live band voor een feest in Brabant of wil je een jaren 80 coverband boeken voor een specifieke datum? Neem dan rechtstreeks contact op.",
         ],
       },
       {
-        title: "Eerst luisteren en het repertoire bekijken",
+        title: "GoodTimes boeken als live 80s band in Brabant",
         paragraphs: [
-          "Bekijk het actuele repertoire voor een indruk van de muziek of luister op de Media-pagina naar opnames uit de repetitieruimte. Zo krijg je een eerlijk beeld van de live sound voordat je GoodTimes boekt.",
+          "Bekijk het actuele repertoire voor een indruk van de muziek of luister op de Media-pagina naar opnames uit de repetitieruimte. Zo krijg je een eerlijk beeld van de live sound voordat je deze 80s coverband in Brabant boekt.",
         ],
       },
     ],

@@ -81,8 +81,8 @@ export const pageSeo = {
     path: "/80s-coverband-boeken/",
   },
   "coverband-brabant": {
-    title: "Jaren 80 coverband Brabant | GoodTimes 100% live",
-    description: "Boek GoodTimes als jaren 80 coverband in Brabant. Zes muzikanten spelen disco, funk, pop en Nederpop volledig live op feesten en evenementen.",
+    title: "Live 80s band Brabant boeken | GoodTimes Coverband",
+    description: "GoodTimes is een live 80s band Brabant met jaren 80-hits, volledig live voor feesten, festivals, bruiloften, bedrijfsfeesten en evenementen in Noord-Brabant.",
     path: "/coverband-brabant/",
   },
   "coverband-bedrijfsfeest": {

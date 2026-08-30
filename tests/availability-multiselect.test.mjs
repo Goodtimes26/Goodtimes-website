@@ -47,12 +47,14 @@ test("deleting a stored status returns that member and date to neutral", async (
   assert.doesNotMatch(portal, /row\?\.status \?\? "available"/);
 });
 
-test("calendar refreshes in place and keeps selection separate from stored status", async () => {
+test("calendar refreshes in place and restores the shared team status", async () => {
   const portal = await readFile(portalPath, "utf8");
   assert.match(portal, /addEventListener\("goodtimes:availability-updated"/);
   assert.match(portal, /setTeamCalendarAvailability/);
-  assert.match(portal, /teamRows\.find\(\(row\) => row\.user_id === user\.id\)\?\.status \?\? "unset"/);
-  assert.match(portal, /status-\$\{personalStatus\}/);
+  assert.match(portal, /function teamAvailabilityTone/);
+  assert.match(portal, /rows\.some\(\(row\) => row\.status === "unavailable"\)/);
+  assert.match(portal, /rows\.some\(\(row\) => row\.status === "maybe"\)/);
+  assert.match(portal, /status-\$\{teamStatus\}/);
 });
 
 test("mobile action buttons expose distinct normal, active and disabled states", async () => {

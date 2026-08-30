@@ -76,6 +76,13 @@ function responseTone(responses: RequestResponse[], memberCount: number) {
   return "pending";
 }
 
+function teamAvailabilityTone(rows: TeamAvailability[]): AvailabilityStatus {
+  if (rows.some((row) => row.status === "unavailable")) return "unavailable";
+  if (rows.some((row) => row.status === "maybe")) return "maybe";
+  if (rows.some((row) => row.status === "available")) return "available";
+  return "unset";
+}
+
 export function BandPortal() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -698,12 +705,12 @@ export function BandPortal() {
               {calendarDays.map((day) => {
                 const iso = toIsoDate(day);
                 const teamRows = teamCalendarAvailability.filter((row) => row.date === iso);
-                const personalStatus = teamRows.find((row) => row.user_id === user.id)?.status ?? "unset";
+                const teamStatus = teamAvailabilityTone(teamRows);
                 const dayEvents = events.filter((item) => item.event_date === iso);
                 return (
                   <button
                     key={iso}
-                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${personalStatus}`}
+                    className={`portal-day ${day.getMonth() !== month.getMonth() ? "outside" : ""} status-${teamStatus}`}
                     onClick={() => {
                       setCheckDate(iso);
                       setCheckRows(teamRows);
@@ -711,7 +718,7 @@ export function BandPortal() {
                     }}
                   >
                     <strong>{day.getDate()}</strong>
-                    <span>{availabilityLabels[personalStatus]}</span>
+                    <span>{availabilityLabels[teamStatus]}</span>
                     {dayEvents.slice(0, 2).map((item) => <small key={item.id} className={`event-${item.event_type}`}>{eventLabels[item.event_type]}</small>)}
                   </button>
                 );

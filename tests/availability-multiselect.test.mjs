@@ -36,15 +36,14 @@ test("selected days have a clear phone-friendly visual state", async () => {
   assert.match(css, /\.portal-availability-status\.is-maybe\{color:#1b0e00;background:#ffaf45/);
 });
 
-test("deleting a stored status returns that member and date to neutral", async () => {
-  const [portal, migration] = await Promise.all([
-    readFile(portalPath, "utf8"),
+test("deleting a stored status leaves no database record", async () => {
+  const [picker, migration] = await Promise.all([
+    readFile(pickerPath, "utf8"),
     readFile(migrationPath, "utf8"),
   ]);
   assert.match(migration, /coalesce\(a\.status::text, 'unset'\)/);
-  assert.match(portal, /row\?\.status \?\? "unset"/);
-  assert.match(portal, /statuses\.includes\("unset"\) \? "unset"/);
-  assert.doesNotMatch(portal, /row\?\.status \?\? "available"/);
+  assert.match(picker, /\.from\("availability"\)\.delete\(\)/);
+  assert.match(picker, /notifyAvailabilityUpdated\(selectedDates\)/);
 });
 
 test("calendar refreshes in place and restores the shared team status", async () => {
@@ -90,4 +89,13 @@ test("temporary date selection closes whenever the calendar is left", async () =
   assert.match(picker, /addEventListener\("goodtimes:agenda-visibility"/);
   assert.match(picker, /if \(!active\) \{[\s\S]*setSelectedDates\(\[\]\)/);
   assert.match(picker, /if \(!agendaActive \|\| \(selectedDates\.length === 0/);
+});
+
+test("check availability treats all missing or neutral member statuses as available", async () => {
+  const portal = await readFile(portalPath, "utf8");
+  assert.match(portal, /const displayedStatus = \(profileId: string\)/);
+  assert.match(portal, /status === "maybe" \|\| status === "unavailable" \? status : "available"/);
+  assert.match(portal, /const statuses = profiles\.map\(\(profile\) => displayedStatus\(profile\.id\)\)/);
+  assert.doesNotMatch(portal, /tone === "unset" \? "Nog niet ingevuld"/);
+  assert.match(portal, /className=\{`status-\$\{status\}`\}>\{availabilityLabels\[status\]\}/);
 });

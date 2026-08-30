@@ -1085,11 +1085,14 @@ function AnalyticsDashboard({ pageViews }: { pageViews: PageView[] }) {
 }
 
 function AvailabilityCheck({ profiles, rows }: { profiles: Profile[]; rows: TeamAvailability[] }) {
-  const statuses = profiles.map((profile) => rows.find((row) => row.user_id === profile.id)?.status ?? "unset");
-  const tone = statuses.includes("unavailable") ? "unavailable" : statuses.includes("maybe") ? "pending" : statuses.includes("unset") ? "unset" : "available";
-  return <div className={`portal-check-result tone-${tone}`}><strong>{tone === "available" ? "Iedereen beschikbaar" : tone === "unavailable" ? "Niet volledig beschikbaar" : tone === "unset" ? "Nog niet ingevuld" : "Nog niet definitief"}</strong>{profiles.map((profile) => {
-    const row = rows.find((item) => item.user_id === profile.id);
-    const status = row?.status ?? "unset";
+  const displayedStatus = (profileId: string): Exclude<AvailabilityStatus, "unset"> => {
+    const status = rows.find((row) => row.user_id === profileId)?.status;
+    return status === "maybe" || status === "unavailable" ? status : "available";
+  };
+  const statuses = profiles.map((profile) => displayedStatus(profile.id));
+  const tone = statuses.includes("unavailable") ? "unavailable" : statuses.includes("maybe") ? "pending" : "available";
+  return <div className={`portal-check-result tone-${tone}`}><strong>{tone === "available" ? "Iedereen beschikbaar" : tone === "unavailable" ? "Niet volledig beschikbaar" : "Nog niet definitief"}</strong>{profiles.map((profile) => {
+    const status = displayedStatus(profile.id);
     return <div key={profile.id}><span>{bandMemberFirstName(profile)}</span><b className={`status-${status}`}>{availabilityLabels[status]}</b></div>;
   })}</div>;
 }

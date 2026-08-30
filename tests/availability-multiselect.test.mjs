@@ -71,8 +71,9 @@ test("band agenda has a mobile-friendly route back home without resetting availa
     readFile(pickerPath, "utf8"),
     readFile(cssPath, "utf8"),
   ]);
-  assert.match(portal, /portal-agenda-home-button[^>]*onClick=\{\(\) => setTab\("home"\)\}/);
-  assert.match(portal, /← Terug naar Home/);
-  assert.match(css, /\.portal-agenda-home-button\{[^}]*min-height:44px/);
+  assert.match(portal, /tab === "agenda" && <button className="portal-header-home-button"/);
+  assert.match(portal, /setTab\("home"\)/);
+  assert.doesNotMatch(portal, /portal-agenda-home-button/);
+  assert.match(css, /\.portal-header-home-button\{[^}]*min-height:44px/);
   assert.doesNotMatch(picker, /window\.location\.reload\(\)/);
 });

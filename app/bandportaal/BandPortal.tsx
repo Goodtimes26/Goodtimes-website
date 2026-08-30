@@ -648,6 +648,11 @@ export function BandPortal() {
       <header className="portal-topbar">
         <div className="portal-brand-group">
           <div className="portal-brand">GOOD<span>TIMES</span><small>BANDPORTAAL</small></div>
+          {tab === "agenda" && <button className="portal-header-home-button" type="button" onClick={() => {
+            setSelectedAgendaEventId(null);
+            setTab("home");
+            if (window.location.hash.startsWith("#event-")) window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
+          }}>Home</button>}
           <Link className="portal-site-link" href="/">← Terug naar website</Link>
         </div>
         <div className="portal-account">
@@ -673,7 +678,6 @@ export function BandPortal() {
 
         {tab === "agenda" && (selectedAgendaEvent ? <AgendaEventDetail event={selectedAgendaEvent} onBack={() => window.history.back()} /> : (
           <div className="portal-section">
-            <button className="portal-back-button portal-agenda-home-button" type="button" onClick={() => setTab("home")}>← Terug naar Home</button>
             <div className="portal-section-head">
               <div><p className="portal-eyebrow">Bandagenda</p><h1>{monthLabel}</h1></div>
               <div className="portal-month-controls">

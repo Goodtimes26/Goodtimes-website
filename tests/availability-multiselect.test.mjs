@@ -4,6 +4,8 @@ import test from "node:test";
 
 const pickerPath = new URL("../app/bandportaal/AgendaAvailabilityPicker.tsx", import.meta.url);
 const cssPath = new URL("../app/bandportaal/portal.css", import.meta.url);
+const portalPath = new URL("../app/bandportaal/BandPortal.tsx", import.meta.url);
+const migrationPath = new URL("../supabase/migrations/029_team_availability_neutral_status.sql", import.meta.url);
 
 test("availability picker toggles multiple dates and saves all three statuses in one batch", async () => {
   const source = await readFile(pickerPath, "utf8");
@@ -29,4 +31,15 @@ test("selected days have a clear phone-friendly visual state", async () => {
   assert.match(css, /\.portal-day\.portal-day-selected/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /@media\(max-width:600px\)/);
+});
+
+test("deleting a stored status returns that member and date to neutral", async () => {
+  const [portal, migration] = await Promise.all([
+    readFile(portalPath, "utf8"),
+    readFile(migrationPath, "utf8"),
+  ]);
+  assert.match(migration, /coalesce\(a\.status::text, 'unset'\)/);
+  assert.match(portal, /row\?\.status \?\? "unset"/);
+  assert.match(portal, /statuses\.includes\("unset"\) \? "unset"/);
+  assert.doesNotMatch(portal, /row\?\.status \?\? "available"/);
 });

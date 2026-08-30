@@ -673,6 +673,7 @@ export function BandPortal() {
 
         {tab === "agenda" && (selectedAgendaEvent ? <AgendaEventDetail event={selectedAgendaEvent} onBack={() => window.history.back()} /> : (
           <div className="portal-section">
+            <button className="portal-back-button portal-agenda-home-button" type="button" onClick={() => setTab("home")}>← Terug naar Home</button>
             <div className="portal-section-head">
               <div><p className="portal-eyebrow">Bandagenda</p><h1>{monthLabel}</h1></div>
               <div className="portal-month-controls">

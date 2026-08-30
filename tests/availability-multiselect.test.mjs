@@ -64,3 +64,15 @@ test("mobile action buttons expose distinct normal, active and disabled states",
   assert.match(css, /\.portal-day\.status-available\{[^}]*rgba\(57,217,138/);
   assert.match(css, /\.portal-day\.portal-day-selected\{[^}]*var\(--portal-cyan\)/);
 });
+
+test("band agenda has a mobile-friendly route back home without resetting availability", async () => {
+  const [portal, picker, css] = await Promise.all([
+    readFile(portalPath, "utf8"),
+    readFile(pickerPath, "utf8"),
+    readFile(cssPath, "utf8"),
+  ]);
+  assert.match(portal, /portal-agenda-home-button[^>]*onClick=\{\(\) => setTab\("home"\)\}/);
+  assert.match(portal, /← Terug naar Home/);
+  assert.match(css, /\.portal-agenda-home-button\{[^}]*min-height:44px/);
+  assert.doesNotMatch(picker, /window\.location\.reload\(\)/);
+});

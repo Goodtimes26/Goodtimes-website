@@ -40,8 +40,22 @@ function notifyAvailabilityUpdated(dates: string[]) {
 
 export function AgendaAvailabilityPicker() {
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [agendaActive, setAgendaActive] = useState(() => typeof document !== "undefined" && Boolean(document.querySelector(".portal-calendar")));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const onAgendaVisibility = (event: Event) => {
+      const active = Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active);
+      setAgendaActive(active);
+      if (!active) {
+        setSelectedDates([]);
+        setError("");
+      }
+    };
+    window.addEventListener("goodtimes:agenda-visibility", onAgendaVisibility);
+    return () => window.removeEventListener("goodtimes:agenda-visibility", onAgendaVisibility);
+  }, []);
 
   useEffect(() => {
     const onAgendaClick = (event: MouseEvent) => {
@@ -100,7 +114,7 @@ export function AgendaAvailabilityPicker() {
     setSaving(false);
   }
 
-  if (selectedDates.length === 0 && !error) return null;
+  if (!agendaActive || (selectedDates.length === 0 && !error)) return null;
   return (
     <aside className="portal-availability-selection" aria-live="polite">
       <div className="portal-availability-selection-inner">

@@ -134,6 +134,13 @@ export function BandPortal() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("goodtimes:agenda-visibility", {
+      detail: { active: tab === "agenda" && selectedAgendaEventId === null },
+    }));
+  }, [selectedAgendaEventId, tab]);
+
   const calendarDays = useMemo(() => monthDays(month), [month]);
   const monthLabel = useMemo(
     () => new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" }).format(month),

@@ -77,3 +77,15 @@ test("band agenda has a mobile-friendly route back home without resetting availa
   assert.match(css, /\.portal-header-home-button\{[^}]*min-height:44px/);
   assert.doesNotMatch(picker, /window\.location\.reload\(\)/);
 });
+
+test("temporary date selection closes whenever the calendar is left", async () => {
+  const [portal, picker] = await Promise.all([
+    readFile(portalPath, "utf8"),
+    readFile(pickerPath, "utf8"),
+  ]);
+  assert.match(portal, /goodtimes:agenda-visibility/);
+  assert.match(portal, /active: tab === "agenda" && selectedAgendaEventId === null/);
+  assert.match(picker, /addEventListener\("goodtimes:agenda-visibility"/);
+  assert.match(picker, /if \(!active\) \{[\s\S]*setSelectedDates\(\[\]\)/);
+  assert.match(picker, /if \(!agendaActive \|\| \(selectedDates\.length === 0/);
+});

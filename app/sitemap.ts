@@ -19,7 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
   const localizedEntries = locales.flatMap((locale) => publicPages.map((page) => ({
       url: `${siteUrl}${localizedPath(locale, page.path)}`,
-      lastModified: new Date("2026-08-15"),
+      lastModified: new Date(["/", "/coverband-brabant/"].includes(page.path) ? "2026-08-30" : "2026-08-15"),
       changeFrequency: ["/", "/agenda/", "/repertoire/"].includes(page.path) ? "weekly" as const : "monthly" as const,
       priority: page.path === "/" ? 1 : page.path === "/contact/" ? 0.9 : 0.8,
       alternates: { languages: languageAlternates(page.path) },

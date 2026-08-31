@@ -21,10 +21,11 @@ test("nieuwe reactie hergebruikt de persoonlijke bericht-leesstatus", () => {
   assert.match(migration, /Nieuwe reactie/);
 });
 
-test("berichtdetails toont reactieaantal, chronologische reacties en invoer", () => {
+test("geopend bericht toont direct alleen de eigen chronologische reacties en invoer", () => {
   assert.match(moduleSource, /Schrijf een reactie…/);
   assert.match(moduleSource, /count === 1 \? "reactie" : "reacties"/);
-  assert.match(moduleSource, /selectedComments.*\.sort\(/);
+  assert.match(moduleSource, /comments\.filter\(\(comment\) => comment\.message_id === messageId\)\.sort\(/);
+  assert.match(moduleSource, /selectedId === message\.id && <MessageCommentsSection messageId=\{message\.id\}/);
   assert.match(moduleSource, /onUpdateComment/);
   assert.match(moduleSource, /onDeleteComment/);
 });

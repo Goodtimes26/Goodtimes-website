@@ -19,6 +19,15 @@ test("repetitie-editor verwijdert geen nummers uit het centrale repertoire", () 
   assert.match(modules, /Repertoire-items zijn behouden/);
 });
 
+test("repetitie-editor beheert YouTube-links via dezelfde blijvende Supabase-route", () => {
+  assert.match(modules, /<legend>Nummers in deze repetitie<\/legend>/);
+  assert.match(modules, /<YoutubeEditor[^>]+onSave=\{onUpdateYoutube\}/);
+  assert.match(modules, /onUpdateYoutube=\{updateSongYoutube\}/);
+  assert.match(modules, /rpc\("update_song_youtube"/);
+  assert.match(modules, />YouTube-link wijzigen<\/button>/);
+  assert.match(modules, />Opslaan<\/button>.*>Annuleren<\/button>.*>Link verwijderen<\/button>/s);
+});
+
 test("repetities gebruiken bij ophalen en tonen een chronologische datumvolgorde", () => {
   assert.match(modules, /order\("rehearsal_date", \{ ascending: true/);
   assert.match(modules, /rehearsals=\{sortRehearsalsByDate\(rehearsals, events/);

@@ -329,6 +329,19 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     return !error;
   }
 
+  async function updateSongYoutube(song: Song, youtubeUrl: string) {
+    setBusy(true);
+    const { error } = await getSupabaseClient()!.rpc("update_song_youtube", { p_song_id: song.id, p_youtube_url: youtubeUrl || null });
+    setBusy(false);
+    if (error) {
+      reportError("De YouTube-link kon niet worden opgeslagen. Gebruik een geldige youtube.com- of youtu.be-link.");
+      return false;
+    }
+    notify(youtubeUrl ? "YouTube-link opgeslagen." : "YouTube-link verwijderd.");
+    await load();
+    return true;
+  }
+
   if (ready === null) return <div className="portal-loading-inline"><div className="portal-loader" />Bandgegevens laden…</div>;
   if (!ready) return <MissingMigration />;
 
@@ -350,18 +363,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     } catch {
       reportError("Importeren is niet gelukt. Controleer migratie 004 en kies een geldige Setlist Maker-export.");
     } finally { setBusy(false); }
-  }} onUpdateYoutube={async (song, youtubeUrl) => {
-    setBusy(true);
-    const { error } = await getSupabaseClient()!.rpc("update_song_youtube", { p_song_id: song.id, p_youtube_url: youtubeUrl || null });
-    setBusy(false);
-    if (error) {
-      reportError("De YouTube-link kon niet worden opgeslagen. Gebruik een geldige youtube.com- of youtu.be-link.");
-      return false;
-    }
-    notify(youtubeUrl ? "YouTube-link opgeslagen." : "YouTube-link verwijderd.");
-    await load();
-    return true;
-  }} onCreate={async (form) => {
+  }} onUpdateYoutube={updateSongYoutube} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const ok = await submit("songs", {
       title: String(data.get("title")), artist: String(data.get("artist") || "") || null,
@@ -415,7 +417,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     return true;
   }} />;
 
-  if (tab === "rehearsals") return <RehearsalsPanel rehearsals={sortRehearsalsByDate(rehearsals, events, new Date().toISOString().slice(0, 10))} rehearsalSongs={rehearsalSongs} songs={songs} events={events} isAdmin={isAdmin} busy={busy} onReorder={async (rehearsalId, songIds) => {
+  if (tab === "rehearsals") return <RehearsalsPanel rehearsals={sortRehearsalsByDate(rehearsals, events, new Date().toISOString().slice(0, 10))} rehearsalSongs={rehearsalSongs} songs={songs} events={events} isAdmin={isAdmin} busy={busy} onUpdateYoutube={updateSongYoutube} onReorder={async (rehearsalId, songIds) => {
     const { error } = await getSupabaseClient()!.rpc("save_rehearsal_song_order", { p_rehearsal_id: rehearsalId, p_song_ids: songIds });
     if (error) { reportError("De repetitievolgorde kon niet worden opgeslagen."); return false; }
     setRehearsalSongs((current) => current.map((item) => item.rehearsal_id === rehearsalId ? { ...item, position: songIds.indexOf(item.song_id) } : item).sort((a, b) => a.position - b.position));
@@ -649,12 +651,12 @@ function YoutubeEditor({ song, busy, onSave }: { song: Song; busy: boolean; onSa
   };
   return <div className="portal-youtube-edit-details">
     <button className="portal-youtube-edit-trigger" type="button" disabled={busy} aria-expanded={editing} aria-controls={`youtube-editor-${song.id}`} onClick={() => { setUrl(song.youtube_url ?? ""); setValidationError(""); setEditing((current) => !current); }}>YouTube-link wijzigen</button>
-    {editing && <form id={`youtube-editor-${song.id}`} className="portal-youtube-editor" noValidate onSubmit={(event) => { event.preventDefault(); void save(url); }}>
+    {editing && <div id={`youtube-editor-${song.id}`} className="portal-youtube-editor">
       <label htmlFor={`youtube-${song.id}`}>YouTube-link</label>
       <input id={`youtube-${song.id}`} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(event) => { setUrl(event.target.value); setValidationError(""); }} aria-invalid={Boolean(validationError)} aria-describedby={validationError ? `youtube-error-${song.id}` : undefined} />
       {validationError && <p className="portal-youtube-error" id={`youtube-error-${song.id}`} role="alert">{validationError}</p>}
-      <div className="portal-youtube-editor-actions"><button type="submit" disabled={busy || url.trim() === (song.youtube_url ?? "")}>Opslaan</button><button type="button" disabled={busy} onClick={closeEditor}>Annuleren</button>{song.youtube_url && <button className="portal-remove-youtube" type="button" disabled={busy} onClick={() => { void save(""); }}>Link verwijderen</button>}</div>
-    </form>}
+      <div className="portal-youtube-editor-actions"><button type="button" disabled={busy || url.trim() === (song.youtube_url ?? "")} onClick={() => { void save(url); }}>Opslaan</button><button type="button" disabled={busy} onClick={closeEditor}>Annuleren</button>{song.youtube_url && <button className="portal-remove-youtube" type="button" disabled={busy} onClick={() => { void save(""); }}>Link verwijderen</button>}</div>
+    </div>}
   </div>;
 }
 
@@ -891,16 +893,16 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
   </div>;
 }
 
-function RehearsalsPanel({ rehearsals, rehearsalSongs, songs, events, isAdmin, busy, onReorder, onCreate, onUpdate, onDelete }: { rehearsals: Rehearsal[]; rehearsalSongs: RehearsalSong[]; songs: Song[]; events: BandEvent[]; isAdmin: boolean; busy: boolean; onReorder: (rehearsalId: string, songIds: string[]) => Promise<boolean>; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpdate: (rehearsal: Rehearsal, date: string, status: string, notes: string, songIds: string[]) => Promise<boolean>; onDelete: (rehearsal: Rehearsal) => Promise<boolean> }) {
+function RehearsalsPanel({ rehearsals, rehearsalSongs, songs, events, isAdmin, busy, onUpdateYoutube, onReorder, onCreate, onUpdate, onDelete }: { rehearsals: Rehearsal[]; rehearsalSongs: RehearsalSong[]; songs: Song[]; events: BandEvent[]; isAdmin: boolean; busy: boolean; onUpdateYoutube: (song: Song, url: string) => Promise<boolean>; onReorder: (rehearsalId: string, songIds: string[]) => Promise<boolean>; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onUpdate: (rehearsal: Rehearsal, date: string, status: string, notes: string, songIds: string[]) => Promise<boolean>; onDelete: (rehearsal: Rehearsal) => Promise<boolean> }) {
   const eventFor = (id: string | null) => events.find((event) => event.id === id);
   const [editingId, setEditingId] = useState<string | null>(null);
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Samen voorbereiden</p><h1>Repetities</h1></div></div>
     {isAdmin && <details className="portal-editor"><summary>Bestaande activiteit als repetitie inrichten</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><label>Repetitie<select name="event_id" required><option value="">Kies een activiteit</option>{events.filter((item) => item.event_type === "rehearsal" && !rehearsals.some((row) => row.event_id === item.id)).map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><label>Algemene opmerkingen<textarea name="general_notes" /></label><button className="portal-primary" disabled={busy}>Repetitie koppelen</button></form></details>}
-    <div className="portal-data-list portal-rehearsal-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); const plannedSongs = rehearsalSongs.filter((item) => item.rehearsal_id === rehearsal.id).sort((a, b) => a.position - b.position); const rehearsalTotal = plannedSongs.reduce((sum, item) => sum + (songs.find((song) => song.id === item.song_id)?.duration_seconds ?? 0), 0); return <article className="portal-data-card" data-print-density={plannedSongs.length <= 10 ? "roomy" : plannedSongs.length <= 15 ? "normal" : "compact"} key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : rehearsal.rehearsal_date ? formatDate(rehearsal.rehearsal_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? rehearsal.name ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location, plannedSongs.length ? `${plannedSongs.length} nummers` : null].filter(Boolean).join(" · ")}</p><p className="portal-print-summary">{plannedSongs.length} nummers · {formatDuration(rehearsalTotal)} totale speelduur</p>{plannedSongs.length > 0 && <ol className="portal-song-order">{plannedSongs.map((item, index) => { const song = songs.find((candidate) => candidate.id === item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, item.notes ?? song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}{isAdmin && <div className="portal-card-actions"><button type="button" onClick={() => setEditingId(editingId === rehearsal.id ? null : rehearsal.id)}>{editingId === rehearsal.id ? "Annuleren" : "Bewerken"}</button><button className="danger" type="button" onClick={() => { if (window.confirm("Weet je zeker dat je deze repetitie wilt verwijderen? De nummers blijven in het repertoire.")) void onDelete(rehearsal); }}>Verwijderen</button></div>}{isAdmin && editingId === rehearsal.id && <RehearsalEditor rehearsal={rehearsal} event={event} plannedSongs={plannedSongs} songs={songs} busy={busy} onReorder={onReorder} onCancel={() => setEditingId(null)} onSave={onUpdate} />}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
+    <div className="portal-data-list portal-rehearsal-list">{rehearsals.map((rehearsal) => { const event = eventFor(rehearsal.event_id); const plannedSongs = rehearsalSongs.filter((item) => item.rehearsal_id === rehearsal.id).sort((a, b) => a.position - b.position); const rehearsalTotal = plannedSongs.reduce((sum, item) => sum + (songs.find((song) => song.id === item.song_id)?.duration_seconds ?? 0), 0); return <article className="portal-data-card" data-print-density={plannedSongs.length <= 10 ? "roomy" : plannedSongs.length <= 15 ? "normal" : "compact"} key={rehearsal.id}><div><span>{rehearsal.status === "completed" ? "Afgerond" : rehearsal.status === "cancelled" ? "Geannuleerd" : "Gepland"}</span><b>{event ? formatDate(event.event_date) : rehearsal.rehearsal_date ? formatDate(rehearsal.rehearsal_date) : "Datum onbekend"}</b></div><h2>{event?.description ?? rehearsal.name ?? "Repetitie"}</h2><p>{[event?.start_time?.slice(0, 5), event?.location, plannedSongs.length ? `${plannedSongs.length} nummers` : null].filter(Boolean).join(" · ")}</p><p className="portal-print-summary">{plannedSongs.length} nummers · {formatDuration(rehearsalTotal)} totale speelduur</p>{plannedSongs.length > 0 && <ol className="portal-song-order">{plannedSongs.map((item, index) => { const song = songs.find((candidate) => candidate.id === item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, item.notes ?? song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}{rehearsal.general_notes && <small>{rehearsal.general_notes}</small>}{isAdmin && <div className="portal-card-actions"><button type="button" onClick={() => setEditingId(editingId === rehearsal.id ? null : rehearsal.id)}>{editingId === rehearsal.id ? "Annuleren" : "Bewerken"}</button><button className="danger" type="button" onClick={() => { if (window.confirm("Weet je zeker dat je deze repetitie wilt verwijderen? De nummers blijven in het repertoire.")) void onDelete(rehearsal); }}>Verwijderen</button></div>}{isAdmin && editingId === rehearsal.id && <RehearsalEditor rehearsal={rehearsal} event={event} plannedSongs={plannedSongs} songs={songs} busy={busy} onUpdateYoutube={onUpdateYoutube} onReorder={onReorder} onCancel={() => setEditingId(null)} onSave={onUpdate} />}</article>; })}{!rehearsals.length && <div className="portal-empty">Er zijn nog geen uitgebreide repetitieplannen. Activiteiten blijven zichtbaar onder Agenda.</div>}</div>
   </div>;
 }
 
-function RehearsalEditor({ rehearsal, event, plannedSongs, songs, busy, onReorder, onCancel, onSave }: { rehearsal: Rehearsal; event?: BandEvent; plannedSongs: RehearsalSong[]; songs: Song[]; busy: boolean; onReorder: (rehearsalId: string, songIds: string[]) => Promise<boolean>; onCancel: () => void; onSave: (rehearsal: Rehearsal, date: string, status: string, notes: string, songIds: string[]) => Promise<boolean> }) {
+function RehearsalEditor({ rehearsal, event, plannedSongs, songs, busy, onUpdateYoutube, onReorder, onCancel, onSave }: { rehearsal: Rehearsal; event?: BandEvent; plannedSongs: RehearsalSong[]; songs: Song[]; busy: boolean; onUpdateYoutube: (song: Song, url: string) => Promise<boolean>; onReorder: (rehearsalId: string, songIds: string[]) => Promise<boolean>; onCancel: () => void; onSave: (rehearsal: Rehearsal, date: string, status: string, notes: string, songIds: string[]) => Promise<boolean> }) {
   const [songIds, setSongIds] = useState(() => plannedSongs.map((item) => item.song_id));
   const songIdsRef = useRef(songIds);
   const [songToAdd, setSongToAdd] = useState("");
@@ -909,7 +911,7 @@ function RehearsalEditor({ rehearsal, event, plannedSongs, songs, busy, onReorde
   return <form className="portal-form portal-card portal-inline-editor portal-rehearsal-editor" onSubmit={(submitEvent) => { submitEvent.preventDefault(); const data = new FormData(submitEvent.currentTarget); void onSave(rehearsal, String(data.get("rehearsal_date")), String(data.get("status")), String(data.get("general_notes") || ""), songIds).then((ok) => { if (ok) onCancel(); }); }}>
     <label>Datum<input name="rehearsal_date" type="date" required defaultValue={event?.event_date ?? rehearsal.rehearsal_date ?? ""} /></label>
     <label>Status<select name="status" defaultValue={rehearsal.status}><option value="planned">Gepland</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label>
-    <fieldset><legend>Nummers in deze repetitie</legend><ol className="portal-rehearsal-edit-songs">{songIds.map((songId, index) => <li key={songId} data-sort-position={index} {...sortable.itemProps(index)}><SortableDragHandle compact label={songs.find((song) => song.id === songId)?.title ?? "Nummer"} sortable={sortable} index={index} /><span>{index + 1}. {songs.find((song) => song.id === songId)?.title ?? "Onbekend nummer"}</span><button type="button" onClick={() => { const next = songIdsRef.current.filter((id) => id !== songId); songIdsRef.current = next; setSongIds(next); }}>Verwijderen</button></li>)}</ol></fieldset>
+    <fieldset><legend>Nummers in deze repetitie</legend><ol className="portal-rehearsal-edit-songs">{songIds.map((songId, index) => { const song = songs.find((candidate) => candidate.id === songId); return <li key={songId} data-sort-position={index} {...sortable.itemProps(index)}><SortableDragHandle compact label={song?.title ?? "Nummer"} sortable={sortable} index={index} /><span>{index + 1}. {song?.title ?? "Onbekend nummer"}</span><button type="button" onClick={() => { const next = songIdsRef.current.filter((id) => id !== songId); songIdsRef.current = next; setSongIds(next); }}>Verwijderen</button>{song && <YoutubeEditor key={`${song.id}-${song.youtube_url ?? "empty"}`} song={song} busy={busy} onSave={onUpdateYoutube} />}</li>; })}</ol></fieldset>
     <div className="portal-rehearsal-add"><label>Nummer toevoegen<select value={songToAdd} onChange={(changeEvent) => setSongToAdd(changeEvent.target.value)}><option value="">Kies uit repertoire</option>{availableSongs.map((song) => <option key={song.id} value={song.id}>{song.title}{song.artist ? ` – ${song.artist}` : ""}</option>)}</select></label><button type="button" disabled={!songToAdd} onClick={() => { if (!songToAdd) return; const next = [...songIdsRef.current, songToAdd]; songIdsRef.current = next; setSongIds(next); setSongToAdd(""); }}>Toevoegen</button></div>
     <label>Algemene opmerkingen<textarea name="general_notes" defaultValue={rehearsal.general_notes ?? ""} /></label>
     <div className="portal-card-actions"><button className="portal-primary" disabled={busy}>Wijzigingen opslaan</button><button type="button" onClick={onCancel}>Annuleren</button></div>

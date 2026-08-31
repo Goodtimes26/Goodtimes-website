@@ -121,7 +121,10 @@ export function buildSongSyncPlan(currentSongs: CentralSong[], sourceSongs: Setl
       return;
     }
     claimedDatabaseIds.add(existing.id);
-    if (changed(existing, values)) updates.push({ id: existing.id, values });
+    // YouTube-links worden in het Bandportaal beheerd. Bewaar daarom voor
+    // bestaande nummers ook een bewust verwijderde (null) of aangepaste link.
+    const synchronizedValues = { ...values, youtube_url: existing.youtube_url };
+    if (changed(existing, synchronizedValues)) updates.push({ id: existing.id, values: synchronizedValues });
   });
 
   const deactivateIds = currentSongs

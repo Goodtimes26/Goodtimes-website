@@ -10,6 +10,7 @@ import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistP
 import { moveListItem } from "../../lib/sortableLists";
 import { sortRehearsalsByDate } from "../../lib/rehearsalSorting";
 import { sendBandPush } from "../../lib/pushNotifications";
+import { isValidYoutubeUrl } from "../../lib/youtubeLinks";
 
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
@@ -633,12 +634,28 @@ function SortableDragHandle({ label, sortable, index, compact = false }: { label
 }
 
 function YoutubeEditor({ song, busy, onSave }: { song: Song; busy: boolean; onSave: (song: Song, url: string) => Promise<boolean> }) {
+  const [editing, setEditing] = useState(false);
   const [url, setUrl] = useState(song.youtube_url ?? "");
-  return <details className="portal-youtube-edit-details"><summary>YouTube-link bewerken</summary><form className="portal-youtube-editor" onSubmit={(event) => { event.preventDefault(); void onSave(song, url.trim()); }}>
+  const [validationError, setValidationError] = useState("");
+  const closeEditor = () => { setUrl(song.youtube_url ?? ""); setValidationError(""); setEditing(false); };
+  const save = async (nextUrl: string) => {
+    const cleanUrl = nextUrl.trim();
+    if (cleanUrl && !isValidYoutubeUrl(cleanUrl)) {
+      setValidationError("Gebruik een geldige youtube.com- of youtu.be-link.");
+      return;
+    }
+    setValidationError("");
+    if (await onSave(song, cleanUrl)) setEditing(false);
+  };
+  return <div className="portal-youtube-edit-details">
+    <button className="portal-youtube-edit-trigger" type="button" disabled={busy} aria-expanded={editing} aria-controls={`youtube-editor-${song.id}`} onClick={() => { setUrl(song.youtube_url ?? ""); setValidationError(""); setEditing((current) => !current); }}>YouTube-link wijzigen</button>
+    {editing && <form id={`youtube-editor-${song.id}`} className="portal-youtube-editor" noValidate onSubmit={(event) => { event.preventDefault(); void save(url); }}>
       <label htmlFor={`youtube-${song.id}`}>YouTube-link</label>
-      <div><input id={`youtube-${song.id}`} type="url" inputMode="url" placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(event) => setUrl(event.target.value)} /><button disabled={busy || url.trim() === (song.youtube_url ?? "")}>Opslaan</button></div>
-      {song.youtube_url && <button className="portal-remove-youtube" type="button" disabled={busy} onClick={() => { setUrl(""); void onSave(song, ""); }}>Link verwijderen</button>}
-    </form></details>;
+      <input id={`youtube-${song.id}`} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(event) => { setUrl(event.target.value); setValidationError(""); }} aria-invalid={Boolean(validationError)} aria-describedby={validationError ? `youtube-error-${song.id}` : undefined} />
+      {validationError && <p className="portal-youtube-error" id={`youtube-error-${song.id}`} role="alert">{validationError}</p>}
+      <div className="portal-youtube-editor-actions"><button type="submit" disabled={busy || url.trim() === (song.youtube_url ?? "")}>Opslaan</button><button type="button" disabled={busy} onClick={closeEditor}>Annuleren</button>{song.youtube_url && <button className="portal-remove-youtube" type="button" disabled={busy} onClick={() => { void save(""); }}>Link verwijderen</button>}</div>
+    </form>}
+  </div>;
 }
 
 function CompactRepertoireSong({ song, busy, isAdmin, dragHandle, onUpdateYoutube }: { song: Song; busy: boolean; isAdmin: boolean; dragHandle?: React.ReactNode; onUpdateYoutube: (song: Song, url: string) => Promise<boolean> }) {

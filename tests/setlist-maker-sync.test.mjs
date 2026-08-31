@@ -26,6 +26,20 @@ test("werkt een bestaand nummer bij op stabiele bron-id", () => {
   assert.equal(plan.updates[0].values.bpm, 122);
 });
 
+test("behoudt een handmatig gewijzigde YouTube-link tijdens synchronisatie", () => {
+  const current = existing({ youtube_url: "https://youtu.be/manual-link" });
+  const plan = buildSongSyncPlan([current], [{ id: "maker-1", title: "Borderline", artist: "Madonna", youtube: "https://www.youtube.com/watch?v=source-link" }]);
+
+  assert.equal(plan.updates[0]?.values.youtube_url, "https://youtu.be/manual-link");
+});
+
+test("behoudt een verwijderde YouTube-link tijdens synchronisatie", () => {
+  const current = existing({ youtube_url: null });
+  const plan = buildSongSyncPlan([current], [{ id: "maker-1", title: "Borderline", artist: "Madonna", youtube: "https://www.youtube.com/watch?v=source-link" }]);
+
+  assert.equal(plan.updates[0]?.values.youtube_url, null);
+});
+
 test("maakt verwijderde bronnummers inactief zonder databaseverwijdering", () => {
   const plan = buildSongSyncPlan([existing()], []);
   assert.deepEqual(plan.deactivateIds, ["database-1"]);

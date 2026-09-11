@@ -239,7 +239,7 @@ function Repertoire() {
 }
 
 function Agenda() {
-  return <Localized><><PageIntro kicker="GoodTimes live" title="AGENDA." accent="VENRAY." text="Een avond vol herkenbare hits uit de jaren 80." />
+  return <Localized><><PageIntro kicker="GoodTimes live" title="AGENDA." accent="LIVE." text="Een avond vol herkenbare hits uit de jaren 80." />
     <section className="agenda-page">
       <article className="agenda-event">
         <div className="agenda-event-date">
@@ -252,6 +252,21 @@ function Agenda() {
           <h2>Café-Zaal De Gouwe Leeuw</h2>
           <p className="agenda-location">Venray</p>
           <p className="agenda-time">Aanvang 20:30 uur · Gratis toegang · Eindtijd 00:00 uur</p>
+          <p className="agenda-description">Een avond vol herkenbare hits uit de jaren 80.</p>
+          <Link className="text-link agenda-contact-link" href="/contact">Vraag naar beschikbaarheid <Arrow /></Link>
+        </div>
+      </article>
+      <article className="agenda-event">
+        <div className="agenda-event-date">
+          <strong>26</strong>
+          <span>februari</span>
+          <b>2027</b>
+        </div>
+        <div className="agenda-event-details">
+          <p className="eyebrow">GoodTimes live</p>
+          <h2>Schenkerij De Beurs</h2>
+          <p className="agenda-location">Geldermalsen</p>
+          <p className="agenda-time">Aanvang 20:30 uur · Gratis toegang</p>
           <p className="agenda-description">Een avond vol herkenbare hits uit de jaren 80.</p>
           <Link className="text-link agenda-contact-link" href="/contact">Vraag naar beschikbaarheid <Arrow /></Link>
         </div>

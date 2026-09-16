@@ -15,6 +15,7 @@ import { isValidYoutubeUrl } from "../../lib/youtubeLinks";
 export type BandAppTab = "setlists" | "songs" | "rehearsals" | "messages" | "files" | "profile";
 
 type Song = CentralSong & { portal_order: number | null };
+type EditableSongFields = Pick<Song, "title" | "artist" | "vocalist" | "musical_key" | "bpm" | "duration_seconds" | "youtube_url">;
 type Setlist = { id: string; name: string; event_id: string | null; setlist_date: string | null; version: number; archived: boolean; updated_at: string; updated_by: string };
 type SetlistItem = { id: string; setlist_id: string; song_id: string; position: number };
 type Rehearsal = { id: string; event_id: string | null; name?: string | null; rehearsal_date?: string | null; status: string; general_notes: string | null };
@@ -353,6 +354,24 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     return true;
   }
 
+  async function updateSong(song: Song, fields: EditableSongFields) {
+    if (fields.youtube_url && !isValidYoutubeUrl(fields.youtube_url)) {
+      reportError("Gebruik een geldige youtube.com- of youtu.be-link.");
+      return false;
+    }
+    setBusy(true);
+    const { error } = await getSupabaseClient()!.from("songs").update(fields).eq("id", song.id);
+    setBusy(false);
+    if (error) {
+      console.error("[GoodTimes setlists] Nummer bijwerken mislukt", { songId: song.id, error });
+      reportError("Het nummer kon niet worden bijgewerkt. Controleer de invoer en probeer opnieuw.");
+      return false;
+    }
+    notify("Nummer bijgewerkt.");
+    await load();
+    return true;
+  }
+
   if (ready === null) return <div className="portal-loading-inline"><div className="portal-loader" />Bandgegevens laden…</div>;
   if (!ready) return <MissingMigration />;
 
@@ -387,7 +406,7 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
     if (ok) form.currentTarget.reset();
   }} />;
 
-  if (tab === "setlists") return <SetlistsPanel setlists={setlists} setlistItems={setlistItems} songs={songs} events={events} profiles={profiles} busy={busy} isAdmin={isAdmin} onCreate={async (form) => {
+  if (tab === "setlists") return <SetlistsPanel setlists={setlists} setlistItems={setlistItems} songs={songs} events={events} profiles={profiles} busy={busy} isAdmin={isAdmin} onUpdateSong={updateSong} onCreate={async (form) => {
     const data = new FormData(form.currentTarget);
     const ok = await submit("setlists", {
       name: String(data.get("name")), setlist_date: String(data.get("setlist_date") || "") || null,
@@ -809,7 +828,33 @@ function formatDuration(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, isAdmin, onCreate, onSave, onArchive, onDelete }: { setlists: Setlist[]; setlistItems: SetlistItem[]; songs: Song[]; events: BandEvent[]; profiles: Profile[]; busy: boolean; isAdmin: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onSave: (setlist: Setlist, name: string, date: string, eventId: string, songIds: string[]) => Promise<boolean>; onArchive: (setlist: Setlist) => void; onDelete: (setlist: Setlist) => Promise<boolean> }) {
+function SetlistSongEditor({ song, busy, onSave, onClose }: { song: Song; busy: boolean; onSave: (song: Song, fields: EditableSongFields) => Promise<boolean>; onClose: () => void }) {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const youtubeUrl = String(data.get("youtube_url") || "").trim();
+    if (youtubeUrl && !isValidYoutubeUrl(youtubeUrl)) return;
+    const saved = await onSave(song, {
+      title: String(data.get("title")).trim(),
+      artist: String(data.get("artist") || "").trim() || null,
+      vocalist: String(data.get("vocalist") || "").trim() || null,
+      musical_key: String(data.get("musical_key") || "").trim() || null,
+      bpm: data.get("bpm") ? Number(data.get("bpm")) : null,
+      duration_seconds: data.get("duration_seconds") ? Number(data.get("duration_seconds")) : null,
+      youtube_url: youtubeUrl || null,
+    });
+    if (saved) onClose();
+  };
+  return <form className="portal-form portal-setlist-song-editor" onSubmit={(event) => { void submit(event); }}>
+    <div className="portal-field-row"><label>Titel<input name="title" required defaultValue={song.title} /></label><label>Artiest<input name="artist" defaultValue={song.artist ?? ""} /></label></div>
+    <div className="portal-field-row"><label>Zanger/zangeres<input name="vocalist" defaultValue={song.vocalist ?? ""} /></label><label>Toonsoort<input name="musical_key" defaultValue={song.musical_key ?? ""} /></label></div>
+    <div className="portal-field-row"><label>BPM<input name="bpm" type="number" min="30" max="300" defaultValue={song.bpm ?? ""} /></label><label>Speelduur in seconden<input name="duration_seconds" type="number" min="1" max="3600" defaultValue={song.duration_seconds ?? ""} /></label></div>
+    <label>YouTube-link<input name="youtube_url" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} defaultValue={song.youtube_url ?? ""} pattern="https?://([^/]+\.)?(youtube\.com|youtu\.be)(/.*)?" /></label>
+    <div className="portal-setlist-song-editor-actions"><button className="portal-primary" disabled={busy}>{busy ? "Opslaan…" : "Opslaan"}</button><button type="button" disabled={busy} onClick={onClose}>Annuleren</button></div>
+  </form>;
+}
+
+function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, isAdmin, onUpdateSong, onCreate, onSave, onArchive, onDelete }: { setlists: Setlist[]; setlistItems: SetlistItem[]; songs: Song[]; events: BandEvent[]; profiles: Profile[]; busy: boolean; isAdmin: boolean; onUpdateSong: (song: Song, fields: EditableSongFields) => Promise<boolean>; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onSave: (setlist: Setlist, name: string, date: string, eventId: string, songIds: string[]) => Promise<boolean>; onArchive: (setlist: Setlist) => void; onDelete: (setlist: Setlist) => Promise<boolean> }) {
   const profileName = (id: string) => {
     const member = profiles.find((profile) => profile.id === id);
     return member ? bandMemberFirstName(member) : "Bandlid";
@@ -840,6 +885,7 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
   const [draftSongs, setDraftSongs] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Setlist | null>(null);
   const draftSongsRef = useRef<string[]>([]);
   const selected = setlists.find((setlist) => setlist.id === selectedId) ?? null;
@@ -856,6 +902,7 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
     draftSongsRef.current = songIds;
     setDraftSongs(songIds);
     setSearch("");
+    setEditingSongId(null);
     setDirty(false);
   }
 
@@ -876,11 +923,12 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
         <div className="portal-setlist-summary"><strong>{draftSongs.length} nummers</strong><span>{formatDuration(total)} totale speelduur</span></div>
         {!draftSongs.length && <div className="portal-empty">Deze setlist is nog leeg.</div>}
         <ol className="portal-setlist-sortable">
-          {selectedSongs.map((song, index) => <li key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}>
+          {selectedSongs.map((song, index) => <li className={editingSongId === song.id ? "is-editing-song" : undefined} key={song.id} data-sort-position={index} {...(isAdmin ? sortable.itemProps(index) : {})}>
             {isAdmin && <SortableDragHandle label={song.title} sortable={sortable} index={index} />}
             <span className="portal-setlist-position">{index + 1}</span>
             <div><strong>{song.title}</strong><small>{[song.artist, song.vocalist, song.musical_key, song.bpm ? `${song.bpm} BPM` : null, song.duration_seconds ? formatDuration(song.duration_seconds) : null].filter(Boolean).join(" · ")}</small><YoutubeLink song={song} /></div>
-            {isAdmin && <button className="portal-remove-song" type="button" onClick={() => { const next = draftSongsRef.current.filter((id) => id !== song.id); draftSongsRef.current = next; setDraftSongs(next); setDirty(true); }} aria-label={`${song.title} uit setlist verwijderen`}>Verwijderen</button>}
+            {isAdmin && <div className="portal-setlist-song-actions"><button className="portal-edit-song" type="button" aria-expanded={editingSongId === song.id} onClick={() => setEditingSongId((current) => current === song.id ? null : song.id)}><span aria-hidden="true">✎</span> Bewerken</button><button className="portal-remove-song" type="button" onClick={() => { const next = draftSongsRef.current.filter((id) => id !== song.id); draftSongsRef.current = next; setDraftSongs(next); setDirty(true); }} aria-label={`${song.title} uit setlist verwijderen`}>Verwijderen</button></div>}
+            {isAdmin && editingSongId === song.id && <SetlistSongEditor song={song} busy={busy} onSave={onUpdateSong} onClose={() => setEditingSongId(null)} />}
           </li>)}
         </ol>
       </section>

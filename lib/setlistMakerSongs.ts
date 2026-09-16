@@ -90,7 +90,8 @@ function changed(song: CentralSong, values: Omit<CentralSong, "id">) {
 }
 
 export function buildSongSyncPlan(currentSongs: CentralSong[], sourceSongs: SetlistMakerSong[]): SongSyncPlan {
-  const bySourceId = new Map(currentSongs.filter((song) => song.source_system === "goodtimes-setlist-maker" && song.source_id).map((song) => [song.source_id!, song]));
+  const isSetlistMakerSong = (song: CentralSong) => song.source_system?.startsWith("goodtimes-setlist-maker") && song.source_id;
+  const bySourceId = new Map(currentSongs.filter(isSetlistMakerSong).map((song) => [song.source_id!, song]));
   const byIdentity = new Map<string, CentralSong>();
   for (const song of currentSongs) {
     const key = identity(song.title, song.artist);
@@ -121,14 +122,26 @@ export function buildSongSyncPlan(currentSongs: CentralSong[], sourceSongs: Setl
       return;
     }
     claimedDatabaseIds.add(existing.id);
-    // YouTube-links worden in het Bandportaal beheerd. Bewaar daarom voor
-    // bestaande nummers ook een bewust verwijderde (null) of aangepaste link.
-    const synchronizedValues = { ...values, youtube_url: existing.youtube_url };
+    // Handmatig aangepaste velden in het Bandportaal blijven leidend. Nieuwe
+    // nummers, volgorde en verwijderingen blijven wel vanuit Setlist Maker komen.
+    const synchronizedValues = existing.source_system === "goodtimes-setlist-maker-manual"
+      ? {
+          ...values,
+          title: existing.title,
+          artist: existing.artist,
+          vocalist: existing.vocalist,
+          musical_key: existing.musical_key,
+          bpm: existing.bpm,
+          duration_seconds: existing.duration_seconds,
+          youtube_url: existing.youtube_url,
+          source_system: existing.source_system,
+        }
+      : { ...values, youtube_url: existing.youtube_url };
     if (changed(existing, synchronizedValues)) updates.push({ id: existing.id, values: synchronizedValues });
   });
 
   const deactivateIds = currentSongs
-    .filter((song) => song.source_system === "goodtimes-setlist-maker" && song.active && !claimedDatabaseIds.has(song.id))
+    .filter((song) => isSetlistMakerSong(song) && song.active && !claimedDatabaseIds.has(song.id))
     .map((song) => song.id);
 
   return { inserts, updates, deactivateIds, duplicatesPrevented };

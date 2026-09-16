@@ -8,7 +8,7 @@ const styles = readFileSync(new URL("../app/bandportaal/portal.css", import.meta
 test("setlist songs can be edited without replacing or reordering setlist items", () => {
   assert.match(source, /function SetlistSongEditor/);
   assert.match(source, /className="portal-edit-song"/);
-  assert.match(source, /from\("songs"\)\.update\(fields\)\.eq\("id", song\.id\)/);
+  assert.match(source, /source_system: song\.source_id \? "goodtimes-setlist-maker-manual" : song\.source_system/);
   assert.match(source, /Titel<input name="title"/);
   assert.match(source, /Artiest<input name="artist"/);
   assert.match(source, /Zanger\/zangeres<input name="vocalist"/);

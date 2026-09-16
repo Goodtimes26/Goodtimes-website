@@ -26,6 +26,18 @@ test("werkt een bestaand nummer bij op stabiele bron-id", () => {
   assert.equal(plan.updates[0].values.bpm, 122);
 });
 
+test("behoudt handmatige Bandportaal-bewerkingen tijdens synchronisatie", () => {
+  const current = existing({ title: "Maniac", artist: "Michael Sembello", source_system: "goodtimes-setlist-maker-manual" });
+  const plan = buildSongSyncPlan([current], [{ id: "maker-1", title: "Manic", artist: "Esther", bpm: 157 }]);
+
+  assert.equal(plan.inserts.length, 0);
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].values.title, "Maniac");
+  assert.equal(plan.updates[0].values.artist, "Michael Sembello");
+  assert.equal(plan.updates[0].values.bpm, current.bpm);
+  assert.equal(plan.updates[0].values.source_system, "goodtimes-setlist-maker-manual");
+});
+
 test("behoudt een handmatig gewijzigde YouTube-link tijdens synchronisatie", () => {
   const current = existing({ youtube_url: "https://youtu.be/manual-link" });
   const plan = buildSongSyncPlan([current], [{ id: "maker-1", title: "Borderline", artist: "Madonna", youtube: "https://www.youtube.com/watch?v=source-link" }]);

@@ -360,7 +360,10 @@ export function BandAppModules({ tab, user, profile, isAdmin, profiles, events, 
       return false;
     }
     setBusy(true);
-    const { error } = await getSupabaseClient()!.from("songs").update(fields).eq("id", song.id);
+    const { error } = await getSupabaseClient()!.from("songs").update({
+      ...fields,
+      source_system: song.source_id ? "goodtimes-setlist-maker-manual" : song.source_system,
+    }).eq("id", song.id);
     setBusy(false);
     if (error) {
       console.error("[GoodTimes setlists] Nummer bijwerken mislukt", { songId: song.id, error });

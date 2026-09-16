@@ -21,3 +21,7 @@ test("andere links en lange velden worden eveneens compact weergegeven", () => {
 test("korte gewone velden behouden een begrijpelijke wijzigingsomschrijving", () => {
   assert.deepEqual(formatActivityChanges({ action: "updated", title: "Nummer", old_data: { bpm: 110 }, new_data: { bpm: 115 } }), ["Gewijzigd: BPM van 110 naar 115"]);
 });
+
+test("technische bronmetadata wordt niet aan bandleden getoond", () => {
+  assert.deepEqual(formatActivityChanges({ action: "updated", title: "Nummer", old_data: { source_system: "goodtimes-setlist-maker" }, new_data: { source_system: "goodtimes-setlist-maker-manual" } }), []);
+});

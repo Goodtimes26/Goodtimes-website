@@ -22,7 +22,7 @@ const compactFields: Record<string, string> = {
   general_notes: "Opmerkingen bijgewerkt",
 };
 
-const ignoredFields = new Set(["id", "created_at", "updated_at", "created_by", "updated_by", "author_id", "uploaded_by", "version"]);
+const ignoredFields = new Set(["id", "created_at", "updated_at", "created_by", "updated_by", "author_id", "uploaded_by", "version", "source_system"]);
 const looksTechnicalOrLong = (value: unknown) => {
   const text = String(value ?? "");
   return /^https?:\/\//i.test(text) || text.length > 60;

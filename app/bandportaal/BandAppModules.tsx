@@ -7,6 +7,7 @@ import { bandMemberFirstName, formatDate } from "../../lib/bandportal";
 import { getSupabaseClient } from "../../lib/supabase";
 import { buildSongSyncPlan, fetchSetlistMakerSongs, type CentralSong } from "../../lib/setlistMakerSongs";
 import { clearSetlistPrintScales, fitSetlistsToSinglePages } from "./fitSetlistPrintPages";
+import { openSetlistPrintPdf } from "./setlistPrintPdf";
 import { moveListItem } from "../../lib/sortableLists";
 import { sortRehearsalsByDate } from "../../lib/rehearsalSorting";
 import { sendBandPush } from "../../lib/pushNotifications";
@@ -865,6 +866,28 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
   const songFor = (id: string) => songs.find((song) => song.id === id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
+  const [printMessage, setPrintMessage] = useState("");
+
+  function printSetlist(setlist: Setlist) {
+    try {
+      const orderedItems = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position);
+      openSetlistPrintPdf({
+        name: setlist.name,
+        date: setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum",
+        songs: orderedItems.map((item) => {
+          const song = songFor(item.song_id);
+          return {
+            title: song?.title ?? "Onbekend nummer",
+            details: song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, song.notes].filter(Boolean).join(" · ") : "",
+            seconds: song?.duration_seconds ?? 0,
+          };
+        }),
+      });
+      setPrintMessage("De setlijst opent als PDF. Op iPhone: tik op Delen → Druk af. Geen venster? Kijk bij je downloads.");
+    } catch {
+      setPrintMessage("De setlijst kon niet worden geopend. Probeer opnieuw of open de band-app in Safari.");
+    }
+  }
 
   useEffect(() => {
     const printMedia = window.matchMedia("print");
@@ -951,7 +974,8 @@ function SetlistsPanel({ setlists, setlistItems, songs, events, profiles, busy, 
   const displaySetlists = sortSetlistsForDisplay(setlists);
   return <div className="portal-section"><div className="portal-section-head"><div><p className="portal-eyebrow">Gedeelde setlists</p><h1>Setlists</h1></div><a className="portal-primary" href="https://goodtimes-setlist-maker.e-voorthuijsen571420.chatgpt.site" target="_blank" rel="noopener noreferrer">Open Setlist Maker ↗</a></div>
     {isAdmin && <details className="portal-editor"><summary>Nieuwe setlist</summary><form className="portal-form portal-card" onSubmit={(event) => { event.preventDefault(); void onCreate(event); }}><div className="portal-field-row"><label>Naam<input name="name" required /></label><label>Datum<input name="setlist_date" type="date" /></label></div><label>Koppel aan optreden<select name="event_id"><option value="">Niet gekoppeld</option>{events.filter((item) => item.event_type === "performance").map((item) => <option value={item.id} key={item.id}>{formatDate(item.event_date)} – {item.description}</option>)}</select></label><button className="portal-primary" disabled={busy}>Setlist aanmaken</button></form></details>}
-    <div className="portal-data-list portal-setlist-list">{displaySetlists.map((setlist) => { const items = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position); const cardTotal = items.reduce((sum, item) => sum + (songFor(item.song_id)?.duration_seconds ?? 0), 0); return <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} data-print-density={items.length <= 10 ? "roomy" : items.length <= 15 ? "normal" : "compact"} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>{items.length} nummers · {formatDuration(cardTotal)} totale speelduur</p>{items.length > 0 && <ol className="portal-song-order">{items.map((item, index) => { const song = songFor(item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}<small>Laatst gewijzigd door {profileName(setlist.updated_by)}</small><div className="portal-card-actions"><button className="portal-edit-setlist" onClick={() => openSetlist(setlist)}>{isAdmin ? "Bewerken" : "Bekijken"}</button>{isAdmin && <button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button>}<button onClick={() => window.print()}>Printen</button>{isAdmin && setlist.archived && <button className="danger" onClick={() => setPendingDelete(setlist)}>Verwijderen</button>}</div></article>; })}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
+    {printMessage && <p role="status">{printMessage}</p>}
+    <div className="portal-data-list portal-setlist-list">{displaySetlists.map((setlist) => { const items = setlistItems.filter((item) => item.setlist_id === setlist.id).sort((a, b) => a.position - b.position); const cardTotal = items.reduce((sum, item) => sum + (songFor(item.song_id)?.duration_seconds ?? 0), 0); return <article className={`portal-data-card ${setlist.archived ? "is-archived" : ""}`} data-print-density={items.length <= 10 ? "roomy" : items.length <= 15 ? "normal" : "compact"} key={setlist.id}><div><span>{setlist.archived ? "Gearchiveerd" : `Versie ${setlist.version}`}</span><b>{setlist.setlist_date ? formatDate(setlist.setlist_date) : "Geen datum"}</b></div><h2>{setlist.name}</h2><p>{items.length} nummers · {formatDuration(cardTotal)} totale speelduur</p>{items.length > 0 && <ol className="portal-song-order">{items.map((item, index) => { const song = songFor(item.song_id); const printDetails = song ? [song.artist, song.vocalist ? `Zang: ${song.vocalist}` : null, song.musical_key ? `Toonsoort: ${song.musical_key}` : null, song.notes].filter(Boolean).join(" · ") : ""; return <li key={item.id}><span className="portal-song-number">{index + 1}.</span><span className="portal-song-title">{song?.title ?? "Onbekend nummer"}</span>{printDetails && <span className="portal-print-song-details">{printDetails}</span>}{song && <CompactYoutubeLink song={song} />}</li>; })}</ol>}<small>Laatst gewijzigd door {profileName(setlist.updated_by)}</small><div className="portal-card-actions"><button className="portal-edit-setlist" onClick={() => openSetlist(setlist)}>{isAdmin ? "Bewerken" : "Bekijken"}</button>{isAdmin && <button onClick={() => onArchive(setlist)}>{setlist.archived ? "Terugzetten" : "Archiveren"}</button>}<button onClick={() => printSetlist(setlist)}>Printen</button>{isAdmin && setlist.archived && <button className="danger" onClick={() => setPendingDelete(setlist)}>Verwijderen</button>}</div></article>; })}{!setlists.length && <div className="portal-empty">Er zijn nog geen gedeelde setlists.</div>}</div>
     {pendingDelete && <div className="portal-confirm-backdrop" role="presentation" onKeyDown={(event) => { if (event.key === "Escape" && !busy) setPendingDelete(null); }} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setPendingDelete(null); }}><section className="portal-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-setlist-title" aria-describedby="delete-setlist-description"><h2 id="delete-setlist-title">Setlist definitief verwijderen</h2><p id="delete-setlist-description">Weet je zeker dat je deze setlist definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</p><div className="portal-confirm-actions"><button type="button" autoFocus disabled={busy} onClick={() => setPendingDelete(null)}>Annuleren</button><button className="danger" type="button" disabled={busy} onClick={() => { void onDelete(pendingDelete).then((deleted) => { if (deleted) setPendingDelete(null); }); }}>{busy ? "Verwijderen…" : "Definitief verwijderen"}</button></div></section></div>}
   </div>;
 }
